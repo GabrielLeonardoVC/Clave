@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="CifraCeleste">
+  <defs>
+    <linearGradient id="cc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5a8bfa"/>
+      <stop offset="1" stop-color="#2b4fc9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#14171C"/>
+  <!-- Quatro cordas verticais, como no diagrama de uma cifrinha -->
+  <g stroke="url(#cc)" stroke-width="3" stroke-linecap="round" fill="none">
+    <path d="M20 15v33M28 15v33M36 15v33M44 15v33"/>
+  </g>
+  <!-- Trave, no topo -->
+  <path d="M17 21h30" stroke="#5a8bfa" stroke-width="4" stroke-linecap="round"/>
+  <!-- Dois dedos formando um acorde -->
+  <circle cx="28" cy="37" r="4.4" fill="#5a8bfa"/>
+  <circle cx="36" cy="31" r="4.4" fill="#5a8bfa"/>
+  <circle cx="20" cy="43" r="3.2" fill="#8eb3ff"/>
+</svg>

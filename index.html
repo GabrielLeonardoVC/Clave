@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark" data-accent="ember">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12100E">
+<meta name="description" content="Acorde: monte escalas de ensaio e culto, organize o repertório, desenhe sobre a foto da cifra e acompanhe o BPM com o video do YouTube lado a lado.">
+<meta name="color-scheme" content="dark light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Acorde — escalas, cifras e ensaio</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-512.svg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap">
+
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/features.css">
+
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+</head>
+<body>
+
+<div id="app">
+  <div id="boot">
+    <img src="assets/logo.svg" width="52" height="52" alt="">
+    <div class="spinner"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="brandmark">
+      <img src="assets/logo.svg" width="32" height="32" alt="Acorde">
+      <div>
+        <div class="t1">acorde</div>
+        <div class="t2" id="page-sub">escalas e ensaio</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-icon" id="btn-search" aria-label="Buscar"><i data-lucide="search"></i></button>
+      <button class="btn-icon" id="btn-theme" aria-label="Alternar tema"></button>
+    </div>
+  </header>
+
+  <main class="viewport" id="viewport">
+    <section class="page" id="page-hoje"      aria-label="Hoje"></section>
+    <section class="page" id="page-agenda"    aria-label="Agenda"></section>
+    <section class="page" id="page-repertorio" aria-label="Repertório"></section>
+    <section class="page" id="page-teoria"    aria-label="Teoria"></section>
+    <section class="page" id="page-ajustes"   aria-label="Ajustes"></section>
+  </main>
+</div>
+
+<nav class="bottomnav" id="bottomnav" aria-label="Navegação principal"></nav>
+<div id="drawer-host"></div>
+
+<div id="toast-host" aria-live="polite" aria-atomic="true"></div>
+<div id="img-modal" role="dialog" aria-label="Visualizar imagem">
+  <img id="img-modal-img" alt="">
+  <div class="bar"></div>
+</div>
+<div id="print-area" class="print-sheet" aria-hidden="true"></div>
+
+<!-- núcleo -->
+<script src="js/core/music.js"></script>
+<script src="js/core/utils.js"></script>
+<script src="js/core/store.js"></script>
+<script src="js/core/ui.js"></script>
+<script src="js/core/render.js"></script>
+<script src="js/core/print.js"></script>
+<script src="js/core/links.js"></script>
+<script src="js/core/metronome.js"></script>
+<script src="js/core/studio.js"></script>
+<script src="js/core/notify.js"></script>
+<script src="js/core/share.js"></script>
+
+<!-- dados -->
+<script src="js/data/hinos.js"></script>
+
+<!-- telas -->
+<script src="js/views/hoje.js"></script>
+<script src="js/views/agenda.js"></script>
+<script src="js/views/repertorio.js"></script>
+<script src="js/views/teoria.js"></script>
+<script src="js/views/ajustes.js"></script>
+
+<!-- app -->
+<script src="js/app.js"></script>
+</body>
+</html>

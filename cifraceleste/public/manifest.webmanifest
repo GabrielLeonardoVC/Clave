@@ -1,0 +1,39 @@
+{
+  "name": "CifraCeleste",
+  "short_name": "CifraCeleste",
+  "description": "Cifras, escalas e teoria musical para músicos ao vivo. Repertório, missas, transposição instantânea, áudio e modo estúdio.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#faf9f7",
+  "theme_color": "#14171c",
+  "categories": ["music", "productivity", "lifestyle", "education"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Missas e ensaios",
+      "short_name": "Missas",
+      "url": "./index.html#/missas"
+    },
+    {
+      "name": "Repertório",
+      "short_name": "Repertório",
+      "url": "./index.html#/repertorio"
+    },
+    {
+      "name": "Teoria",
+      "short_name": "Teoria",
+      "url": "./index.html#/teoria"
+    }
+  ]
+}

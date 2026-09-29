@@ -1,0 +1,34 @@
+{
+  "name": "Acorde — escalas, cifras e ensaio",
+  "short_name": "Acorde",
+  "description": "Monte escalas de ensaio e culto, organize o repertório, desenhe sobre a foto da cifra e acompanhe o BPM com o vídeo do YouTube lado a lado.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "/acorde/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12100E",
+  "theme_color": "#12100E",
+  "categories": ["music", "productivity", "lifestyle"],
+  "icons": [
+    {
+      "src": "assets/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Novo evento", "short_name": "Agenda", "url": "./index.html#agenda" },
+    { "name": "Repertório", "short_name": "Cifras", "url": "./index.html#repertorio" },
+    { "name": "Transpor", "short_name": "Tom", "url": "./index.html#teoria" }
+  ]
+}

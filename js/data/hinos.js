@@ -1,0 +1,201 @@
+/* =========================================================
+   Cifras e Escalas Pro - data/hinos.js
+   Repertorio base (hinos e classicos).
+
+   ATENCAO: sao cifras de REFERENCIA, nao fonte oficial.
+   Versoes variam entre congregacoes e hinarios. Confira
+   sempre antes de usar. O app permite editar ou colar a sua.
+
+   Gerado por tools/build-hinos.js - nao editar a mao.
+   ========================================================= */
+(function (global) {
+  'use strict';
+
+  const LISTA = [
+    {
+      id: 'h_amazing_grace',
+      titulo: 'Amazing Grace (Preziosa Graca)',
+      artista: 'John Newton (1779) / Hinario',
+      tom: 'G',
+      bpm: 76,
+      compasso: '3/4',
+      categoria: 'Hino',
+      tags: ["graca","classico","hino"],
+      letra: [
+        'Amazing grace, how sweet the sound',
+        'That saved a wretch like me;',
+        'I once was lost, but now am found,',
+        'Was blind, but now I see.',
+      ].join('\n'),
+      cifra: [
+        '[Verso 1]',
+        'G              C        G',
+        'Amazing grace, how sweet the sound',
+        'D              G',
+        'That saved a wretch like me;',
+        'G              C        G',
+        'I once was lost, but now am found,',
+        'D              G',
+        'Was blind, but now I see.',
+        '',
+        '[Verso 2]',
+        'G              C        G',
+        '\'Twas grace that taught my heart to fear,',
+        'D              G',
+        'And grace my fears relieved;',
+        'G              C        G',
+        'How precious did that grace appear',
+        'D              G',
+        'The hour I first believed!',
+      ].join('\n'),
+    },
+    {
+      id: 'h_quao_grande',
+      titulo: 'Quao Grande Es Tu, Senhor',
+      artista: 'O Store Gud (hino sueco, 1885) / Hinario',
+      tom: 'C',
+      bpm: 72,
+      compasso: '3/4',
+      categoria: 'Hino',
+      tags: ["adoracao","classico","hino"],
+      letra: [
+        'O Senhor meu Deus, quando olho',
+        'Para o mundo que criastei,',
+        'Vejo o sol, a lua e as estrelas,',
+        'E o mar que o teu poder formastei.',
+      ].join('\n'),
+      cifra: [
+        '[Verso]',
+        'C                    F',
+        'O Senhor meu Deus, quando olho',
+        'C              G',
+        'Para o mundo que criastei,',
+        'F                C',
+        'Vejo o sol, a lua e as estrelas,',
+        'G         C',
+        'E o mar que o teu poder formastei.',
+        '',
+        '[Refrao]',
+        'C            F',
+        'Quao grande es Tu, Senhor!',
+        'C              G',
+        'Maravilhoso es o meu Deus!',
+        'F                C',
+        'Em toda parte vejo o teu poder,',
+        'G         C',
+        'Teu nome eu louvo, Senhor!',
+      ].join('\n'),
+    },
+    {
+      id: 'h_vencendo_vem',
+      titulo: 'Vencendo Vem Jesus',
+      artista: 'Classico de adoracao',
+      tom: 'D',
+      bpm: 96,
+      compasso: '4/4',
+      categoria: 'Classico',
+      tags: ["ressurreicao","classico"],
+      letra: [
+        'Vencendo vem Jesus, meu Rei!',
+        'Vencendo vem Jesus, por mim!',
+        'Quando eu for tentado,',
+        'Ele me guia, e o meu pastor!',
+      ].join('\n'),
+      cifra: [
+        '[Verso]',
+        'D           A',
+        'Vencendo vem Jesus, meu Rei!',
+        'D           A     Bm',
+        'Vencendo vem Jesus, por mim!',
+        'G         D      A',
+        'Quando eu for tentado,',
+        'D         G        A',
+        'Ele me guia, e o meu pastor!',
+      ].join('\n'),
+    },
+    {
+      id: 'h_firmemente',
+      titulo: 'Firmemente Estaremos',
+      artista: 'Hino tradicional',
+      tom: 'C',
+      bpm: 88,
+      compasso: '4/4',
+      categoria: 'Hino',
+      tags: ["perseveranca","hino"],
+      letra: [
+        'Firmemente estaremos, de pe no nosso lugar,',
+        'Com a verdade nos pousamos e o amor a nos ligar.',
+      ].join('\n'),
+      cifra: [
+        '[Verso]',
+        'C                       G',
+        'Firmemente estaremos, de pe no nosso lugar,',
+        'Am        F        C/G',
+        'Com a verdade nos pousamos e o amor a nos ligar.',
+        'F         C      Dm7      G',
+        'A justica e o amor, alicates de paz,',
+        'C        F        C',
+        'A justica e o amor, que nunca mais tera fim.',
+      ].join('\n'),
+    },
+    {
+      id: 'h_mais_perto',
+      titulo: 'Mais Perto Quero Estar',
+      artista: 'Balm (1869) / Hinario',
+      tom: 'C',
+      bpm: 64,
+      compasso: '3/4',
+      categoria: 'Hino',
+      tags: ["devocional","classico","hino"],
+      letra: [
+        'Mais perto quero estar,',
+        'Contigo, Senhor!',
+        'E com teu Nome, oh, nao sei viver',
+        'De outra maneira!',
+      ].join('\n'),
+      cifra: [
+        '[Refrao]',
+        'C       G/B     Am',
+        'Mais perto quero estar,',
+        'C/B      Am     F',
+        'Contigo, Senhor!',
+        'C       G/B     Am',
+        'E com teu Nome, oh, nao sei viver',
+        'F         C/G',
+        'De outra maneira!',
+      ].join('\n'),
+    },
+    {
+      id: 'h_o_rei_vive',
+      titulo: 'O Rei Vive',
+      artista: 'Hino tradicional',
+      tom: 'F',
+      bpm: 84,
+      compasso: '4/4',
+      categoria: 'Hino',
+      tags: ["ressurreicao","hino"],
+      letra: [
+        'O Rei vive! Sim, o Rei vive!',
+        'E nao morri, nao, nao morreu!',
+        'Esta tomba, mas esta de pe,',
+        'O Rei vive!',
+      ].join('\n'),
+      cifra: [
+        '[Refrao]',
+        'F          C/E',
+        'O Rei vive! Sim, o Rei vive!',
+        'Dm        C     Bb',
+        'E nao morri, nao, nao morreu!',
+        'F            C',
+        'Esta tomba, mas esta de pe,',
+        'C     C/E    F',
+        'O Rei vive!',
+      ].join('\n'),
+    },
+  ];
+
+  global.HINOS = { list: LISTA };
+  global.HINOS.byId = function (id) {
+    return LISTA.find(function (h) { return h.id === id; }) || null;
+  };
+})(typeof window !== 'undefined' ? window : globalThis);

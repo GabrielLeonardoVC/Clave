@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Acorde">
+  <defs>
+    <linearGradient id="a-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F5B45C"/>
+      <stop offset="1" stop-color="#C2410C"/>
+    </linearGradient>
+  </defs>
+  <!-- caixa da cifrinha: 4 cordas verticais, travessa no topo -->
+  <rect x="6" y="8" width="52" height="48" rx="11" fill="url(#a-bg)"/>
+  <g stroke="#2A1A08" stroke-opacity=".55" stroke-width="2.6" stroke-linecap="round">
+    <path d="M18 18v28M28 18v28M38 18v28M48 18v28"/>
+  </g>
+  <path d="M15 22h36" stroke="#2A1A08" stroke-opacity=".75" stroke-width="3.4" stroke-linecap="round"/>
+  <!-- dedos: acorde em forma de "A" -->
+  <g fill="#2A1A08">
+    <circle cx="28" cy="38" r="4.4"/>
+    <circle cx="38" cy="32" r="4.4"/>
+  </g>
+  <circle cx="18" cy="44" r="4.4" fill="#FFF6E6"/>
+</svg>
