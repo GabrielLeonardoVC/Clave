@@ -394,10 +394,27 @@
   }
 
   /** Transpoe UMA linha de texto, trocando so os tokens de acorde. */
-  function transposeLine(line, semis, flat) {
+  function transposeLine(line, semis, flat, emLinhaDeAcordes) {
     if (!line) return line;
     const kd = keyDirective(line);
     if (kd) return '[' + formatChord(mod12(kd.root + semis), kd.quality, null, flat) + ']';
+
+    // Numa linha que ja foi reconhecida como linha de acordes, todo token que
+    // e um acorde vale como acorde, e a lista de palavras nao entra.
+    //
+    // Sem isto, A, E e Em ficavam parados a cada transposicao — sao palavra em
+    // portugues, mas tambem tres dos acordes mais usados — e a progressao
+    // saia errada sem nenhum aviso:
+    //
+    //     Em  C  G  D   +2  ->  Em  D  A  E
+    //     A   E  D       +2  ->  A   E  E
+    //
+    // A decisao de "esta linha e de acordes" ja foi tomada com a linha inteira
+    // a vista. Reavaliar token por token aqui e jogar fora essa decisao.
+    const eAcorde = emLinhaDeAcordes
+      ? function (t) { return !!parseChord(t); }
+      : isChordWord;
+
     // percorre os mesmos tokens, reconstruindo a linha
     const re = /\S+/g;
     let out = '';
@@ -408,7 +425,7 @@
       const raw = m[0];
       // o token inteiro e' um acorde? (preserva o baixo em "C/G")
       const whole = raw.replace(/^[("'[]+/, '').replace(/[)"'\],.!?;:]+$/, '');
-      if (whole && isChordWord(whole)) {
+      if (whole && eAcorde(whole)) {
         const c = parseChord(whole);
         out += raw.replace(whole, formatChordTransposed(c, semis, flat));
       } else {
@@ -416,7 +433,7 @@
         out += raw.split(/([|;,])/).map((seg) => {
           if (/^[|;,]$/.test(seg)) return seg;
           const core = seg.replace(/^[("'[]+/, '').replace(/[)"'\],.!?;:]+$/, '');
-          if (core && isChordWord(core)) {
+          if (core && eAcorde(core)) {
             return seg.replace(core, formatChordTransposed(parseChord(core), semis, flat));
           }
           return seg;
