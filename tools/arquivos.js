@@ -1,19 +1,16 @@
 // Varredura de arquivos compartilhada pelas ferramentas do Acorde.
 //
-// Estas ferramentas conferem o app da raiz. O mesmo repositorio tem o
-// CifraCeleste em cifraceleste/, que e um projeto a parte: TypeScript, ESM e
-// build proprio. Varrer os dois ao mesmo tempo dava tres problemas:
+// Estas ferramentas conferem o app da raiz, que e JS classico sem build. Sem
+// esta separacao, tres coisas davam errado:
 //
-//   - o check-syntax acusava `import`/`export` do bundle do Vite como erro de
-//     sintaxe, por compilar ESM como script classico. Cinco falsos positivos
-//     que faziam o Acorde parecer quebrado quando estava limpo;
+//   - o check-syntax acusava `import`/`export` de qualquer ESM por perto como
+//     erro de sintaxe, por compilar com vm.Script, que e script classico;
 //   - o icons.js chegava a percorrer node_modules e a recolher nomes de icone
 //     de codigo de terceiros, produzindo uma lista que nao era a do Acorde;
-//   - as demais perdiam tempo lendo o build de producao a cada execucao.
+//   - as demais perdiam tempo lendo build e dependencias a cada execucao.
 //
-// Por isso a varredura e fechada no que e do Acorde. Para conferir o
-// CifraCeleste, cada um tem a sua ferramenta: `tsc` e `vitest` no
-// cifraceleste/, e `node tools/conferir.mjs` de la.
+// Por isso a varredura e fechada no que e do app. A pasta `legado/` fica de
+// fora de proposito: e historico, e nao faz parte do produto.
 const fs = require('fs'), path = require('path');
 
 // Fora do alcance do Acorde. `dist` e build, nunca fonte.
@@ -21,7 +18,7 @@ const IGNORAR = new Set([
   'node_modules',
   '.git',
   'dist',
-  'cifraceleste',
+  'legado',
   '.github',
 ]);
 

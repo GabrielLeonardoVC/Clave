@@ -148,16 +148,40 @@
           message: 'Cifras salvas, hinos, musicas usadas nas escalas e nomes de evento.' }));
         return;
       }
-      const tem = function (s) { return U.norm(s).indexOf(q) >= 0; };
-      const cifras = S.cifras().filter(function (c) {
-        return tem([c.titulo, c.artista, c.categoria, c.tags.join(' ')].join(' '));
-      }).slice(0, 6);
-      const hinos = (global.HINOS ? global.HINOS.list : []).filter(function (h) { return tem(h.titulo + ' ' + h.artista); }).slice(0, 5);
+      const Search = global.Search;
+      // Com o modulo de busca carregado, a busca global passa a tolerar erro de
+      // digitacao. Sem ele, cai no substring exato de sempre — o app abre sem
+      // erro, so que a busca volta a ser burra.
+      const tem = function (s) {
+        if (Search) return Search.casaCom(s, q);
+        return U.norm(s).indexOf(q) >= 0;
+      };
+      const achar = function (itens, take) {
+        if (Search) return Search.buscarItens(itens, q, take);
+        return itens.filter(function (i) { return tem(i._texto); }).slice(0, take || 0);
+      };
+      const cifras = achar(S.cifras().map(function (c) {
+        return { titulo: c.titulo, artista: c.artista, categoria: c.categoria, tags: c.tags, tom: c.tom, _ref: c };
+      }), 6).map(function (r) { return r._ref; });
+      const hinos = achar((global.HINOS ? global.HINOS.list : []).map(function (h) {
+        return { titulo: h.titulo, artista: h.artista, _texto: h.titulo + ' ' + h.artista, _ref: h };
+      }), 5).map(function (r) { return r._ref; });
       const musicas = [];
-      S.escalas().forEach(function (e) {
-        e.musicas.forEach(function (m) { if (tem(m.nome)) musicas.push({ m: m, e: e }); });
-      });
-      const eventos = S.escalas().filter(function (e) { return tem(e.titulo + ' ' + e.local); }).slice(0, 5);
+      const porMusica = Search ? Search.buscar(S.escalas().reduce(function (acc, e) {
+        e.musicas.forEach(function (m) { acc.push({ nome: m.nome, tom: m.tom, _ref: { m: m, e: e } }); });
+        return acc;
+      }, []), q, { limit: 7, incluirLetra: false }) : [];
+      if (Search) {
+        porMusica.forEach(function (r) { musicas.push(r.item._ref); });
+      } else {
+        S.escalas().forEach(function (e) {
+          e.musicas.forEach(function (m) { if (tem(m.nome)) musicas.push({ m: m, e: e }); });
+        });
+        musicas.length = Math.min(musicas.length, 7);
+      }
+      const eventos = achar(S.escalas().map(function (e) {
+        return { titulo: e.titulo, _texto: e.titulo + ' ' + (e.local || ''), _ref: e };
+      }), 5).map(function (r) { return r._ref; });
 
       if (cifras.length) secao('Cifras', cifras.map(function (c) {
         return linha('file-music', c.titulo, c.artista || c.tom, function () { h.close(); ir('repertorio', { id: c.id }); });

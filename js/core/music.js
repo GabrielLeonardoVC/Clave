@@ -250,11 +250,11 @@
     'vendo', 'ver', 'verdade', 'vez', 'viu', 'viva', 'viver', 'voce', 'vos',
 
     // ── Colisoes com nota que faltavam ──
-    // Comparadas uma a uma com a lista do CifraCeleste. "ao" e o caso grave:
-    // casa com o padrao de acorde como A + o (diminuto), e "Ao Senhor" em uma
-    // linha so seria lido como o acorde de La diminuto. As outras sao palavras
-    // curtas que o padrao tambem aceita e que, sozinhas na linha, deviam ser
-    // letra.
+    // Acrescentadas palavra por palavra depois de comparar esta lista com a de
+    // outro motor que roda em TypeScript. "ao" e o caso grave: casa com o
+    // padrao de acorde como A + o (diminuto), e "Ao Senhor" em uma linha so
+    // seria lido como o acorde de La diminuto. As outras sao palavras curtas
+    // que o padrao tambem aceita e que, sozinhas na linha, deviam ser letra.
     //
     // "b" ficou de fora de proposito: B e um acorde de verdade, e uma linha de
     // hino so com "B" e legitima. O risco oposto — uma linha de letra que seja

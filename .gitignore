@@ -1,10 +1,22 @@
-# Raiz do repositório. O .gitignore do cifraceleste/ só protege aquela
-# subpasta; sem este, o cache do Vite na raiz era versionado no GitHub.
+# O Acorde nao tem build e nao tem dependencia: nada aqui e instalado para
+# rodar o app. O .gitignore existe para o que aparece por detras e nao deve ir
+# para o GitHub.
 
+# Cache de ferramentas. Apareceu quando o outro projeto do repositorio rodava
+# aqui; o Acorde nao produz nenhum destes.
 node_modules/
 dist/
+_site/
 *.tsbuildinfo
 
+# Sistema operacional e editor
 .DS_Store
-*.local
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Local. Nada disso deveria ser commitado por engano.
 .env
+.env.local
+*.local

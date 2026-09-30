@@ -195,13 +195,19 @@
     const q = U.norm(opts.q || '');
     const tom = opts.tom || '';
     const cat = opts.categoria || '';
-    return db.cifras.filter(function (c) {
+    const lista = db.cifras.filter(function (c) {
       if (tom && c.tom !== tom) return false;
       if (cat && c.categoria !== cat) return false;
-      if (!q) return true;
-      const alvo = U.norm([c.titulo, c.artista, c.categoria, c.tags.join(' '), c.tom, c.cifra, c.letra].join(' '));
-      return q.split(/\s+/).filter(Boolean).every(function (w) { return alvo.indexOf(w) >= 0; });
-    }).sort(function (a, b) { return (b.atualizadaEm || 0) - (a.atualizadaEm || 0); });
+      return true;
+    });
+    if (q) {
+      // Busca tolerante a erro. Sem ela, digitar "prezoisa" no celular nao
+      // acha "Preziosa" — e a troca de duas letras vizinhas e o erro mais
+      // comum de dedo em tela deitada. A ordem passa a ser por relevancia,
+      // que e o que a pessoa digitou; sem busca, continua por ultima edicao.
+      if (global.Search) return global.Search.buscarItens(lista, q, 0);
+    }
+    return lista.slice().sort(function (a, b) { return (b.atualizadaEm || 0) - (a.atualizadaEm || 0); });
   }
   function categorias() {
     const s = new Set();

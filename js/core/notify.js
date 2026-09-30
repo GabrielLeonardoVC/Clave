@@ -95,9 +95,9 @@
     if (!suporta() || Notification.permission !== 'granted') return;
     if (!S.ajuste('notificacoes', true)) return;
     const hoje = U.todayKey();
-    const proximas = S.allEscalas()
+    const proximas = S.escalas()
       .filter((e) => e.data >= hoje)
-      .sort(S.cmpEscala)
+      .sort(S.cmp)
       .slice(0, 40);
     proximas.forEach((e) => {
       const d = U.diffDays(new Date(), U.fromKey(e.data));
@@ -128,7 +128,7 @@
   function avisoInterno() {
     if (!S.ajuste('notificacoes', true)) return;
     const hoje = U.todayKey();
-    const lista = S.allEscalas().filter((e) => e.data >= hoje).sort(S.cmpEscala);
+    const lista = S.escalas().filter((e) => e.data >= hoje).sort(S.cmp);
     const alvo = lista.filter((e) => {
       const d = U.diffDays(new Date(), U.fromKey(e.data));
       return d <= 7;

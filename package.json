@@ -1,0 +1,22 @@
+{
+  "name": "acorde",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A mesa de trabalho de quem toca. Cifras, escalas e teoria musical para musicos ao vivo.",
+  "scripts": {
+    "test": "node tools/test-music.js && node tools/test-links.js && node tools/test-search.js",
+    "test:motor": "node tools/test-music.js",
+    "test:links": "node tools/test-links.js",
+    "test:busca": "node tools/test-search.js",
+    "verificar": "npm test && node tools/check-syntax.js && node tools/check-utf8.js && node tools/scan.js",
+    "servir": "node tools/serve.js"
+  },
+  "keywords": [
+    "cifra",
+    "musica",
+    "teoria-musical",
+    "hinario",
+    "pwa"
+  ],
+  "license": "MIT"
+}

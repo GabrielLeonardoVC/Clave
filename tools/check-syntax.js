@@ -1,8 +1,8 @@
 ﻿// Verifica sintaxe de todos os .js do Acorde.
 //
-// O Acorde e JS classico, entao compilar com vm.Script e o teste certo. O
-// CifraCeleste e ESM e nao entra aqui: a varredura e fechada pelo modulo
-// arquivos.js, e ele tem o proprio typecheck e build.
+// O Acorde e JS classico, entao compilar com vm.Script e o teste certo. A
+// varredura e fechada pelo modulo arquivos.js, para nao passar por cima de
+// codigo de terceiros nem por build.
 const fs = require('fs'), vm = require('vm');
 const { arquivosDe } = require('./arquivos');
 let erros = 0, n = 0;

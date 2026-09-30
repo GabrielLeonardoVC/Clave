@@ -1,17 +1,17 @@
 name: Publicar no GitHub Pages
 
-# Publica o CifraCeleste em https://gabrielleonardovc.github.io/Cifras-pro/
+# Publica o Acorde em https://gabrielleonardovc.github.io/Cifras-pro/
 #
-# A raiz do repositório ainda guarda o app antigo (Acorde, sem build). O que
-# vai ao ar é somente cifraceleste/dist — por isso o `working-directory` em
-# todos os passos e o `path` explícito no upload.
-
+# O Acorde e um app puro: sem build, sem dependencia, sem passo de compilacao.
+# O `index.html` da raiz ja e o produto final. Por isso este workflow nao
+# instala nada e nao roda npm — ele monta a pasta que vai ao ar e publica.
+#
+# A lista de arquivos e explicita de proposito. Subir a raiz inteira levaria
+# junto tools/, package.json e o proprio .git, que nao pertencem ao site e
+# tornariam a publicacao lenta e maior do que precisa.
 on:
   push:
     branches: [main]
-    paths:
-      - 'cifraceleste/**'
-      - '.github/workflows/pages.yml'
   workflow_dispatch: {}
 
 permissions:
@@ -19,47 +19,37 @@ permissions:
   pages: write
   id-token: write
 
-# Uma publicação por vez; uma nova cancela a que ainda está rodando.
+# Uma publicacao por vez; uma nova cancela a que ainda esta rodando.
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  publicar:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: cifraceleste/package-lock.json
+      - name: Conferir os testes
+        # Publicar sem rodar os testes publicaria um defeito novo sem aviso.
+        # Nao ha npm install porque nao ha dependencia: os testes rodam em Node
+        # puro, com o que ja veio na imagem.
+        run: npm run verificar
 
-      - name: Instalar dependências
-        working-directory: cifraceleste
-        # `npm ci` e não `npm install`: instala exatamente o package-lock,
-        # e falha se ele estiver fora de sincronia com o package.json.
-        run: npm ci
-
-      # O typecheck já roda dentro de `npm run build` (tsc -b && vite build).
-      # Publicar mesmo assim garante que o que vai ao ar foi testado.
-      - name: Testar
-        working-directory: cifraceleste
-        run: npm test
-
-      - name: Compilar
-        working-directory: cifraceleste
-        run: npm run build
+      - name: Montar o que vai ao ar
+        run: |
+          mkdir -p _site
+          cp index.html manifest.webmanifest sw.js .nojekyll _site/
+          cp -r css js assets _site/
 
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: cifraceleste/dist
+          path: _site
 
   deploy:
-    needs: build
+    needs: publicar
     runs-on: ubuntu-latest
     environment:
       name: github-pages
