@@ -277,6 +277,74 @@ eq(M.transposeCifra('[C]\nA glória do Senhor', 2, false), '[D]\nA glória do Se
 eq(M.transposeCifra('[C]\nEm tua mão', 2, false), '[D]\nEm tua mão',
   '"Em tua mao" continua letra');
 
+console.log('\n=== 18. Transposicao por grau ===');
+// Reatribui os graus da escala em vez de aplicar um numero fixo de semitons.
+// O caso que motiva: Do maior e La menor tem a mesma armadura, entao nao sao
+// transposicao uma da outra. Levando por 9 semitons, o Am de Do vira F#, e o
+// certo em La menor e C. Nao existe numero de semitons que acerte os dois.
+const cGraus = '[C]\nC        G\nO Senhor e o meu pastor\nAm       F\nC         G\n';
+
+// Só os acordes, sem a grade. A coluna de cada acorde muda de lugar quando o
+// nome fica mais curto ou mais longo — C vira Am e ocupa duas casas —, e isso
+// é característica do transpositor, igual ao que já fazia transposeLine. O que
+// importa aqui é qual acorde foi escolhido, e não onde ele caiu.
+function acordesDe(cifra) {
+  return cifra.split('\n')
+    .filter(function (l) { return l.trim() && !/O Senhor/.test(l); })
+    .map(function (l) { return l.replace(/^\[[^\]]+\]\s*/, '').trim().split(/\s+/).join(' '); })
+    .filter(function (l) { return l; })
+    .join(' | ');
+}
+function tomDe(cifra) {
+  const m = /^\[([^\]]+)\]/.exec(cifra);
+  return m ? m[1] : '';
+}
+
+eq(acordesDe(M.transposeCifraPorGrau(cGraus, 7, 'major')), 'G D | Em C | G D',
+  'Do maior -> Sol maior reatribui os graus');
+eq(acordesDe(M.transposeCifraPorGrau(cGraus, 9, 'minor')), 'Am Em | F Dm | Am Em',
+  'Do maior -> La menor: o Am vira F, e nao F#');
+eq(acordesDe(M.transposeCifraPorGrau(cGraus, 2, 'minor')), 'Dm Am | Bb Gm | Dm Am',
+  'Re menor escreve o sexto grau com bemol (Bb), e nao A#');
+eq(acordesDe(M.transposeCifraPorGrau(cGraus, 4, 'minor')), 'Em Bm | C Am | Em Bm',
+  'Mi menor escreve o sexto grau sem accidental');
+eq(acordesDe(M.transposeCifraPorGrau(cGraus, 7, 'minor')), 'Gm Dm | Eb Cm | Gm Dm',
+  'Sol menor: o i e o v menores, e os graus com bemol');
+eq(acordesDe(M.transposeCifraPorGrau(cGraus, 5, 'major')), 'F C | Dm Bb | F C',
+  'Do maior -> Fa maior');
+
+// A armadura e do tom, nao da tonica sozinha: Re menor tem bemol, Re maior nao.
+eq(tomDe(M.transposeCifraPorGrau(cGraus, 2, 'minor')), 'Dm', 'a diretiva vira o tom pedido');
+eq(tomDe(M.transposeCifraPorGrau(cGraus, 9, 'minor')), 'Am', 'diretiva de menor leva o m');
+
+// Inversao preservada: o que se mantem e o baixo, e nao a nota.
+eq(acordesDe(M.transposeCifraPorGrau('[C]\nC/G', 7, 'major')), 'G/D',
+  'C/G em Do -> Sol vira G/D, com a quinta no baixo');
+// Acorde emprestado: nao e diatonico na origem, mas e na de destino, e a
+// funcao dele e justamente estar ali. C#m7b5 e o setimo grau de Re maior, e
+// F#dim e o terceiro.
+eq(acordesDe(M.transposeCifraPorGrau('[C]\nF#7   C#7', 7, 'major')), 'F#7 G#7',
+  'F#7 fica F#7 em Sol maior, em vez de virar C#7');
+eq(acordesDe(M.transposeCifraPorGrau('[C]\nC#m7b5', 2, 'major')), 'C#m7b5',
+  'acorde diatonico no destino fica onde esta');
+
+// Estranho dos dois lados: desloca e mantem a qualidade escrita. Bb nao esta em
+// Do maior nem em Re maior, entao nao ha grau que possa ser transportado.
+eq(acordesDe(M.transposeCifraPorGrau('[C]\nBbmaj7', 2, 'major')), 'Cmaj7',
+  'acorde strangerio desloca e mantem a qualidade');
+
+// Propriedades que nao podem quebrar.
+[7, 9, 2, 4, 5, 10, 0, 3].forEach(function (pc) {
+  ['major', 'minor'].forEach(function (modo) {
+    const t = M.transposeCifraPorGrau(cGraus, pc, modo);
+    eq(/Cb|E#|Fb|B#|##|bb/.test(t), false, pc + ' ' + modo + ' nunca produz duplo acidente');
+    eq(t.indexOf('O Senhor e o meu pastor') > 0, true, pc + ' ' + modo + ' preserva a letra');
+  });
+});
+// Ida e volta pelo mesmo caminho devolve a cifra original.
+eq(acordesDe(M.transposeCifraPorGrau(M.transposeCifraPorGrau(cGraus, 9, 'minor'), 0, 'major')),
+  acordesDe(cGraus), 'La menor -> Do maior devolve os acordes originais');
+
 console.log('\n=================================================');
 console.log('  ' + pass + ' passaram, ' + fail + ' falharam');
 console.log('=================================================\n');

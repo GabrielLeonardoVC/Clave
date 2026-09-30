@@ -506,14 +506,19 @@
     const kd = keyDirective(line);
     if (kd) {
       // A diretiva de tom vira o tom de destino pedido.
-      const pref = useFlatsFor(destinoPc);
+      const pref = useFlatsFor(destinoModo === 'minor' ? mod12(destinoPc + 3) : destinoPc);
       return '[' + formatChord(destinoPc, destinoModo === 'minor' ? 'm' : '', null, pref) + ']';
     }
     if (!isChordLine(line)) return line;
 
     const graus = destinoModo === 'minor' ? GRAUS_MENOR : GRAUS_MAIOR;
     const qualidades = destinoModo === 'minor' ? QUALIDADE_POR_GRAU_MENOR : QUALIDADE_POR_GRAU_MAIOR;
-    const pref = useFlatsFor(destinoPc);
+    // A armadura e do tom, e nao da tonica sozinha. Re menor tem um bemol,
+    // enquanto Re maior nao tem nenhum: deciding so pela tonica, o sexto grau
+    // de Re menor saia "A#" em vez de "Bb", que e como o musico le a cifra.
+    // O relativo maior de uma menor esta tres semitons acima, e e ele que
+    // carrega a mesma armadura.
+    const pref = useFlatsFor(destinoModo === 'minor' ? mod12(destinoPc + 3) : destinoPc);
 
     const trocar = function (raw) {
       const core = raw.replace(/^[("'[]+/, '').replace(/[)"'\],.!?;:]+$/, '');
