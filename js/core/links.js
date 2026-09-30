@@ -123,19 +123,56 @@
      ======================================================= */
   const YT_ID = '[A-Za-z0-9_-]{11}';
 
+  /**
+   * Padroes montados com new RegExp, e nao como literal de regex.
+   *
+   * Escrito como literal, o trecho "' + YT_ID + '" entrava dentro do padrao: o
+   * que o motor procurava era a propria frase, e nao um link. Os quatro padroes
+   * ficavam mortos, e tudo passava a depender da busca solta do fim — que pega o
+   * primeiro bloco de onze caracteres do link inteiro. Funcionava por acaso, e
+   * quebrava com host hifenizado: "youtube-nocookie" tem hifen, junta onze
+   * caracteres, e o id devolvido era "youtube-noc".
+   */
+  const YT_FORMAS = [
+    new RegExp('youtu\\.be/(' + YT_ID + ')', 'i'),
+    new RegExp('[?&]v=(' + YT_ID + ')', 'i'),
+    new RegExp('/embed/(' + YT_ID + ')', 'i'),
+    new RegExp('/(?:shorts|live|v)/(' + YT_ID + ')', 'i'),
+  ];
+
+  /**
+   * O link e mesmo do YouTube?
+   *
+   * O esquema e opcional de proposito: no grupo e comum colar
+   * "youtube.com/watch?v=..." sem o https://, e recusar isso faria o app
+   * parecer burro na hora do ensaio. Depois do dominio so aceita /, ?, # ou o
+   * fim do texto, senao "youtube.com.br" e "notyoutube.com" passariam.
+   */
+  function ehDoYouTube(s) {
+    return /^([a-z0-9-]+\.)*(youtube\.com|youtu\.be|youtube-nocookie\.com)([/?#]|$)/i
+      .test(String(s).replace(/^[a-z]+:\/\//i, ''));
+  }
+
   function extrairYouTubeId(entrada) {
     if (!entrada) return '';
     const s = String(entrada).trim();
     if (new RegExp('^' + YT_ID + '$').test(s)) return s;
-    let m;
-    if ((m = s.match(/youtu\.be\/(' + YT_ID + ')/i))) return m[1];
-    if ((m = s.match(/[?&]v=(' + YT_ID + ')/i))) return m[1];
-    if ((m = s.match(/\/embed\/(' + YT_ID + ')/i))) return m[1];
-    if ((m = s.match(/\/(?:shorts|live|v)\/(' + YT_ID + ')/i))) return m[1];
-    if (/youtube\.com|youtu\.be|youtube-nocookie\.com/i.test(s)) {
-      if ((m = s.match(new RegExp('(' + YT_ID + ')')))) return m[1];
+    // O dominio e conferido antes de qualquer padrao. Sem esta ordem, um "?v="
+    // em site de terceiros — que tambem e o formato de player do Vimeo — casaria
+    // e tocaria o video errado.
+    if (!ehDoYouTube(s)) return '';
+
+    for (let i = 0; i < YT_FORMAS.length; i++) {
+      const achado = s.match(YT_FORMAS[i]);
+      if (achado) return achado[1];
     }
-    return '';
+
+    // Ultimo recurso: formato de URL do YouTube que ainda nao conhecemos. A
+    // busca roda sobre o caminho e nunca sobre o dominio, porque o dominio e o
+    // lugar onde hifen junta onze caracteres sem que nada disso seja video.
+    const caminho = s.replace(/^[a-z]+:\/\//i, '').replace(/^[^/?#]+/, '');
+    const solto = caminho.match(new RegExp('(' + YT_ID + ')'));
+    return solto ? solto[1] : '';
   }
 
   function embedYouTube(id, opts) {
