@@ -19,6 +19,25 @@
     { id: 'rose', nome: 'Rosa', cor: '#DB4A76' },
   ];
 
+  /**
+   * A cor que o app realmente aplica para um acento.
+   *
+   * A amostra do botao e medida no proprio CSS, e nao escrita aqui. A lista
+   * guardava o hex do `--brand-500`, mas o que a tela usa e o `--primary`, que
+   * e o `--brand-400` — outra cor. As cinco amostras mostravam algo diferente
+   * do que a pessoa recebia, e no "Brasa", que e o padrao, nem batia com a
+   * definicao do tema. Medindo, a amostra nao tem como divergir: se o CSS
+   * mudar, o botao acompanha.
+   */
+  function corRealDoAcento(id) {
+    const sonda = el('span', { 'data-accent': id });
+    sonda.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden';
+    document.body.appendChild(sonda);
+    const cor = getComputedStyle(sonda).getPropertyValue('--primary').trim();
+    sonda.remove();
+    return cor;
+  }
+
   function render(root) {
     U.clear(root);
     root.appendChild(el('div', { class: 'page-head' }, [
@@ -35,12 +54,16 @@
     const atual = S.ajuste('accent', 'ember');
     ACCENTS.forEach(function (a) {
       const b = el('button', {
-        class: 'st-cor' + (a.id === atual ? ' on' : ''), style: { background: a.cor, width: '32px', height: '32px' },
-        'aria-label': a.nome, title: a.nome,
+        class: 'st-cor' + (a.id === atual ? ' on' : ''), style: { background: corRealDoAcento(a.id), width: '32px', height: '32px' },
+        'aria-label': a.nome, title: a.nome, 'aria-pressed': a.id === atual ? 'true' : 'false',
         onclick: function () {
           S.setAjuste('accent', a.id);
           global.App.aplicarTema();
-          U.$$('.st-cor', cores).forEach(function (x, i) { x.classList.toggle('on', ACCENTS[i].id === a.id); });
+          U.$$('.st-cor', cores).forEach(function (x, i) {
+            const ligado = ACCENTS[i].id === a.id;
+            x.classList.toggle('on', ligado);
+            x.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+          });
         },
       });
       cores.appendChild(b);

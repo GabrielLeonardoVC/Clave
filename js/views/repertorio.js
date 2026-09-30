@@ -464,15 +464,24 @@
       saida.appendChild(R.cifraBox(txt));
       UI.icons(saida);
     }
-    const bar = el('div', { class: 'semitone-bar mb-3' }, [
-      el('button', { class: 'semitone', onclick: function () { semis -= 12; render(); } }, '-8'),
-      el('button', { class: 'semitone', onclick: function () { semis -= 3; render(); } }, '-3'),
-      el('button', { class: 'semitone', onclick: function () { semis--; render(); } }, '-1'),
-      el('button', { class: 'semitone', onclick: function () { semis = 0; render(); } }, '0'),
-      el('button', { class: 'semitone', onclick: function () { semis++; render(); } }, '+1'),
-      el('button', { class: 'semitone', onclick: function () { semis += 3; render(); } }, '+3'),
-      el('button', { class: 'semitone', onclick: function () { semis += 12; render(); } }, '+8'),
-    ]);
+    // O numero no botao e o numero de semitons. Antes o botao "-8" somava 12:
+    // a etiqueta dizia 8 e o movimento era uma oitava, sem nenhuma explicacao
+    // em tela. Quem clicava achando "desce um seis menor" recebia "desce uma
+    // oitava".
+    const INTERVALOS = [-8, -3, -1, 0, 1, 3, 8];
+    const bar = el('div', { class: 'semitone-bar mb-3' },
+      INTERVALOS.map(function (n) {
+        return el('button', {
+          class: 'semitone',
+          // O estado precisa aparecer: o CSS tem a regra do botao marcado, e
+          // sem isto ela nunca era usada, e o musico nao sabia onde estava.
+          'aria-pressed': semis === n ? 'true' : 'false',
+          'aria-label': n === 0 ? 'Voltar ao tom original'
+            : (n > 0 ? 'Subir ' : 'Descer ') + Math.abs(n) + (Math.abs(n) === 1 ? ' semitom' : ' semitons'),
+          title: n === 0 ? 'Tom original' : (n > 0 ? '+' : '') + n + ' semitons',
+          onclick: function () { semis = U.clamp(semis + n, -12, 12); render(); },
+        }, n > 0 ? '+' + n : String(n));
+      }));
     flatSel.addEventListener('change', render);
 
     const h = UI.sheet({
