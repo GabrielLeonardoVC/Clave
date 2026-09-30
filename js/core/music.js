@@ -462,11 +462,141 @@
       .map((line) => {
         if (!line.trim()) return line;
         if (isSectionLine(line) && !isChordLine(line)) return line;
-        if (isChordLine(line)) return transposeLine(line, semis, flat);
+        if (isChordLine(line)) return transposeLine(line, semis, flat, true);
         // linha mista: só troca se contiver >= 2 acordes
         const count = tokenizeLine(line).filter((t) => t.type === 'chord').length;
         if (count >= 2) return transposeLine(line, semis, flat);
         return line;
+      })
+      .join('\n');
+  }
+
+  /* =======================================================
+     TRANSPOSICAO POR GRAU
+     ======================================================= */
+
+  // Semitons acima da tonica, por grau, em maior e menor.
+  const GRAUS_MAIOR = [0, 2, 4, 5, 7, 9, 11];
+  const GRAUS_MENOR = [0, 2, 3, 5, 7, 8, 11];
+
+  // Tríade que se forma em cada grau, na grafia que se imprime. Maior nao leva
+  // sufixo: ninguem escreve "Cmaj" numa cifra.
+  const QUALIDADE_POR_GRAU_MAIOR = ['', 'm', 'm', '', '', 'm', 'dim'];
+  const QUALIDADE_POR_GRAU_MENOR = ['m', 'dim', '', 'm', 'm', '', ''];
+
+  /**
+   * Em que grau da escala esta uma fundamental, ou -1 se nao pertence.
+   *
+   * A dominante conta como o mesmo grau, e a quinta abaixo tambem. Sem isso, uma
+   * progressao que cai na dominante de repente vira "nao diatonica" e o acorde
+   * perde a funcao que cumpre.
+   */
+  function grauDe(pc, tonica, modo) {
+    const graus = modo === 'minor' ? GRAUS_MENOR : GRAUS_MAIOR;
+    for (let i = 0; i < 7; i++) if (mod12(tonica + graus[i]) === pc) return i;
+    for (let i = 0; i < 7; i++) {
+      const deste = mod12(tonica + graus[i]);
+      if (deste === mod12(pc + 7) || deste === mod12(pc - 5)) return i;
+    }
+    return -1;
+  }
+
+  function transposeLinePorGrau(line, origemPc, origemModo, destinoPc, destinoModo, reserva) {
+    if (!line) return line;
+    const kd = keyDirective(line);
+    if (kd) {
+      // A diretiva de tom vira o tom de destino pedido.
+      const pref = useFlatsFor(destinoPc);
+      return '[' + formatChord(destinoPc, destinoModo === 'minor' ? 'm' : '', null, pref) + ']';
+    }
+    if (!isChordLine(line)) return line;
+
+    const graus = destinoModo === 'minor' ? GRAUS_MENOR : GRAUS_MAIOR;
+    const qualidades = destinoModo === 'minor' ? QUALIDADE_POR_GRAU_MENOR : QUALIDADE_POR_GRAU_MAIOR;
+    const pref = useFlatsFor(destinoPc);
+
+    const trocar = function (raw) {
+      const core = raw.replace(/^[("'[]+/, '').replace(/[)"'\],.!?;:]+$/, '');
+      if (!core) return raw;
+      const c = parseChord(core);
+      if (!c) return raw;
+
+      const indice = grauDe(c.root, origemPc, origemModo);
+      let novo;
+
+      if (indice >= 0) {
+        // Diatonico na origem: o grau e transportado, e a qualidade vem do
+        // grau de destino, para o acorde fazer sentido na nova tonalidade.
+        // O terceiro grau de La menor e menor, e nao maior.
+        // O baixo viaja pelo mesmo intervalo, e e o que preserva a inversao:
+        // C/G em Do maior vira G/D em Sol maior, com a quinta no baixo nos dois.
+        const novoRoot = mod12(destinoPc + graus[indice]);
+        const temBaixo = c.bass !== null && c.bass !== undefined;
+        const baixo = temBaixo ? mod12(c.bass + semitonsEntre(c.root, novoRoot)) : null;
+        novo = formatChord(novoRoot, qualidades[indice], baixo, pref);
+      } else if (grauDe(c.root, destinoPc, destinoModo) >= 0) {
+        // Nao e diatonico na origem, mas e na de destino. E o caso do F#7:
+        // emprestado em Do maior e sexto grau legitimo em Sol maior.
+        // Transportar por semitons viraria C#7 e jogaria fora a funcao.
+        // Aqui a fundamental e a qualidade ficam como o musico escreveu.
+        novo = formatChord(c.root, c.quality, c.bass, pref);
+      } else {
+        // Estrangeiro dos dois lados: desloca e mantem a qualidade escrita.
+        novo = formatChordTransposed(c, reserva, pref);
+      }
+      return raw.replace(core, novo);
+    };
+
+    const re = /\S+/g;
+    let out = '';
+    let last = 0;
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      out += line.slice(last, m.index);
+      const raw = m[0];
+      out += raw.split(/([|;,])/).map((seg) => {
+        if (/^[|;,]$/.test(seg)) return seg;
+        return trocar(seg);
+      }).join('');
+      last = m.index + raw.length;
+    }
+    return out + line.slice(last);
+  }
+
+  /** Quantos semitons separam duas alturas, pelo caminho mais curto. */
+  function semitonsEntre(de, para) {
+    const bruto = mod12(para - de);
+    return bruto > 6 ? bruto - 12 : bruto;
+  }
+
+  /**
+   * Transpoe reatribuindo os graus, e nao aplicando um numero fixo de semitons.
+   *
+   * Isto so importa quando origem e destino tem modos diferentes ou estao a
+   * mais de uma quinta de distancia — e e o caso comum: levar uma musica de
+   * Do maior para La menor.
+   *
+   * A razao e que duas tonalidades com a mesma armadura NAO sao transposicao
+   * uma da outra. De Do maior para La menor, um deslocamento fixo de 9
+   * semitons leva o acorde de Do para La, mas leva o Am de Do para F#, e o
+   * certo em La menor e C. Nao existe numero de semitons que acerte os dois,
+   * porque os graus nao coincidem. So a reatribuicao acerta.
+   */
+  function transposeCifraPorGrau(text, destinoPc, destinoModo) {
+    const bruto = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+    if (!bruto.trim()) return bruto;
+    const origem = detectKey(bruto);
+    const destino = mod12(destinoPc);
+    if (semitonsEntre(origem.pc, destino) === 0 && origem.mode === (destinoModo || 'major')) {
+      return bruto;
+    }
+    const reserva = semitonsEntre(origem.pc, destino);
+    return bruto
+      .split('\n')
+      .map(function (linha) {
+        if (!linha.trim()) return linha;
+        if (isSectionLine(linha) && !isChordLine(linha)) return linha;
+        return transposeLinePorGrau(linha, origem.pc, origem.mode, destino, destinoModo || 'major', reserva);
       })
       .join('\n');
   }
@@ -1065,7 +1195,8 @@
     QUALITIES, parseChord, formatChord, chordInfo, matchQuality, isChordWord, PT_STOPWORDS,
     // cifra
     tokenizeLine, isChordLine, isSectionLine, sectionLabel, keyDirective,
-    transposeLine, transposeCifra, extractChords, detectKey, analyzeChords,
+    transposeLine, transposeCifra, transposeCifraPorGrau, semitonsEntre, grauDe,
+    extractChords, detectKey, analyzeChords,
     // escalas
     SCALES, triadFor, scaleNotes, scaleNames, scaleChords, closestTerm,
     // círculo

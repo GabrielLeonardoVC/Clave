@@ -254,6 +254,29 @@ eq(M.transposeCifra('[C]\nB7', 2, false), '[D]\nC#7', 'acorde so com B7 transpoe
 eq(M.transposeCifra('[C]\nB7\nFalsa', 2, false), '[D]\nC#7\nFalsa',
   '"Falsa" e palavra, e continua palavra depois de transpor');
 
+console.log('\n=== 17. Regressao: acorde que tambem e palavra ===');
+// A, E e Em estao na lista de palavras portuguesas e, por isso, ficavam
+// parados a cada transposicao — sem erro, sem aviso. A progressao saia errada:
+//     Em  C  G  D  +2  ->  Em  D  A  E
+// A linha inteira ja foi reconhecida como linha de acordes; reavaliar token
+// por token dentro dela jogava fora essa decisao.
+eq(M.transposeCifra('[C]\nEm   C   G   D', 2, false), '[D]\nF#m   D   A   E',
+  'Em no meio da progressao transpoe');
+eq(M.transposeCifra('[C]\nA   E   D', 2, false), '[D]\nB   F#   E',
+  'A e E no meio da progressao transpoem');
+eq(M.transposeCifra('[C]\nE   A   D', 2, false), '[D]\nF#   B   E',
+  'E e A no meio da progressao transpoem');
+eq(M.transposeCifra('[C]\nC   Em   Am', 2, false), '[D]\nD   F#m   Bm',
+  'Em entre dois acordes transpoe');
+eq(M.transposeCifra('[C]\nA', 2, false), '[D]\nB', 'linha so com A transpoe para B');
+eq(M.transposeCifra('[C]\nE', 2, false), '[D]\nF#', 'linha so com E transpoe para F#');
+eq(M.transposeCifra('[C]\nEm', 2, false), '[D]\nF#m', 'linha so com Em transpoe para F#m');
+// O outro lado: a letra nao pode virar acorde por causa disso.
+eq(M.transposeCifra('[C]\nA glória do Senhor', 2, false), '[D]\nA glória do Senhor',
+  '"A gloria do Senhor" continua letra, com o A intacto');
+eq(M.transposeCifra('[C]\nEm tua mão', 2, false), '[D]\nEm tua mão',
+  '"Em tua mao" continua letra');
+
 console.log('\n=================================================');
 console.log('  ' + pass + ' passaram, ' + fail + ' falharam');
 console.log('=================================================\n');
