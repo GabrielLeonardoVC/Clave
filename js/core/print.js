@@ -65,11 +65,11 @@
     }
 
     // cifras em anexo (opcional: as que estão no repertório)
-    const comCifra = e.musicas.filter((m) => m.cifraId && S.cifraById(m.cifraId));
+    const comCifra = e.musicas.filter((m) => m.cifraId && S.cifraPorId(m.cifraId));
     if (comCifra.length) {
       body += '<div class="ps-sec"><h2>Cifras</h2>';
       comCifra.forEach((m) => {
-        const c = S.cifraById(m.cifraId);
+        const c = S.cifraPorId(m.cifraId);
         if (!c) return;
         body += '<div class="ps-song"><div class="t">' + esc(c.titulo) +
           (c.tom ? ' (' + esc(c.tom) + ')' : '') + '</div>' +

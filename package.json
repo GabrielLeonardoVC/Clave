@@ -8,7 +8,7 @@
     "test:motor": "node tools/test-music.js",
     "test:links": "node tools/test-links.js",
     "test:busca": "node tools/test-search.js",
-    "verificar": "npm test && node tools/check-syntax.js && node tools/check-utf8.js && node tools/scan.js",
+    "verificar": "npm test && node tools/check-syntax.js && node tools/check-utf8.js && node tools/scan.js && node tools/check-api.js",
     "servir": "node tools/serve.js"
   },
   "keywords": [

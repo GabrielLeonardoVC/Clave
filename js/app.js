@@ -128,7 +128,7 @@
   }
 
   function cicloTema() {
-    const novo = UI.cicloTema(S.ajuste('tema', 'auto'));
+    const novo = UI.cycleTheme(S.ajuste('tema', 'auto'));
     S.setAjuste('tema', novo);
     aplicarTema();
     UI.toast('Tema: ' + (novo === 'auto' ? 'automatico' : novo === 'dark' ? 'escuro' : 'claro'), { tipo: 'ok' });

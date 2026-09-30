@@ -287,10 +287,32 @@ node tools/test-search.js       60 testes da busca tolerante a erro
 node tools/check-syntax.js      sintaxe de todos os .js
 node tools/check-utf8.js        UTF-8 estrito
 node tools/scan.js              detecta caracteres corrompidos
+node tools/check-api.js         nenhum acesso a uma API que não existe
 node tools/icons.js             confere se os ícones existem no Lucide
 node tools/build-hinos.js       gera js/data/hinos.js validando cada acorde
 node tools/serve.js             servidor local (npm run servir)
 ```
+
+### `check-api.js` — o compilador que o app não tem
+
+O Acorde é JavaScript puro. Um método renomeado na API e chamado pelo nome
+antigo na tela **não dá erro de sintaxe, não quebra o build e não aparece em
+nenhum teste**: só quebra quando alguém toca, muitas vezes dentro de um
+`setTimeout`, muito depois do app ter aberto.
+
+Aconteceu quatro vezes:
+
+| Chamava | Existe | Efeito |
+|---|---|---|
+| `Store.allEscalas()` | `escalas` | o aviso de missa nunca aparecia |
+| `Store.cmpEscala` | `cmp` | a ordenação das escalas saía embaralhada |
+| `UI.cicloTema` | `cycleTheme` | o botão de trocar de tema não fazia nada |
+| `Store.cifraById` | `cifraPorId` | a folha A4 saía sem as cifras anexas |
+
+Nenhum desses dava mensagem, aviso ou falha. O `check-api.js` carrega cada
+módulo, lê a API que ele de fato publica, resolve os apelidos que cada arquivo
+cria (`const M = global.Music`) e confere os 594 acessos do app. É o substituto
+do compilador, e roda em `npm run verificar` e no deploy.
 
 `tools/e2e-body.js` não é comando: é o corpo do teste de ponta a ponta, para
 colar no console da página. O resultado sai em `window.__e2e`.
