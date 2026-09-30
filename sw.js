@@ -24,7 +24,7 @@ const RECURSOS = [
   './js/core/studio.js',
   './js/core/notify.js',
   './js/core/share.js',
-  './js/data/hinos.js',
+  './js/data/base.js',
   './js/views/hoje.js',
   './js/views/agenda.js',
   './js/views/repertorio.js',

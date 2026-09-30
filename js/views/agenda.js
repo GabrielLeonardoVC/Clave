@@ -1,6 +1,6 @@
 /* =========================================================
    ACORDE - views/agenda.js
-   Calendario + montagem de escalas de ensaio/culto.
+   Calendario + montagem de escalas de ensaio e missa.
    ========================================================= */
 (function (global) {
   'use strict';
@@ -15,10 +15,10 @@
   const V = global.Views || (global.Views = {});
 
   const TIPOS = [
-    { id: 'culto', nome: 'Culto / Missa' },
+    { id: 'missa', nome: 'Missa' },
     { id: 'ensaio', nome: 'Ensaio' },
-    { id: 'rehearsal', nome: 'Rehearsal' },
-    { id: 'outro', nome: 'Show / outro' },
+    { id: 'show', nome: 'Show' },
+    { id: 'outro', nome: 'Outro' },
   ];
   const CATEGORIAS = ['Entrada', 'Oferta', 'Leitura', 'Comunhao', 'Ofertorio', 'Saida', 'Fundo', 'Mesa'];
 
@@ -274,12 +274,12 @@
   function campo(label, control) { return el('div', { class: 'field' }, [el('label', { class: 'label' }, label), control]); }
 
   function abrirEditor(existente, isNew) {
-    const base = existente ? JSON.parse(JSON.stringify(existente)) : S.normEscala({ data: sel, hora: '19:00', tipo: 'culto' });
+    const base = existente ? JSON.parse(JSON.stringify(existente)) : S.normEscala({ data: sel, hora: '19:00', tipo: 'missa' });
     const form = el('div', { class: 'stack gap-3' });
 
     const fTitulo = el('input', { class: 'input', value: base.titulo, placeholder: 'Ex.: Ensaio de quinta' });
     const fHora = el('input', { class: 'input', type: 'time', value: base.hora || '' });
-    const fLocal = el('input', { class: 'input', value: base.local, placeholder: 'Ex.: Igreja Central' });
+    const fLocal = el('input', { class: 'input', value: base.local, placeholder: 'Ex.: Salão paroquial' });
     const fTipo = el('select', { class: 'select' }, TIPOS.map(function (t) { return el('option', { value: t.id, selected: base.tipo === t.id }, t.nome); }));
     const fData = el('input', { class: 'input', type: 'date', value: base.data });
     const fObs = el('textarea', { class: 'textarea', style: { minHeight: '70px' }, placeholder: 'Observacoes, tema, avisos...' });

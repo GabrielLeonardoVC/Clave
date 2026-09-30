@@ -1,7 +1,7 @@
 {
   "name": "Acorde — escalas, cifras e ensaio",
   "short_name": "Acorde",
-  "description": "Monte escalas de ensaio e culto, organize o repertório, desenhe sobre a foto da cifra e acompanhe o BPM com o vídeo do YouTube lado a lado.",
+  "description": "Monte escalas de ensaio e missa, organize o repertório, desenhe sobre a foto da cifra e acompanhe o BPM com o vídeo do YouTube lado a lado.",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "./index.html",

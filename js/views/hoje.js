@@ -154,7 +154,9 @@
 
   function linhaEvento(e) {
     const d = U.diffDays(new Date(), U.fromKey(e.data));
-    const ic = e.tipo === 'ensaio' ? 'users' : e.tipo === 'rehearsal' ? 'repeat' : 'church';
+    // O icone acompanha o tipo, e e musical de proposito: um icone de
+    // templado na linha do tempo empurra o app para um lugar que ele nao ocupa.
+    const ic = e.tipo === 'ensaio' ? 'users' : e.tipo === 'show' ? 'mic' : e.tipo === 'outro' ? 'star' : 'music';
     return el('button', { class: 'list-item tap', style: { width: '100%', textAlign: 'left' }, onclick: function () { global.App.ir('agenda', { data: e.data, abrir: e.id }); } }, [
       el('div', { class: 'avatar' + (d === 0 ? ' gold' : '') }, el('i', { 'data-lucide': ic, style: { width: '17px', height: '17px' } })),
       el('div', { class: 'grow', style: { minWidth: '0' } }, [

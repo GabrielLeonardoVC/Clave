@@ -20,7 +20,7 @@
   function render(root, params) {
     if (params && params.aba) aba = params.aba;
     if (params && params.tom) { filtro.tom = params.tom; aba = 'minhas'; }
-    if (params && params.importar) { aba = 'hinos'; setTimeout(function () { importarHino(params.importar); }, 90); }
+    if (params && params.importar) { aba = 'base'; setTimeout(function () { importarDaBase(params.importar); }, 90); }
     if (params && params.acao === 'colar') setTimeout(colar, 120);
     if (params && params.id) { const c = S.cifraPorId(params.id); if (c) setTimeout(function () { abrirCifra(c); }, 90); }
 
@@ -32,10 +32,10 @@
 
     root.appendChild(el('div', { class: 'tabs' }, [
       abaBtn('minhas', 'Minhas cifras', 'library'),
-      abaBtn('hinos', 'Hinos base', 'book-open'),
+      abaBtn('base', 'Repertório pronto', 'book-open'),
     ]));
 
-    root.appendChild(aba === 'minhas' ? painelMinhas() : painelHinos());
+    root.appendChild(aba === 'minhas' ? painelMinhas() : painelBase());
     UI.icons(root);
   }
 
@@ -143,24 +143,24 @@
   }
 
   /* =======================
-     HINOS BASE
+     REPERTORIO PRONTO
      ======================= */
-  function painelHinos() {
+  function painelBase() {
     const wrap = el('div', {});
-    const hinos = global.HINOS ? global.HINOS.list : [];
+    const base = global.BASE ? global.BASE.list : [];
     wrap.appendChild(el('div', { class: 'card card-flat mb-3', style: { background: 'var(--brand-tint)', borderColor: 'transparent' } }, [
       el('div', { class: 'row gap-2' }, [
         el('i', { 'data-lucide': 'info', style: { width: '17px', height: '17px', color: 'var(--primary)', flex: 'none' } }),
-        el('p', { class: 'fs-sm c-2' }, 'Cifras de referencia. Variam entre hinarios e congregacoes - confira e edite antes de usar. Ao importar, a cifra vira editavel no seu repertorio.'),
+        el('p', { class: 'fs-sm c-2' }, 'Cifras de referência para começar. Variam entre grupos e edições — confira e ajuste antes de usar. Ao importar, a cifra vem editável para o seu repertório.'),
       ]),
     ]));
-    if (!hinos.length) {
-      wrap.appendChild(UI.empty({ icon: 'book-open', title: 'Nenhum hino carregado' }));
+    if (!base.length) {
+      wrap.appendChild(UI.empty({ icon: 'book-open', title: 'Nenhuma cifra carregada' }));
       return wrap;
     }
     const grid = el('div', { class: 'grid-auto-lg' });
-    hinos.forEach(function (h) {
-      grid.appendChild(el('button', { class: 'song-card', onclick: function () { abrirHino(h); } }, [
+    base.forEach(function (h) {
+      grid.appendChild(el('button', { class: 'song-card', onclick: function () { abrirDaBase(h); } }, [
         el('div', { class: 'row between' }, [
           el('div', { class: 'grow', style: { minWidth: '0' } }, [
             el('div', { class: 'n' }, h.titulo),
@@ -180,7 +180,7 @@
     return wrap;
   }
 
-  function abrirHino(h) {
+  function abrirDaBase(h) {
     UI.sheet({
       title: h.titulo, sub: h.artista,
       body: el('div', { class: 'stack gap-3' }, [
@@ -197,14 +197,14 @@
       ]),
       foot: [
         el('button', { class: 'btn btn-secondary', onclick: function () { UI.closeAllSheets(); } }, 'Fechar'),
-        el('button', { class: 'btn btn-primary', onclick: function () { UI.closeAllSheets(); importarHino(h.id); } },
+        el('button', { class: 'btn btn-primary', onclick: function () { UI.closeAllSheets(); importarDaBase(h.id); } },
           [el('i', { 'data-lucide': 'download' }), 'Importar']),
       ],
     });
   }
 
-  function importarHino(id) {
-    const h = global.HINOS && global.HINOS.byId(id);
+  function importarDaBase(id) {
+    const h = global.BASE && global.BASE.byId(id);
     if (!h) return;
     const novo = S.normCifra({
       titulo: h.titulo, artista: h.artista, tom: h.tom, bpm: h.bpm,
@@ -338,7 +338,7 @@
     const fComp = el('select', { class: 'select' }, global.Metro.COMPASSOS.map(function (c2) {
       return el('option', { value: c2.n, selected: (v.compasso || '4/4') === c2.n }, c2.n);
     }));
-    const fCat = el('input', { class: 'input', value: v.categoria, placeholder: 'Ex.: Adoracao' });
+    const fCat = el('input', { class: 'input', value: v.categoria, placeholder: 'Ex.: Entrada' });
     const fTags = el('input', { class: 'input', value: v.tags.join(', '), placeholder: 'Ex.: paz, consolo' });
     const fLetra = el('textarea', { class: 'textarea', placeholder: 'Cole a letra aqui (opcional)' });
     fLetra.value = v.letra;

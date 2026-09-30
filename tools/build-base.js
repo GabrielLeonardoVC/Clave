@@ -1,6 +1,6 @@
-/* Gerador de js/data/hinos.js
+/* Gerador de js/data/base.js
    Valida cada acorde de cada cifra antes de escrever o arquivo.
-   Uso:  node tools/build-hinos.js                                */
+   Uso:  node tools/build-base.js                                 */
 const fs = require('fs');
 const path = require('path');
 const M = require('../js/core/music.js');
@@ -8,13 +8,13 @@ const M = require('../js/core/music.js');
 /* Cada entrada traz a letra e a cifra.
    O BLOCO abaixo é a única fonte de verdade; o gerador normaliza
    e valida tudo antes de gravar. */
-const HINOS = [
+const BASE = [
   {
     id: 'h_amazing_grace',
     titulo: 'Amazing Grace (Preziosa Graca)',
-    artista: 'John Newton (1779) / Hinario',
-    tom: 'G', bpm: 76, compasso: '3/4', categoria: 'Hino',
-    tags: ['graca', 'classico', 'hino'],
+    artista: 'John Newton (1779)',
+    tom: 'G', bpm: 76, compasso: '3/4', categoria: 'Tradicional',
+    tags: ['graca', 'classico', 'tradicional'],
     letra: [
       'Amazing grace, how sweet the sound',
       'That saved a wretch like me;',
@@ -46,9 +46,9 @@ const HINOS = [
   {
     id: 'h_quao_grande',
     titulo: 'Quao Grande Es Tu, Senhor',
-    artista: 'O Store Gud (hino sueco, 1885) / Hinario',
-    tom: 'C', bpm: 72, compasso: '3/4', categoria: 'Hino',
-    tags: ['adoracao', 'classico', 'hino'],
+    artista: 'O Store Gud (Sueco, 1885)',
+    tom: 'C', bpm: 72, compasso: '3/4', categoria: 'Tradicional',
+    tags: ['devocional', 'classico', 'tradicional'],
     letra: [
       'O Senhor meu Deus, quando olho',
       'Para o mundo que criastei,',
@@ -80,7 +80,7 @@ const HINOS = [
   {
     id: 'h_vencendo_vem',
     titulo: 'Vencendo Vem Jesus',
-    artista: 'Classico de adoracao',
+    artista: 'Tradicional',
     tom: 'D', bpm: 96, compasso: '4/4', categoria: 'Classico',
     tags: ['ressurreicao', 'classico'],
     letra: [
@@ -104,9 +104,9 @@ const HINOS = [
   {
     id: 'h_firmemente',
     titulo: 'Firmemente Estaremos',
-    artista: 'Hino tradicional',
-    tom: 'C', bpm: 88, compasso: '4/4', categoria: 'Hino',
-    tags: ['perseveranca', 'hino'],
+    artista: 'Tradicional',
+    tom: 'C', bpm: 88, compasso: '4/4', categoria: 'Tradicional',
+    tags: ['perseveranca', 'tradicional'],
     letra: [
       'Firmemente estaremos, de pe no nosso lugar,',
       'Com a verdade nos pousamos e o amor a nos ligar.',
@@ -126,9 +126,9 @@ const HINOS = [
   {
     id: 'h_mais_perto',
     titulo: 'Mais Perto Quero Estar',
-    artista: 'Balm (1869) / Hinario',
-    tom: 'C', bpm: 64, compasso: '3/4', categoria: 'Hino',
-    tags: ['devocional', 'classico', 'hino'],
+    artista: 'Balm (1869)',
+    tom: 'C', bpm: 64, compasso: '3/4', categoria: 'Tradicional',
+    tags: ['devocional', 'classico', 'tradicional'],
     letra: [
       'Mais perto quero estar,',
       'Contigo, Senhor!',
@@ -150,9 +150,9 @@ const HINOS = [
   {
     id: 'h_o_rei_vive',
     titulo: 'O Rei Vive',
-    artista: 'Hino tradicional',
-    tom: 'F', bpm: 84, compasso: '4/4', categoria: 'Hino',
-    tags: ['ressurreicao', 'hino'],
+    artista: 'Tradicional',
+    tom: 'F', bpm: 84, compasso: '4/4', categoria: 'Tradicional',
+    tags: ['ressurreicao', 'tradicional'],
     letra: [
       'O Rei vive! Sim, o Rei vive!',
       'E nao morri, nao, nao morreu!',
@@ -174,11 +174,11 @@ const HINOS = [
   {
     id: 'h_tuas_maravilhas',
     titulo: 'Tuas Maravilhas',
-    artista: 'Hino',
-    tom: 'C', bpm: 78, compasso: '4/4', categoria: 'Hino',
-    tags: ['adoracao', 'hino'],
+    artista: 'Tradicional',
+    tom: 'C', bpm: 78, compasso: '4/4', categoria: 'Tradicional',
+    tags: ['devocional', 'tradicional'],
     letra: [
-      'Tu queWizard mecanismo',
+      'Tu que o amor plantaste',
     ],
     cifra: [
       '[Verso]',
@@ -190,7 +190,7 @@ const HINOS = [
 
 /* remove a entrada incompleta usada so como placeholder */
 const LIMPAR = ['h_tuas_maravilhas'];
-const FINAL = HINOS.filter((h) => LIMPAR.indexOf(h.id) < 0);
+const FINAL = BASE.filter((h) => LIMPAR.indexOf(h.id) < 0);
 
 /* ---------------- validação ---------------- */
 let problemas = 0;
@@ -227,14 +227,14 @@ if (problemas) {
 const q = (s) => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
 const linhas = [];
 linhas.push('/* =========================================================');
-linhas.push('   Cifras e Escalas Pro - data/hinos.js');
-linhas.push('   Repertorio base (hinos e classicos).');
+linhas.push('   Acorde - data/base.js');
+linhas.push('   Repertorio de referencia, para comecar.');
 linhas.push('');
 linhas.push('   ATENCAO: sao cifras de REFERENCIA, nao fonte oficial.');
-linhas.push('   Versoes variam entre congregacoes e hinarios. Confira');
-linhas.push('   sempre antes de usar. O app permite editar ou colar a sua.');
+linhas.push('   Versoes variam entre grupos e Published.');
+linhas.push('   Confira sempre antes de usar. O app permite editar ou colar a sua.');
 linhas.push('');
-linhas.push('   Gerado por tools/build-hinos.js - nao editar a mao.');
+linhas.push('   Gerado por tools/build-base.js - nao editar a mao.');
 linhas.push('   ========================================================= */');
 linhas.push("(function (global) {");
 linhas.push("  'use strict';");
@@ -260,13 +260,13 @@ FINAL.forEach((h) => {
 });
 linhas.push('  ];');
 linhas.push('');
-linhas.push("  global.HINOS = { list: LISTA };");
-linhas.push('  global.HINOS.byId = function (id) {');
+linhas.push("  global.BASE = { list: LISTA };");
+linhas.push('  global.BASE.byId = function (id) {');
 linhas.push('    return LISTA.find(function (h) { return h.id === id; }) || null;');
 linhas.push('  };');
 linhas.push("})(typeof window !== 'undefined' ? window : globalThis);");
 linhas.push('');
 
-const destino = path.join(__dirname, '..', 'js', 'data', 'hinos.js');
+const destino = path.join(__dirname, '..', 'js', 'data', 'base.js');
 fs.writeFileSync(destino, linhas.join('\n'), 'utf8');
-console.log('\nGerado: ' + destino + ' (' + FINAL.length + ' hinos)');
+console.log('\nGerado: ' + destino + ' (' + FINAL.length + ' cifras)');

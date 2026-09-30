@@ -7,26 +7,26 @@
 
   // limpa tudo
   S.apagarTudo();
-  log('1. dados limpos: ' + S.allEscalas().length + ' escalas, ' + S.allCifras().length + ' cifras');
+  log('1. dados limpos: ' + S.escalas().length + ' escalas, ' + S.cifras().length + ' cifras');
 
-  // importa um hino (fluxo real do usuario)
-  const hino = window.HINOS.byId('h_amazing_grace');
-  const c = S.normalizeCifra({
-    titulo: hino.titulo, artista: hino.artista, tom: hino.tom, bpm: hino.bpm,
-    compasso: hino.compasso, categoria: hino.categoria, tags: hino.tags,
-    letra: hino.letra, cifra: hino.cifra,
+  // importa uma cifra do repertório pronto (fluxo real do usuario)
+  const base = window.BASE.byId('h_amazing_grace');
+  const c = S.normCifra({
+    titulo: base.titulo, artista: base.artista, tom: base.tom, bpm: base.bpm,
+    compasso: base.compasso, categoria: base.categoria, tags: base.tags,
+    letra: base.letra, cifra: base.cifra,
   });
-  S.db.cifras.push(c); S.touch('c');
-  log('2. hino importado: "' + c.titulo + '" tom ' + c.tom);
+  S.db.cifras.push(c); S.salvar();
+  log('2. cifra importada: "' + c.titulo + '" tom ' + c.tom);
   const k = M.detectKey(c.cifra);
   log('   tom detectado: ' + M.noteName(k.pc, M.useFlatsFor(k.pc)) + ' (declarado: ' + c.tom + ')');
 
   // cria escala com essa cifra
-  const esc = S.normalizeEscala({
-    data: U.todayKey(), titulo: 'Culto Domingo', hora: '19:00', tipo: 'culto',
+  const esc = S.normEscala({
+    data: U.todayKey(), titulo: 'Missa de domingo', hora: '19:00', tipo: 'missa',
     musicas: [{ nome: c.titulo, tom: c.tom, bpm: c.bpm, categoria: c.categoria, cifraId: c.id }],
   });
-  S.db.escalas.push(esc); S.touch('escala');
+  S.db.escalas.push(esc); S.salvar();
   log('3. escala criada com ' + esc.musicas.length + ' musica; vinculo preservado: ' + (esc.musicas[0].cifraId === c.id));
 
   // transpoe

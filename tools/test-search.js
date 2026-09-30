@@ -20,9 +20,9 @@ function achou(itens, q) { return S.buscarItens(itens, q).map(function (i) { ret
 
 const BASE = [
   { titulo: 'O Senhor e o meu Pastor', artista: 'Claudio Bassés', tom: 'C', categoria: 'Entrada', tags: ['salmo 23'] },
-  { titulo: 'Preziosa Graça', artista: 'David Sacer', tom: 'G', categoria: 'Oferta', tags: ['adoração'] },
+  { titulo: 'Preziosa Graça', artista: 'David Sacer', tom: 'G', categoria: 'Oferta', tags: ['devocional'] },
   { titulo: 'Como Foi Grande', artista: 'Diante do Trono', tom: 'E', categoria: 'Oferta' },
-  { titulo: 'Aleluia ao Senhor', artista: 'Hino 64', tom: 'D', categoria: 'Louvor' },
+  { titulo: 'Alma do Pai', artista: 'Tradicional', tom: 'D', categoria: 'Oferta' },
   { titulo: 'Senhor, eu te amo', artista: 'Missionário', tom: 'A', categoria: 'Oferta' },
 ];
 
@@ -48,7 +48,7 @@ ok(achou(BASE, 'Past').indexOf('O Senhor e o meu Pastor') >= 0, 'acha por prefix
 eq(achou(BASE, 'preziosa'), ['Preziosa Graça'], 'ignora o acento que o usuario nao digitou');
 eq(achou(BASE, 'bassés'), ['O Senhor e o meu Pastor'], 'acha por artista, com acento');
 eq(achou(BASE, 'trono'), ['Como Foi Grande'], 'acha por artista, sem acento');
-ok(achou(BASE, 'oferta').length === 3, 'acha por categoria');
+ok(achou(BASE, 'oferta').length === 4, 'acha por categoria');
 ok(achou(BASE, 'salmo').length === 1, 'acha por tag');
 eq(achou(BASE, 'quemsabe'), [], 'nao inventa resultado para o que nao existe');
 
@@ -92,10 +92,10 @@ eq(a1.join('|'), a2.join('|'), 'empate e resolvido de forma deterministica');
 console.log('\n=== 7. Campo nome (musica dentro de uma escala) ===');
 // No repertorio o campo e `titulo`; dentro de uma escala, e `nome`. A busca
 // precisa funcionar nos dois, senao ela funciona numa tela e falha na outra.
-const comNome = [{ nome: 'Aleluia ao Senhor', artista: 'Hino 64', tom: 'D' }];
-ok(achou(comNome, 'senhor').length === 1, 'acha pelo campo nome');
+const comNome = [{ nome: 'Alma do Pai', artista: 'Tradicional', tom: 'D' }];
+ok(achou(comNome, 'alma').length === 1, 'acha pelo campo nome');
 ok(achou(comNome, 'pastor').length === 0, 'nao inventa o que nao esta');
-ok(achou(comNome, 'aleluia').length === 1, 'acha o titulo pelo campo nome');
+ok(achou(comNome, 'tradicional').length === 1, 'acha o titulo pelo campo nome');
 
 console.log('\n=== 8. Casos de borda ===');
 eq(S.buscar(BASE, '').length, 0, 'consulta vazia devolve vazio');

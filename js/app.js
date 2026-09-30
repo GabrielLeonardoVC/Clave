@@ -145,7 +145,7 @@
       const q = U.norm(input.value.trim());
       if (!q) {
         res.appendChild(UI.empty({ icon: 'search', title: 'Buscar em tudo',
-          message: 'Cifras salvas, hinos, musicas usadas nas escalas e nomes de evento.' }));
+          message: 'Cifras salvas, repertório pronto, músicas usadas nas escalas e nomes de evento.' }));
         return;
       }
       const Search = global.Search;
@@ -163,7 +163,7 @@
       const cifras = achar(S.cifras().map(function (c) {
         return { titulo: c.titulo, artista: c.artista, categoria: c.categoria, tags: c.tags, tom: c.tom, _ref: c };
       }), 6).map(function (r) { return r._ref; });
-      const hinos = achar((global.HINOS ? global.HINOS.list : []).map(function (h) {
+      const prontas = achar((global.BASE ? global.BASE.list : []).map(function (h) {
         return { titulo: h.titulo, artista: h.artista, _texto: h.titulo + ' ' + h.artista, _ref: h };
       }), 5).map(function (r) { return r._ref; });
       const musicas = [];
@@ -186,16 +186,16 @@
       if (cifras.length) secao('Cifras', cifras.map(function (c) {
         return linha('file-music', c.titulo, c.artista || c.tom, function () { h.close(); ir('repertorio', { id: c.id }); });
       }));
-      if (hinos.length) secao('Hinos', hinos.map(function (h) {
-        return linha('book-open', h.titulo, h.artista, function () { h.close(); ir('repertorio', { aba: 'hinos', importar: h.id }); });
+      if (prontas.length) secao('Repertório pronto', prontas.map(function (h) {
+        return linha('book-open', h.titulo, h.artista, function () { h.close(); ir('repertorio', { aba: 'base', importar: h.id }); });
       }));
-      if (musicas.length) secao('Musicas em escalas', musicas.slice(0, 7).map(function (x) {
+      if (musicas.length) secao('Músicas em escalas', musicas.slice(0, 7).map(function (x) {
         return linha('music', x.m.nome, U.fmtDate(x.e.data) + ' - ' + x.e.titulo, function () { h.close(); ir('agenda', { data: x.e.data, abrir: x.e.id }); });
       }));
       if (eventos.length) secao('Eventos', eventos.map(function (e) {
         return linha('calendar-days', e.titulo, U.fmtDate(e.data), function () { h.close(); ir('agenda', { data: e.data, abrir: e.id }); });
       }));
-      if (!cifras.length && !hinos.length && !musicas.length && !eventos.length) {
+      if (!cifras.length && !prontas.length && !musicas.length && !eventos.length) {
         res.appendChild(UI.empty({ icon: 'search-x', title: 'Nada encontrado', message: 'Tente outro termo.' }));
       }
     }
@@ -243,12 +243,12 @@
           ['shuffle', 'Transposicao de tom e de cifra inteira'],
           ['link', 'Busca correta no Cifra Club, Letras.mus.br e YouTube'],
           ['share-2', 'Manda no WhatsApp, exporta .ics, imprime'],
-          ['bell', 'Lembrete antes de cada ensaio e culto'],
+          ['bell', 'Lembrete antes de cada ensaio e missa'],
         ]),
         el('div', { class: 'hr-label' }, 'Privacidade'),
         el('p', { class: 'fs-sm c-3' }, 'Tudo fica salvo no seu aparelho. Nada vai para servidor nenhum.'),
         el('div', { class: 'hr-label' }, 'Aviso'),
-        el('p', { class: 'fs-sm c-3' }, 'As cifras de hinos sao referencia e variam por hinario. Confira e edite a sua versao.'),
+        el('p', { class: 'fs-sm c-3' }, 'As cifras de referência variam entre edições. Confira a sua e ajuste o que precisar.'),
       ]),
       foot: [el('button', { class: 'btn btn-primary', onclick: function () { UI.closeAllSheets(); } }, 'Fechar')],
     });

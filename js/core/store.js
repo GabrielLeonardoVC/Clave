@@ -84,15 +84,42 @@
     return base;
   }
 
+  /** Tipos de evento reconhecidos, na ordem em que aparecem nos filtros. */
+  const TIPOS = ['missa', 'ensaio', 'show', 'outro'];
+
+  /**
+   * Tipos que o app usava antes, e o que cada um virou.
+   *
+   * Um evento ja salvo continua valendo: a traducao roda na leitura, e o que
+   * volta a ser gravado ja sai no vocabulario novo. Sem ela, trocar a lista de
+   * tipos teria o efeito colateral de apagar a distincao de todo mundo que ja
+   * usava o app.
+   */
+  const TIPOS_ANTIGOS = {
+    culto: 'missa',
+    louvor: 'missa',
+    missa: 'missa',
+    ensaio: 'ensaio',
+    rehearsal: 'show',
+    show: 'show',
+    outro: 'outro',
+  };
+
   function normEscala(e) {
     e = e || {};
+    // Tipos antigos viram os novos. Quem ja usava o app tem 'culto' e
+    // 'rehearsal' gravados no armazenamento; sem esta traducao o evento cairia
+    // no padrao e viraria 'outro', perdendo a cor e o icone sem avisar. A
+    // traducao acontece na normalizacao, ou seja, na leitura — nao aqui, onde
+    // o evento ja seria gravado de volta.
+    const tipoLido = TIPOS_ANTIGOS[String(e.tipo || '').toLowerCase()] || String(e.tipo || '');
     return {
       id: e.id || U.uid('esc'),
       data: /^\d{4}-\d{2}-\d{2}$/.test(e.data) ? e.data : U.todayKey(),
       hora: /^\d{2}:\d{2}$/.test(e.hora || '') ? e.hora : '',
-      titulo: String(e.titulo || 'Culto').slice(0, 120),
+      titulo: String(e.titulo || 'Missa').slice(0, 120),
       local: String(e.local || '').slice(0, 160),
-      tipo: ['culto', 'ensaio', 'rehearsal', 'outro'].indexOf(e.tipo) >= 0 ? e.tipo : 'culto',
+      tipo: TIPOS.indexOf(tipoLido) >= 0 ? tipoLido : 'missa',
       obs: String(e.obs || ''),
       status: ['rascunho', 'confirmada', 'tocada'].indexOf(e.status) >= 0 ? e.status : 'rascunho',
       musicas: (Array.isArray(e.musicas) ? e.musicas : []).map(normMusica),

@@ -235,9 +235,10 @@ ok(!/undefined|NaN/.test(M.transposeCifra('[F#]\nF#/A#    C#m7b5/E#', 2, false))
 eq(M.transposeCifra('[F#]\nF#/A#', 2, false), '[G#]\nG#/C',
   'baixo acentuado transpode pelo intervalo (A# +2 = C), e a diretiva de tom tambem');
 
-console.log('\n=== 16. Regressao: hino com um acorde por vez ===');
+console.log('\n=== 16. Regressao: um acorde por vez ===');
 // isChordLine exigia dois acordes na linha, o que descartava o formato de
-// hinario. A musica nao transpunha e saia no tom original, sem aviso.
+// Quem usa escreve um acorde por vez. O formato e comum, e ele era descartado
+// inteiro: a musica nao transpunha e saia no tom original, sem aviso.
 ok(M.isChordLine('C'), 'linha so com C e linha de acordes');
 ok(M.isChordLine('C/G'), 'linha so com C/G e linha de acordes');
 ok(M.isChordLine('Bbmaj7'), 'linha so com Bbmaj7 e linha de acordes');
@@ -249,7 +250,7 @@ ok(!M.isChordLine('Ao meu lado'), '"Ao meu lado" continua sendo letra');
 ok(!M.isChordLine('Amém'), '"Amém" continua sendo letra');
 eq(M.transposeCifra('[C]\nC\nO Senhor e o meu pastor\n\nG\nNada me faltara', 2, false),
   '[D]\nD\nO Senhor e o meu pastor\n\nA\nNada me faltara',
-  'hino de um acorde por vez transpoe, com a letra intacta');
+  'cifra de um acorde por vez transpoe, com a letra intacta');
 eq(M.transposeCifra('[C]\nB7', 2, false), '[D]\nC#7', 'acorde so com B7 transpoe');
 eq(M.transposeCifra('[C]\nB7\nFalsa', 2, false), '[D]\nC#7\nFalsa',
   '"Falsa" e palavra, e continua palavra depois de transpor');

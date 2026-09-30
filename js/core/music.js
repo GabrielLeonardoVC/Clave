@@ -257,8 +257,8 @@
     // que o padrao tambem aceita e que, sozinhas na linha, deviam ser letra.
     //
     // "b" ficou de fora de proposito: B e um acorde de verdade, e uma linha de
-    // hino so com "B" e legitima. O risco oposto — uma linha de letra que seja
-    // a letra B sozinha — nao acontece em letra de hinario.
+    // cifra so com "B" e legitima. O risco oposto — uma linha de letra que
+    // seja a letra B sozinha — nao acontece em letra de musica.
     'ao', 'aos', 'à', 'às', 'ás', 'das', 'dos', 'é', 'aí', 'lá', 'ai',
     'sol', 'fa', 'mi', 're', 'si', 'dó', 'fá', 'ré', 'ti', 'lá',
   ]);
@@ -268,7 +268,7 @@
    *
    * "a" e artigo, "e" e conjuncao, "em" e preposicao — e ao mesmo tempo A, E e
    * Em, tres dos acordes mais usados do repertorio brasileiro. Nao ha como
-   * decidir olhando so o token: o hino "A / Eu te adoro" usa A como acorde, e
+   * decidir olhando so o token: a cifra "A / Eu te adoro" usa A como acorde, e
    * uma frase de letra comecada por "E" nao forma uma linha inteira.
    *
    * Sao os tres casos, medidos um a um contra a lista: as demais palavras que
@@ -349,7 +349,7 @@
     if (!toks.length) return false;
     const chords = toks.filter((t) => t.type === 'chord');
     if (chords.length < 2) {
-      // Hinario se escreve com um acorde por vez, cada um na sua linha. Exigir
+      // Quem canta escreve um acorde por vez, cada um na sua linha. Exigir
       // dois descartava esse formato inteiro, e o efeito era o pior possivel:
       // a musica nao transpunha e saia no tom original, sem aviso nenhum.
       //

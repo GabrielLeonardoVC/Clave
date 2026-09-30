@@ -157,7 +157,7 @@
     }
     pedir().then((p) => {
       if (p === 'granted') {
-        notificar('Lembretes ativados', 'Avisaremos antes de cada ensaio e culto.', { tag: 'teste' });
+        notificar('Lembretes ativados', 'Avisaremos antes de cada ensaio e missa.', { tag: 'teste' });
         global.UI.toast('Lembretes ativados', { tipo: 'ok' });
       } else {
         global.UI.toast('Permissão negada. Ative nas configurações do site.', { tipo: 'err', dur: 5000 });
