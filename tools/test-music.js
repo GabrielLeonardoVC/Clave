@@ -328,9 +328,10 @@ eq(acordesDe(M.transposeCifraPorGrau('[C]\nF#7   C#7', 7, 'major')), 'F#7 G#7',
 eq(acordesDe(M.transposeCifraPorGrau('[C]\nC#m7b5', 2, 'major')), 'C#m7b5',
   'acorde diatonico no destino fica onde esta');
 
-// Estranho dos dois lados: desloca e mantem a qualidade escrita. Bb nao esta em
-// Do maior nem em Re maior, entao nao ha grau que possa ser transportado.
-eq(acordesDe(M.transposeCifraPorGrau('[C]\nBbmaj7', 2, 'major')), 'Cmaj7',
+// Estranho dos dois lados: desloca e mantem a qualidade escrita. Eb nao esta
+// em Do maior nem em Re maior, nem como quinta de nenhum grau dos dois, entao
+// nao ha grau que possa ser transportado.
+eq(acordesDe(M.transposeCifraPorGrau('[C]\nEbmaj7', 2, 'major')), 'Fmaj7',
   'acorde strangerio desloca e mantem a qualidade');
 
 // Propriedades que nao podem quebrar.
