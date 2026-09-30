@@ -26,11 +26,20 @@ export function registrarServiceWorker(): void {
   if (!registrado() || !contextoSeguro()) return
 
   registrando = true
-  window.addEventListener('load', () => {
+
+  const registrar = () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {
       registrando = false
     })
-  })
+  }
+
+  // Esperar o `load` era para não competir com os recursos iniciais. Só que
+  // o bundle é pequeno e monta antes da janela carregar: quando o React chega
+  // aqui, o `load` já passou, o listener nunca dispara e o app perde o
+  // funcionamento offline inteiro — justamente o que este app promete.
+  // Consultando o estado, o registro acontece nos dois casos.
+  if (document.readyState === 'complete') registrar()
+  else window.addEventListener('load', registrar, { once: true })
 }
 
 export interface PromptInstalacao extends Event {

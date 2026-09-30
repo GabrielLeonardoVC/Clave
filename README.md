@@ -1,4 +1,50 @@
+# Cifras-pro
+
+Repositório com **dois aplicativos**. O que está publicado é o
+**CifraCeleste**; o **Acorde** é a versão anterior, mantida como referência.
+
+| | Pasta | O que é | Estado |
+|---|---|---|---|
+| **CifraCeleste** | [`cifraceleste/`](cifraceleste/) | React + TypeScript + Vite + Tailwind | **Publicado** |
+| Acorde | raiz (`index.html`, `js/`, `css/`) | App puro em JS, sem build | Referência |
+
+O Acorde não é mais o projeto — o motor de teoria dele foi portado para o
+CifraCeleste. Ele continua no repositório porque os 220 testes de
+`tools/test-music.js` servem de referência para conferir o que foi portado.
+
+## CifraCeleste — o app publicado
+
+**No ar:** <https://gabrielleonardovc.github.io/Cifras-pro/>
+
+Cifras, escalas e teoria musical para músicos ao vivo. Repertório, missas,
+transposição instantânea, áudio e modo estúdio. Instala como aplicativo e
+funciona sem internet — a estratégia do service worker é *rede primeiro, cache
+como reserva*, porque quem precisa da cifra no porão da igreja não pode ficar
+olhando uma tela em branco.
+
+```bash
+cd cifraceleste
+npm install
+npm run dev      # http://127.0.0.1:5180
+npm run build    # typecheck + build de produção em dist/
+npm test         # 112 testes
+```
+
+### Como ele é publicado
+
+`.github/workflows/pages.yml` compila a cada `push` na `main` que mexa em
+`cifraceleste/`, roda os testes antes de gerar o artefato e publica o
+`dist/` no GitHub Pages. O Vite já está com `base: './'`, então o app roda
+no subdomínio `/Cifras-pro/` sem configuração extra.
+
+Depois do primeiro deploy, ative em **Settings → Pages → Source: GitHub
+Actions**.
+
+---
+
 # Acorde
+
+> App anterior, mantido como referência. Não é publicado.
 
 **A mesa de trabalho de quem toca.** Monte escalas de ensaio, culto e show;
 organize o repertório; decore a cifra no estúdio com o vídeo do YouTube do

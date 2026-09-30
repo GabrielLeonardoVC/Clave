@@ -1,0 +1,10 @@
+# Raiz do repositório. O .gitignore do cifraceleste/ só protege aquela
+# subpasta; sem este, o cache do Vite na raiz era versionado no GitHub.
+
+node_modules/
+dist/
+*.tsbuildinfo
+
+.DS_Store
+*.local
+.env
