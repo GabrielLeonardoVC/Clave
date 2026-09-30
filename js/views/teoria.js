@@ -15,8 +15,8 @@
   const V = global.Views || (global.Views = {});
 
   let aba = 'acordes';
-  let estAcorde = { root: 0, quality: '' };
-  let estEscala = { root: 0, scale: 'major' };
+  let estAcorde = { root: 0, quality: '', inst: 'violao' };
+  let estEscala = { root: 0, scale: 'major', inst: 'violao' };
   let estCifra = { texto: '', semis: 0 };
 
   const QUALIDADES = [
@@ -79,7 +79,23 @@
 
     const nome = M.formatChord(estAcorde.root, estAcorde.quality, null, M.useFlatsFor(estAcorde.root));
     const info = M.chordInfo(estAcorde.root, estAcorde.quality, M.useFlatsFor(estAcorde.root));
-    const formas = M.guitarShapes(estAcorde.root, estAcorde.quality, { maxFret: 15, limit: 6 });
+
+    // ── o instrumento ──
+    // Fica acima do acorde, e nao escondido em ajustes: o desenho so faz
+    // sentido junto com o numero de cordas. Trocar para ukulele e ver as
+    // formas sumirem para 4 e o app explicando o por que.
+    const I = M.instrumento(estAcorde.inst);
+    wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'guitar' }), 'Instrumento']));
+    const insts = el('div', { class: 'chips mb-4' });
+    M.INSTRUMENTOS.forEach(function (it) {
+      insts.appendChild(el('button', {
+        class: 'chip', 'aria-pressed': String(estAcorde.inst === it.id),
+        onclick: function () { estAcorde.inst = it.id; recarregar(); },
+      }, it.nome + ' · ' + it.cordas + ' cordas'));
+    });
+    wrap.appendChild(insts);
+
+    const formas = M.instrumentShapes(estAcorde.inst, estAcorde.root, estAcorde.quality, { limit: 6 });
 
     wrap.appendChild(el('div', { class: 'theory-card' }, [
       el('div', { class: 'big-key' }, nome),
@@ -87,15 +103,22 @@
     ]));
 
     if (formas.length) {
-      wrap.appendChild(el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': 'guitar' }), 'Formas no violão']));
+      wrap.appendChild(el('div', { class: 'section-title mt-5' }, [
+        el('i', { 'data-lucide': 'guitar' }), 'Formas no ' + I.nome.toLowerCase(),
+      ]));
       const g = el('div', { class: 'row gap-3 wrap' });
       formas.forEach(function (f, i) {
         g.appendChild(el('div', { class: 'stack gap-1', style: { alignItems: 'center' } }, [
-          R.chordDiagram(f, { title: i === 0 ? 'Principal' : 'Alt ' + i }),
-          el('div', { class: 'fs-xs muted mono' }, f.map(function (x) { return x < 0 ? 'x' : x; }).join(' ')),
+          R.chordDiagram(f, { title: i === 0 ? 'Principal' : 'Alt ' + i, labels: I.labels }),
+          // A linha de traste embaixo do desenho, com o nome da corda: e o que
+          // permite ler o desenho sem saber qual instrumento e.
+          el('div', { class: 'fs-xs muted mono' }, I.labels.join(' ') + '  ' + f.map(function (x) { return x < 0 ? 'x' : x; }).join(' ')),
         ]));
       });
       wrap.appendChild(g);
+    } else {
+      wrap.appendChild(el('div', { class: 'card mt-4' },
+        el('p', { class: 'fs-sm muted' }, 'Nenhuma forma encontrada para este acorde neste instrumento.')));
     }
 
     wrap.appendChild(el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': 'music' }), 'Notas']));
@@ -133,6 +156,18 @@
     });
     wrap.appendChild(chips);
 
+    // O instrumento decide o fretboard logo abaixo: a escala e a mesma, mas
+    // ela aparece no braco de quem vai tocar.
+    wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'guitar' }), 'No braço de']));
+    const insts = el('div', { class: 'chips mb-4' });
+    M.INSTRUMENTOS.forEach(function (it) {
+      insts.appendChild(el('button', {
+        class: 'chip', 'aria-pressed': String(estEscala.inst === it.id),
+        onclick: function () { estEscala.inst = it.id; recarregar(); },
+      }, it.nome));
+    });
+    wrap.appendChild(insts);
+
     const menor = ['minor', 'harmonic', 'melodic', 'phrygian', 'aeolian', 'locrian'].indexOf(estEscala.scale) >= 0;
     const nome = M.noteName(estEscala.root, flat) + (menor ? ' ' + sc.short : '');
     wrap.appendChild(el('div', { class: 'theory-card' }, [
@@ -161,7 +196,7 @@
     wrap.appendChild(grade);
 
     wrap.appendChild(el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': 'guitar' }), 'No violão']));
-    wrap.appendChild(R.scaleFretboard(notas, { rootPc: estEscala.root, flat: flat, frets: 12, showAll: true }));
+    wrap.appendChild(R.scaleFretboard(notas, { rootPc: estEscala.root, flat: flat, frets: 12, showAll: true, inst: estEscala.inst }));
 
     wrap.appendChild(el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': 'piano' }), 'No piano']));
     wrap.appendChild(R.scaleKeyboard(notas, { rootPc: estEscala.root, flat: flat, octaves: 2 }));
@@ -237,7 +272,8 @@
       const res = M.transposeCifra(txt, estCifra.semis, flatPara(M.mod12(estCifra.semis)));
       const k = M.detectKey(txt);
       const k2 = M.detectKey(res);
-      const desl = estCifra.semis === 0 ? 'tom original' : (estCifra.semis > 0 ? '+' : '') + estCifra.semis + (Math.abs(estCifra.semis) === 1 ? ' semitom' : ' semitons');
+      const desl = estCifra.semis === 0 ? 'tom original'
+        : R.numeroBr(estCifra.semis) + (Math.abs(estCifra.semis) === 1 ? ' semitom' : ' semitons');
       info.textContent = (k ? 'Original: ' + M.noteName(k.pc, M.useFlatsFor(k.pc)) + (k.mode === 'minor' ? 'm' : '') : '?') +
         '   -   ' + desl + (k2 ? '   -   Resultado: ' + M.noteName(k2.pc, M.useFlatsFor(k2.pc)) + (k2.mode === 'minor' ? 'm' : '') : '');
       saida.appendChild(R.cifraBox(res));
@@ -245,15 +281,10 @@
     }
     ta.addEventListener('input', U.debounce(render, 300));
 
-    const bar = el('div', { class: 'semitone-bar my-3' }, [
-      el('button', { class: 'semitone', onclick: function () { estCifra.semis -= 12; render(); } }, '-8'),
-      el('button', { class: 'semitone', onclick: function () { estCifra.semis -= 3; render(); } }, '-3'),
-      el('button', { class: 'semitone', onclick: function () { estCifra.semis--; render(); } }, '-1'),
-      el('button', { class: 'semitone', onclick: function () { estCifra.semis = 0; render(); } }, '0'),
-      el('button', { class: 'semitone', onclick: function () { estCifra.semis++; render(); } }, '+1'),
-      el('button', { class: 'semitone', onclick: function () { estCifra.semis += 3; render(); } }, '+3'),
-      el('button', { class: 'semitone', onclick: function () { estCifra.semis += 12; render(); } }, '+8'),
-    ]);
+    const bar = R.transposeBar({
+      valor: estCifra.semis,
+      onChange: function (v) { estCifra.semis = v; render(); },
+    });
 
     wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'clipboard-paste' }), 'Sua cifra']));
     wrap.appendChild(ta);

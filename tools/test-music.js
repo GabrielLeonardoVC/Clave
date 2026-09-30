@@ -347,6 +347,546 @@ eq(acordesDe(M.transposeCifraPorGrau('[C]\nEbmaj7', 2, 'major')), 'Fmaj7',
 eq(acordesDe(M.transposeCifraPorGrau(M.transposeCifraPorGrau(cGraus, 9, 'minor'), 0, 'major')),
   acordesDe(cGraus), 'La menor -> Do maior devolve os acordes originais');
 
+/* =======================================================
+   ARMADURA E RESUMO DE TONS
+   A placa de tom da tela inicial depende disto. Um erro aqui nao quebra a
+   pagina: mostra "2 sustenos" para um tom que nao tem nenhum, e o musico
+   desafina a corda antes de comecar.
+   ======================================================= */
+console.log('\n=== ARMADURA: tom maior ===');
+eq(M.armadura(0, 'major').quantidade, 0, 'Do maior nao tem alteracao');
+eq(M.armadura(5, 'major').bemois, true, 'Fa maior tem bemol');
+eq(M.armadura(5, 'major').quantidade, 1, 'Fa maior tem 1 bemol');
+eq(M.armadura(10, 'major').quantidade, 2, 'Sib maior tem 2 bemois');
+eq(M.armadura(7, 'major').quantidade, 1, 'Sol maior tem 1 susteno');
+eq(M.armadura(9, 'major').quantidade, 3, 'La maior tem 3 sustenos');
+eq(M.armadura(1, 'major').quantidade, 5, 'Dost susteno entra pelo lado do Reb: 5 bemois');
+eq(M.armadura(1, 'major').bemois, true, 'e sao bemois, pela convencao do circulo');
+eq(M.armadura(11, 'major').quantidade, 5, 'Si maior tem 5 sustenos');
+
+console.log('\n=== ARMADURA: a ordem das alteracoes ===');
+eq(M.armadura(9, 'major').ordem.join(''), 'FCG', 'La maior: F, C, G');
+eq(M.armadura(10, 'major').ordem.join(''), 'BE', 'Sib maior: B, E');
+eq(M.armadura(5, 'major').ordem.join(''), 'B', 'Fa maior: B');
+eq(M.armadura(0, 'major').ordem.join(''), '', 'Do maior: nenhuma alteracao');
+// A convencao do app passa de 6 horas no circulo e escreve com bemois, entao
+// o maior numero de alteracoes e 6, e 7 sustenos nao aparece.
+{
+  const qs = [];
+  for (let pc = 0; pc < 12; pc++) qs.push(M.armadura(pc, 'major').quantidade);
+  eq(qs.slice().sort((a, b) => a - b).join(''), '011223344556',
+    'as 12 armaduras de maior dao 0 a 6, com cada par de enarmonicos igual');
+  eq(qs.indexOf(7) < 0, true, 'nenhuma armadura passa de 6 alteracoes');
+}
+
+console.log('\n=== ARMADURA: menor usa o relativo maior ===');
+// Este e o ponto que mais dá errado: Ré menor tem UM bemol (o de Fa maior),
+// e nao os 2 sustenos de Re maior.
+eq(M.armadura(2, 'minor').quantidade, 1, 'Re menor tem 1 bemol, nao 2 sustenos');
+eq(M.armadura(2, 'minor').bemois, true, 'e o bemol vem do Fa maior');
+eq(M.armadura(9, 'minor').quantidade, 0, 'La menor nao tem alteracao');
+eq(M.armadura(4, 'minor').quantidade, 1, 'Mi menor tem 1 susteno');
+eq(M.armadura(0, 'minor').quantidade, 3, 'Do menor tem 3 bemois');
+eq(M.armadura(0, 'minor').bemois, true, 'e vem do Mib maior');
+eq(M.armadura(7, 'minor').quantidade, 2, 'Sol menor tem 2 bemois');
+eq(M.armadura(11, 'minor').quantidade, 2, 'Si menor tem 2 sustenos');
+// Minor e relativo maior tem exatamente a mesma armadura.
+{
+  let bate = true;
+  for (let pc = 0; pc < 12; pc++) {
+    if (M.armadura(pc, 'minor').quantidade !== M.armadura(M.relativeMajor(pc), 'major').quantidade) bate = false;
+  }
+  eq(bate, true, 'todo menor tem a mesma armadura do seu relativo maior');
+}
+
+console.log('\n=== RESUMO DE TONS: o tom do show ===');
+const lista = [
+  { pc: 9, modo: 'minor', rotulo: 'Am' },
+  { pc: 9, modo: 'minor', rotulo: 'Am' },
+  { pc: 9, modo: 'minor', rotulo: 'Am' },
+  { pc: 2, modo: 'minor', rotulo: 'Bm' },
+  { pc: 5, modo: 'major', rotulo: 'C' },
+];
+const res = M.resumoDeTons(lista);
+eq(res.pc, 9, 'o tom mais frequente vence');
+eq(res.modo, 'minor', 'e o modo dele');
+eq(res.n, 3, 'tres musicas no tom escolhido');
+eq(res.total, 5, 'cinco musicas no total');
+eq(res.fora, 2, 'duas fora do tom');
+eq(res.distintos, 3, 'tres tons distintos');
+eq(res.armadura.quantidade, 0, 'La menor nao pede alteracao');
+eq(res.rotulo, 'Am', 'o rotulo vem da propria musica');
+
+console.log('\n=== RESUMO DE TONS: casos de borda ===');
+eq(M.resumoDeTons([]), null, 'lista vazia nao devolve nada');
+eq(M.resumoDeTons(null), null, 'nulo nao quebra');
+eq(M.resumoDeTons([{ pc: 9, modo: 'minor' }]).fora, 0, 'uma musica so: zero fora');
+eq(M.resumoDeTons([{ pc: 9, modo: 'minor' }, { pc: 0, modo: 'major' }]).fora, 1, 'empate: a segunda fica fora');
+// Empate precisa ser estavel: a mesma lista tem de dar a mesma resposta.
+eq(M.resumoDeTons([{ pc: 9 }, { pc: 0 }]).pc, 9, 'empate vai para o primeiro da lista');
+eq(M.resumoDeTons([{ pc: 0 }, { pc: 9 }]).pc, 0, 'e o primeiro de novo, nao o maior');
+// pc fora de 0..11 (dado sujo vindo do armazenamento) nao pode explodir.
+eq(M.resumoDeTons([{ pc: 21, modo: 'major' }]).pc, 9, 'pc fora da faixa da a volta ao tom');
+eq(M.resumoDeTons([{ pc: NaN }]), null, 'pc invalido e ignorado');
+eq(M.resumoDeTons([{ pc: -3, modo: 'minor' }]).pc, 9, 'pc negativo da a volta ao tom');
+// Modo desconhecido cai em maior, nao em undefined.
+eq(M.resumoDeTons([{ pc: 0, modo: 'meio-tom' }]).modo, 'major', 'modo desconhecido vira maior');
+// Todos diferentes: nao ha "fora" util, mas nao pode quebrar.
+eq(M.resumoDeTons([{ pc: 0 }, { pc: 1 }, { pc: 2 }, { pc: 3 }]).n, 1, 'com tudo diferente, o maior bloco tem 1');
+
+/* =======================================================
+   INSTRUMENTOS
+   Um gerador de formas que devolve basura e pior do que um que nao devolve
+   nada: o desenho aparecer errado faz o usuario achar que o acorde e aquilo.
+   Por isso cada forma devolvida e conferida nota a nota contra o acorde.
+   ======================================================= */
+console.log('\n=== INSTRUMENTOS: a tabela ===');
+eq(M.INSTRUMENTOS.length, 4, 'quatro instrumentos');
+eq(M.INSTRUMENTO_PADRAO.id, 'violao', 'o padrao e o violao');
+eq(M.instrumento('baixo').cordas, 4, 'baixo tem 4 cordas');
+eq(M.instrumento('ukulele').cordas, 4, 'ukulele tem 4 cordas');
+eq(M.instrumento('inexistente').id, 'violao', 'instrumento desconhecido cai no violao');
+eq(M.instrumento(null).id, 'violao', 'instrumento nulo cai no violao');
+
+console.log('\n=== INSTRUMENTOS: afinacoes ===');
+// E A D G B E, de baixo para cima
+eq(M.instrumento('violao').openPc.join(','), '4,9,2,7,11,4', 'violao em EADGBE');
+eq(M.instrumento('baixo').openPc.join(','), '4,9,2,7', 'baixo em EADG');
+eq(M.instrumento('baixo5').openPc.join(','), '11,4,9,2,7', 'baixo 5 cordas em BEADG');
+eq(M.instrumento('ukulele').openPc.join(','), '7,0,4,9', 'ukulele em GCEA');
+// O indice 0 e sempre a corda mais grave. E a convencao de que validateVoicing
+// depende para exigir a fundamental na voz mais baixa. O MIDI e a prova: as
+// cordas tem de subir de altura, e nao apenas de classe.
+[['violao', 40, 64], ['baixo', 28, 43], ['baixo5', 23, 43], ['ukulele', 55, 69]].forEach(([id, maisGrave, maisAguda]) => {
+  const I = M.instrumento(id);
+  const sobe = I.openMidi.every((m, i) => i === 0 || m > I.openMidi[i - 1]);
+  eq(sobe, true, id + ': as cordas sobem de altura, da mais grave para a mais aguda');
+  eq(I.openMidi[0], maisGrave, id + ': comeca em ' + maisGrave);
+  eq(I.openMidi[I.openMidi.length - 1], maisAguda, id + ': termina em ' + maisAguda);
+  // openPc tem de ser derivavel do MIDI, senao a busca desenha a nota errada.
+  eq(I.openPc.map((p, i) => p === I.openMidi[i] % 12).every((x) => x), true,
+    id + ': openPc bate com openMidi');
+  ok(I.openPc.length === I.labels.length, id + ': afinacao e rotulos tem o mesmo tamanho');
+  ok(I.openPc.length === I.cordas, id + ': openPc tem uma entrada por corda');
+  ok(I.openMidi.length === I.cordas, id + ': openMidi tem uma entrada por corda');
+});
+eq(M.instrumento('ukulele').labels.join(''), 'GCEA', 'rotulos do ukulele em GCEA');
+eq(M.instrumento('violao').labels[0] + M.instrumento('violao').labels[5], 'EE', 'violao comeca e termina no Mi');
+
+console.log('\n=== INSTRUMENTOS: formas que tocam o acorde certo ===');
+// O teste que vale: para cada instrumento, cada acorde, cada forma devolvida
+// tem de ser o acorde pedido — e nada alem dele.
+const QUALIDADES_TESTE = ['', 'm', '7', 'm7', 'maj7', 'dim', 'aug', 'sus4', 'sus2'];
+let formasChutadas = 0, formasRuins = 0, instrumentosSemForma = [];
+M.INSTRUMENTOS.forEach(function (I) {
+  let achouAlguma = false;
+  for (let pc = 0; pc < 12; pc++) {
+    for (const q of QUALIDADES_TESTE) {
+      let formas;
+      try {
+        formas = M.instrumentShapes(I, pc, q, { maxFret: I.trastes, limit: 3 });
+      } catch (e) {
+        formasRuins++;
+        ok(false, I.id + ' lancou em ' + M.noteName(pc) + ' ' + (q || 'maior') + ': ' + e.message);
+        continue;
+      }
+      if (!formas || !formas.length) continue;
+      achouAlguma = true;
+      // `iv` fica em QUALITIES; chordInfo devolve as notas ja nomeadas.
+      const iv = M.QUALITIES[q].iv;
+      const quer = new Set(iv.map((i) => (pc + i) % 12));
+      formas.forEach(function (f) {
+        formasChutadas++;
+        eq(f.length, I.cordas, I.id + ': forma tem uma entrada por corda');
+        const pcTocadas = [];
+        f.forEach((fr, i) => {
+          if (fr < 0) return;
+          ok(fr >= 0 && fr <= I.trastes, I.id + ': traste ' + fr + ' dentro do braco');
+          const npc = (I.openPc[i] + fr) % 12;
+          if (!quer.has(npc)) {
+            formasRuins++;
+            ok(false, I.id + ': ' + M.noteName(pc) + ' ' + (q || 'maior') +
+              ' tem nota fora do acorde em ' + I.labels[i] + ' (traste ' + fr + ' = ' + M.noteName(npc) + ')');
+          }
+          pcTocadas.push(npc);
+        });
+        // precisa soar: pelo menos 3 notas, com fundamental e 3a.
+        const distintas = new Set(pcTocadas);
+        ok(distintas.size >= 3, I.id + ': a forma tem ao menos 3 notas distintas');
+        ok(distintas.has(pc % 12), I.id + ': a forma tem a fundamental');
+        ok(distintas.has((pc + (iv[1] !== undefined ? iv[1] : 4)) % 12),
+          I.id + ': a forma tem a 3a');
+        // a voz mais grave e a fundamental: e a regra que o validateVoicing
+        // exige e que a busca precisa respeitar.
+        const primeira = pcTocadas[0];
+        ok(primeira === pc % 12, I.id + ': a voz mais grave e a fundamental');
+      });
+    }
+  }
+  if (!achouAlguma) instrumentosSemForma.push(I.id);
+});
+eq(formasRuins, 0, 'nenhuma forma com nota fora do acorde');
+eq(formasChutadas > 400, true, 'a busca achou ' + formasChutadas + ' formas para conferir');
+eq(instrumentosSemForma.join(','), '', 'todo instrumento achou forma para os acordes comuns');
+
+console.log('\n=== INSTRUMENTOS: instrumentShapes delega ao violao ===');
+// O violao tem de continuar devolvendo as mesmas formas de antes, incluindo as
+// canonicas. E o que garante que a generalizacao nao mexeu no que ja funcionava.
+const gC = M.instrumentShapes('violao', 0, '', { maxFret: 15, limit: 6 });
+const gC2 = M.guitarShapes(0, '', { maxFret: 15, limit: 6 });
+eq(gC.join('|'), gC2.join('|'), 'violao pelo id e pela funcao devolvem o mesmo');
+// O C aberto canonico (x 3 2 0 1 0) tem de continuar na lista, com bonus 40.
+ok(gC.some((f) => f.join(' ') === '-1 3 2 0 1 0'), 'o C aberto canonico continua na lista');
+// O Sol aberto canonico (3 2 0 0 0 3) e do tom SOL, nao do C — e a forma
+// aberta do violao, com bonus 40, entao tem de aparecer em pc 7.
+const gG = M.guitarShapes(7, '', { maxFret: 15, limit: 6 });
+eq(gG[0].join(' '), '3 2 0 0 0 3', 'o Sol aberto canonico vem primeiro em Sol');
+ok(M.instrumentShapes('violao', 7, '', { maxFret: 15, limit: 6 })[0].join(' ') === '3 2 0 0 0 3',
+  'e o caminho generico do violao tambem respeita as canonicas');
+
+console.log('\n=== INSTRUMENTOS: entradas invalidas ===');
+eq(M.instrumentShapes('violao', 99, '', {}).length > 0, true, 'fundamental fora de 0..11 da a volta');
+eq(M.instrumentShapes(null, 0, '', {}).length > 0, true, 'instrumento nulo usa o violao');
+eq(M.instrumentShapes({ openPc: 'lixo' }, 0, '', {}).length > 0, true, 'instrumento invalido usa o violao');
+
+// Uma qualidade que nao existe nao vira acorde inventado: o motor cai para o
+// maior, que e o comportamento que o violao ja tinha. O importante e que
+// todos os instrumentos caiam para a MESMA coisa — se so um deles caisse, o
+// mesmo acorde apareceria de dois jeitos dependendo do instrumento escolhido.
+eq(M.instrumentShapes('baixo', 0, 'nao-existe', { limit: 1 })[0].join(' '),
+  M.instrumentShapes('baixo', 0, '', { limit: 1 })[0].join(' '),
+  'baixo: qualidade inventada cai no maior, igual ao maior mesmo');
+eq(M.instrumentShapes('ukulele', 0, 'nao-existe', { limit: 1 })[0].join(' '),
+  M.instrumentShapes('ukulele', 0, '', { limit: 1 })[0].join(' '),
+  'ukulele: qualidade inventada cai no maior, igual ao maior mesmo');
+eq(M.instrumentShapes('violao', 0, 'nao-existe', { limit: 1 })[0].join(' '),
+  M.instrumentShapes('violao', 0, '', { limit: 1 })[0].join(' '),
+  'violao: qualidade inventada cai no maior, como sempre fez');
+// E o maior inventado ainda tem de ser um acorde de verdade: nada de nota
+// fora, e com a fundamental na voz mais grave.
+{
+  const I = M.instrumento('baixo');
+  const f = M.instrumentShapes('baixo', 0, 'nao-existe', { limit: 1 })[0];
+  const quer = new Set([0, 4, 7]); // C, E, G
+  eq(f.every((fr, i) => fr < 0 || quer.has((I.openPc[i] + fr) % 12)), true,
+    'e a forma gerada para o maior e mesmo o maior');
+}
+
+/* =======================================================
+   MEIO SEMITOM — a fronteira que o controle de 0,5 em 0,5 cria
+   =======================================================
+   Meio semitom e quarto de tom, e nao ha nome de acorde para ele. Sem
+   tratamento, o motor calcularia um pitch class fracionario e escreveria
+   "undefined" no meio da cifra. E o tipo de defeito que nao da erro: o app
+   abre normal e a pessoa so percebe depois de cantar errado. */
+console.log('\n=== MEIO SEMITOM: arredonda em vez de quebrar ===');
+eq(M.arredondarSemitons(0), 0, 'zero fica zero');
+eq(M.arredondarSemitons(3), 3, 'inteiro passa reto');
+eq(M.arredondarSemitons(3.5), 4, '3,5 sobe para 4');
+eq(M.arredondarSemitons(-3.5), -3, 'menos 3,5 sobe para menos 3');
+eq(M.arredondarSemitons(2.4), 2, '2,4 desce para 2');
+eq(M.arredondarSemitons(2.6), 3, '2,6 sobe para 3');
+eq(M.arredondarSemitons('3'), 3, 'texto numerico funciona');
+eq(M.arredondarSemitons(NaN), 0, 'NaN vira zero');
+eq(M.arredondarSemitons(Infinity), 0, 'infinito vira zero');
+eq(M.arredondarSemitons(undefined), 0, 'indefinido vira zero');
+eq(M.arredondarSemitons(null), 0, 'nulo vira zero');
+eq(M.arredondarSemitons('lixo'), 0, 'texto nao numerico vira zero');
+
+console.log('\n=== MEIO SEMITOM: os cents do desvio ===');
+eq(M.centsDeDesvio(0), 0, 'sem desvio, zero cents');
+eq(M.centsDeDesvio(3), 0, 'inteiro nao tem desvio');
+eq(M.centsDeDesvio(3.5), 50, '3,5 semitons sao 50 cents');
+eq(M.centsDeDesvio(-3.5), -50, 'menos 3,5 sao menos 50 cents');
+eq(M.centsDeDesvio(2.25), 25, '2,25 sao 25 cents');
+eq(M.centsDeDesvio(0.7), -30, '0,7 arredonda para 1: 30 cents acima do pedido');
+eq(M.centsDeDesvio(-0.7), 30, 'menos 0,7 arredonda para -1: 30 cents abaixo do pedido');
+eq(M.centsDeDesvio(-0.9), 10, 'menos 0,9 nao gera 90 cents');
+eq(M.centsDeDesvio(0.9), -10, '0,9 tambem nao gera 90 cents');
+eq(M.centsDeDesvio(NaN), 0, 'NaN nao gera cents');
+// O desvio nunca passa de meio semitom: e a definicao dele.
+{
+  let pior = 0;
+  for (let i = -240; i <= 240; i++) {
+    const c = Math.abs(M.centsDeDesvio(i / 10));
+    if (c > pior) pior = c;
+  }
+  eq(pior, 50, 'o desvio nunca passa de 50 cents');
+}
+
+console.log('\n=== MEIO SEMITOM: a cifra nao estraga ===');
+const meio = '[C]\nC  G  Am  F';
+// Nenhum destes pode conter "undefined", "NaN" ou "0.5".
+[0.5, 1.5, 2.5, -0.5, -1.5, 3.7, -3.7].forEach(function (s) {
+  const t = M.transposeCifra(meio, s, false);
+  ok(!/undefined|NaN|0\.5|\.5/.test(t), 'meio semitom ' + s + ' nao escreve nada estranho');
+  ok(/\[/.test(t), 'meio semitom ' + s + ' preserva a diretiva de tom');
+});
+// E o resultado tem de ser identico ao do inteiro arredondado.
+[0.5, 1.5, 2.5, -0.5, -1.5, 3.7].forEach(function (s) {
+  eq(M.transposeCifra(meio, s, false), M.transposeCifra(meio, M.arredondarSemitons(s), false),
+    'meio semitom ' + s + ' da o mesmo resultado que ' + M.arredondarSemitons(s));
+});
+// Um quarto de tom acima do C tem de soar como C# (semitom acima), e nao C.
+eq(M.transposeCifra('C', 0.5, false), M.transposeCifra('C', 1, false),
+  'meio semitom acima arredonda para o proximo semitom');
+eq(M.transposeCifra('C', -0.5, false), M.transposeCifra('C', 0, false),
+  'meio semitom abaixo arredonda para o semitom');
+eq(M.transposeCifra(meio, 0.4, false), meio, '0,4 arredonda para zero e devolve a cifra intacta');
+eq(M.transposeCifra(meio, NaN, false), meio, 'NaN devolve a cifra intacta');
+eq(M.transposeCifra(meio, 'x', false), meio, 'entrada nao numerica devolve a cifra intacta');
+// transposeLine tambem, que e chamada direto em outros lugares.
+eq(M.transposeLine('C G', 2.5, false), M.transposeLine('C G', 3, false), 'transposeLine tambem arredonda');
+eq(/undefined|NaN/.test(M.transposeLine('C G', 0.5, false)), false, 'transposeLine nao escreve undefined');
+
+/* =======================================================
+   ROTEIRO DE ROLAGEM
+   O que separa um scroll que serve de um scroll inutil e a duracao de cada
+   parada. Rolar na velocidade constante da a sensacao de texto passando, e o
+   musico nao sabe quando mudar de acorde.
+   ======================================================= */
+console.log('\n=== ROTEIRO: classifica cada linha ===');
+const cifraRolagem = '[C]\n\n[Verso 1]\nC       G\nAm      F\n\nC       G\nF       G\n\n[Refrão]\nF       C\nG       C';
+const r0 = M.roteiroDeRolagem(cifraRolagem, { bpm: 120, compasso: '4/4' });
+eq(r0.linhas.length, 12, 'o roteiro tem uma entrada por linha da cifra');
+eq(r0.linhas[0].tipo, 'secao', 'linha [C] e secao, nao linha de acordes');
+eq(r0.linhas[1].tipo, 'vazia', 'linha em branco e respiro');
+eq(r0.linhas[2].tipo, 'secao', '[Verso 1] e secao');
+eq(r0.linhas[3].tipo, 'acorde', 'linha de acordes e acorde');
+eq(r0.linhas[4].tipo, 'acorde', 'outra linha de acordes');
+// os indices batem com a posicao na cifra original
+eq(r0.linhas.map((r) => r.indice).join(','), '0,1,2,3,4,5,6,7,8,9,10,11',
+  'cada entrada guarda o indice da linha original');
+eq(r0.totalAcordes, 6, 'seis linhas de acordes — o [C] do topo e secao, nao acorde');
+
+console.log('\n=== ROTEIRO: a duracao de cada parada ===');
+// 120 bpm em 4/4 -> 500 ms por batida, meia barra -> 1000 ms por linha.
+eq(r0.msPorBatida, 500, 'a 120 bpm a batida dura 500 ms');
+eq(r0.msCheia, 1000, 'meia barra de 4/4 a 120 bpm sao 1000 ms');
+const tAcorde = r0.linhas.find((r) => r.tipo === 'acorde');
+const tSecao = r0.linhas.find((r) => r.tipo === 'secao');
+const tVazia = r0.linhas.find((r) => r.tipo === 'vazia');
+eq(tAcorde.ms, 1000, 'linha de acordes para pela barra cheia');
+ok(tSecao.ms < tAcorde.ms, 'secao passa mais rapido que a linha de acordes (' + tSecao.ms + ' < ' + tAcorde.ms + ')');
+ok(tVazia.ms < tAcorde.ms, 'respiro tambem passa mais rapido (' + tVazia.ms + ' < ' + tAcorde.ms + ')');
+// Nenhum parada pode ser tao curta que pisca, nem tao longa que trava.
+eq(r0.linhas.every((r) => r.ms >= 120 && r.ms <= 20000), true, 'toda parada fica entre 120 ms e 20 s');
+eq(r0.duracaoMs, r0.linhas.reduce((s, r) => s + r.ms, 0), 'a duracao total e a soma das paradas');
+
+console.log('\n=== ROTEIRO: o andamento muda o ritmo ===');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 60 }).msCheia, 2000, 'a 60 bpm a linha dura o dobro');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 240 }).msCheia, 500, 'a 240 bpm a linha dura a metade');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 120, compasso: '3/4' }).msCheia, 750, 'em 3/4 a linha encurta');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 120, compasso: '6/8' }).msCheia, 1500, 'em 6/8 a linha alonga');
+// Mais BPM = menos tempo. E a unica relacao que importa. O percurso fica
+// dentro da faixa valida: acima de 300 o motor cai no padrao de 96, e um
+// bpm alto "aumentaria" o tempo — o que seria a queda funcionando, nao uma
+// falha de monotonicidade.
+{
+  let ok2 = true;
+  for (let a = 30; a < 300; a += 15) {
+    for (let b = a + 15; b <= 300; b += 15) {
+      if (M.roteiroDeRolagem('C', { bpm: a }).msCheia <= M.roteiroDeRolagem('C', { bpm: b }).msCheia) ok2 = false;
+    }
+  }
+  eq(ok2, true, 'mais BPM nunca aumenta o tempo de parada');
+}
+
+console.log('\n=== ROTEIRO: o fator de velocidade ===');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 120, fator: 2 }).msCheia, 2000, 'fator 2 dobra o tempo');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 120, fator: 0.5 }).msCheia, 500, 'fator meio corta pela metade');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 120, fator: 0 }).fator, 1, 'fator zero nao trava a rolagem');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 120, fator: -3 }).fator, 1, 'fator negativo nao trava a rolagem');
+eq(M.roteiroDeRolagem(cifraRolagem, { bpm: 120, fator: 'lixo' }).fator, 1, 'fator nao numerico nao trava a rolagem');
+
+console.log('\n=== ROTEIRO: entradas invalidas ===');
+// Uma cifra sem andamento e o caso comum: a maioria nunca preenche o bpm.
+eq(M.roteiroDeRolagem('C  G').bpm, 96, 'sem bpm, assume 96 — andamento de marcha');
+eq(M.roteiroDeRolagem('C  G', { bpm: 'lixo' }).bpm, 96, 'bpm nao numerico assume 96');
+eq(M.roteiroDeRolagem('C  G', { bpm: 0 }).bpm, 96, 'bpm zero assume 96');
+eq(M.roteiroDeRolagem('C  G', { bpm: -50 }).bpm, 96, 'bpm negativo assume 96');
+eq(M.roteiroDeRolagem('C  G', { bpm: 5000 }).bpm, 96, 'bpm absurdo assume 96');
+eq(M.roteiroDeRolagem('C  G', { compasso: 'lixo' }).numerador, 4, 'compasso invalido assume 4/4');
+eq(M.roteiroDeRolagem('C  G', { compasso: '' }).numerador, 4, 'compasso vazio assume 4/4');
+eq(M.roteiroDeRolagem('C  G', { compasso: '99/4' }).numerador, 4, 'numerador absurdo assume 4');
+// Uma cifra vazia nao pode quebrar o app na hora de abrir a musica.
+eq(M.roteiroDeRolagem('').linhas.length, 1, 'cifra vazia devolve uma linha so');
+eq(M.roteiroDeRolagem('').totalAcordes, 0, 'cifra vazia nao tem acordes');
+eq(M.roteiroDeRolagem(null).linhas.length, 1, 'cifra nula nao quebra');
+eq(M.roteiroDeRolagem(undefined).totalAcordes, 0, 'cifra indefinida nao quebra');
+// Letra pura sem acorde: nao e rolavel, e o app precisa saber disso.
+eq(M.roteiroDeRolagem('O Senhor e o meu pastor\nNada me faltara').totalAcordes, 0,
+  'letra sem acorde nao tem linha rolavel');
+eq(M.roteiroDeRolagem('O Senhor e o meu pastor').linhas[0].tipo, 'letra', 'a linha de letra e do tipo letra');
+
+/* =======================================================
+   ESPACAMENTO DA CIFRA
+   O espaco entre os acordes e parte do formato: e ele que alinha o acordo
+   com a silaba da letra. Perder o espaco nao "limpa" a linha: destroi o
+   desenho.
+   ======================================================= */
+console.log('\n=== ESPACAMENTO: o desenho sobrevive a tokenizacao ===');
+const juntar = (toks) => toks.map((t) => t.v).join('');
+eq(juntar(M.tokenizeLine('C            G', true)), 'C            G',
+  'os espacos entre dois acordes continuam la');
+eq(juntar(M.tokenizeLine('Am           F', true)), 'Am           F',
+  'o alinhamento de uma linha de dois acordes se mantem');
+eq(juntar(M.tokenizeLine('   C', true)), '   C', 'o espaco da frente da linha nao e comido');
+eq(juntar(M.tokenizeLine('C   ', true)), 'C   ', 'o espaco do fim da linha nao e comido');
+eq(juntar(M.tokenizeLine('C', true)), 'C', 'sem espaco nenhum, a linha fica igual');
+// tres acordes com espacos diferentes: as colunas batem
+eq(juntar(M.tokenizeLine('C       G       Am', true)), 'C       G       Am', 'tres acordes alinhados');
+// espaco de tabulacao
+eq(juntar(M.tokenizeLine('C\t\tG', true)), 'C\t\tG', 'tabulacao tambem sobrevive');
+
+console.log('\n=== ESPACAMENTO: o que continua funcionando ===');
+// O acord detection nao pode ter piorado por causa dos tokens de espaco.
+eq(M.tokenizeLine('C            G', true).filter((t) => t.type === 'chord').length, 2,
+  'ainda sao dois acordes, e nao tres com um espaco no meio');
+eq(M.tokenizeLine('C            G', true).filter((t) => t.espaco).length, 1,
+  'o espaco e um token so');
+eq(M.tokenizeLine('C     G', true).filter((t) => t.type === 'chord' && t.chord).length, 2,
+  'os dois acordes ainda trazem o acorde analisado');
+// Uma linha de letra nao pode virar linha de acordes por causa dos espacos.
+eq(M.isChordLine('O Senhor e o meu pastor'), false, 'letra continua nao sendo linha de acordes');
+eq(M.isChordLine('C            G'), true, 'linha de acordes continua sendo reconhecida');
+eq(M.extractChords('C     G     Am').length, 3, 'extractChords ignora os espacos, como antes');
+// Barra de compasso entre acordes
+eq(juntar(M.tokenizeLine('C    |    G', true)).indexOf('|') > 0, true, 'a barra de compasso continua no lugar');
+
+/* =======================================================
+   TRECHOS DA CIFRA — a base do modo de estudo
+   =======================================================
+   Estudar cifra e decorar pedaco por pedaco. Para isso o app precisa saber
+   onde acaba um verso e comeca o outro — e isso e uma informacao que a cifra
+   ja traz, nas linhas entre colchetes. Descobrir na hora, contando linhas na
+   mao, seria erro garantido. */
+console.log('\n=== TRECHOS: a divisao segue as secoes ===');
+const cifraTrechos = ['[C]',
+  'C            G',
+  'Am           F',
+  '',
+  '[Verso 1]',
+  'C            G',
+  'F            G',
+  '',
+  '[Refrao]',
+  'F            C',
+  'G       C    F',
+  '',
+  '[Ponte]',
+  'Am           F',
+  'C            G'].join('\n');
+const bt = M.blocosDeCifra(cifraTrechos);
+eq(bt.length, 4, 'quatro trechos: antes do primeiro titulo, verso, refrão e ponte');
+eq(bt[1].titulo, 'Verso 1', 'o segundo trecho e o Verso 1');
+eq(bt[2].titulo, 'Refrao', 'o terceiro e o Refrao');
+eq(bt[3].titulo, 'Ponte', 'o quarto e a Ponte');
+// O trecho sem titulo usa a diretiva de tom, que e o que a cifra declara.
+eq(bt[0].titulo, 'C', 'o primeiro trecho usa a diretiva de tom como nome');
+eq(bt[0].semTitulo, false, 'e conta como titulo dado, nao como trecho anonimo');
+eq(bt[1].semTitulo, false, 'os trechos com titulo nao sao marcados assim');
+
+console.log('\n=== TRECHOS: as linhas de cada trecho ===');
+eq(bt[1].linhaInicio, 4, 'o Verso 1 comeca na linha 4');
+eq(bt[1].linhaFim, 7, 'e termina na linha 7 (a linha em branco antes do Refrao)');
+eq(bt[3].linhaFim, 14, 'a Ponte termina na ultima linha');
+// Nenhuma linha pode ficar fora de algum trecho, nem ser contada duas vezes.
+{
+  const cobertas = [];
+  bt.forEach((b) => { for (let i = b.linhaInicio; i <= b.linhaFim; i++) cobertas.push(i); });
+  const todas = cifraTrechos.split('\n').map((_, i) => i);
+  eq(cobertas.slice().sort((a, b) => a - b).join(','), todas.join(','),
+    'as linhas de todos os trechos, juntas, dao a cifra inteira sem repetir nem faltar');
+}
+eq(bt.map((b) => b.nLinhas).join(','), '3,3,3,2', 'a contagem de linhas de cada trecho');
+
+console.log('\n=== TRECHOS: casos de borda ===');
+eq(M.blocosDeCifra('').length, 0, 'cifra vazia nao tem trechos');
+eq(M.blocosDeCifra(null).length, 0, 'cifra nula nao quebra');
+eq(M.blocosDeCifra('C  G').length, 1, 'cifra sem nenhuma secao e um trecho so');
+eq(M.blocosDeCifra('C  G')[0].titulo, 'Inicio', 'e o trecho sem titulo ganha um nome legivel');
+eq(M.blocosDeCifra('C  G')[0].semTitulo, true, 'e ele e marcado como anonimo');
+// Secoes seguidas: a do meio fica vazia, e e assim que deve ser. O conteudo
+// depois de um titulo pertence a esse titulo — "[B] / C  G" e um trecho so,
+// nao um trecho B vazio e um trecho anonimo com o acorde.
+{
+  const b2 = M.blocosDeCifra('[A]\n[B]\nC  G');
+  eq(b2.length, 2, 'um titulo seguido de conteudo e um trecho so');
+  eq(b2[0].nLinhas, 0, 'o primeiro titulo, sem nada embaixo, fica vazio');
+  eq(b2[1].titulo, 'B', 'e o acorde pertence ao titulo seguinte, nao a um trecho anonimo');
+  eq(b2[1].nLinhas, 1, 'com uma linha de conteudo');
+}
+// Tres titulos seguidos: o do meio fica vazio, e e o caso que o teste do
+// app precisa acertar para nao esconder dois versos como se fossem um.
+{
+  const b3 = M.blocosDeCifra('[Refrao]\n[Refrao 2]\nC  G');
+  eq(b3.length, 2, 'tres titulos seguidos dao dois trechos');
+  eq(b3[0].nLinhas, 0, 'o Refrao, sem conteudo, fica vazio');
+  eq(b3[1].titulo, 'Refrao 2', 'e o conteudo fica no segundo Refrao');
+}
+// Um titulo sem colchetes tambem vale.
+eq(M.blocosDeCifra('= Refrao =\nC  G')[0].titulo, 'Refrao', 'o titulo com sinal de igual tambem vale');
+// O sublinhado sozinho e secao, mas "___ Texto ___" nao e: `isSectionLine`
+// aceita so uma linha de sublinhados. Este teste registra o limite em vez de
+// fingir que o formato existe — mudar isso mexeria no detector compartilhado
+// com o resto do app.
+eq(M.blocosDeCifra('____\nC  G')[0].nLinhas, 1, 'uma linha de sublinhados e secao');
+eq(M.blocosDeCifra('___ Introducao ___\nC  G')[0].titulo, 'Inicio',
+  'sublinhado com texto no meio NAO e secao, e o texto vira letra comum');
+// Espaco em volta do titulo nao vira parte do nome.
+eq(M.blocosDeCifra('[  Solo  ]\nC  G')[0].titulo, 'Solo', 'o titulo e aparado dos espacos');
+// Diretoiva de tom e titulo ao mesmo tempo: a diretiva nao deve virar o titulo.
+eq(M.blocosDeCifra('[Dm]\nC  G')[0].titulo, 'Dm', 'a diretiva de tom serve de titulo');
+eq(M.blocosDeCifra('[Dm]\nC  G')[0].semTitulo, false, 'e conta como titulo dado');
+
+/* =======================================================
+   SO ACORDES — descascar a letra sem mexer no desenho
+   ======================================================= */
+console.log('\n=== SO ACORDES: a letra some, o desenho fica ===');
+// Os espacos ENTRE as palavras da letra tambem sobrevem, e por isso a
+// comparacao ignora a direita. Eles nao aparecem na tela, e apaga-los
+// deslocaria as colunas de tudo que vier depois.
+eq(M.apenasAcordes('C            G        O Senhor e o meu pastor').trimEnd(),
+  'C            G',
+  'linha mista fica so com os acordes, na posicao original');
+eq(M.apenasAcordes('Am           F        em nenhum dia').trimEnd(),
+  'Am           F',
+  'segunda linha mista tambem');
+eq(/Senhor|pastor|nenhum/.test(M.apenasAcordes('C   G   O Senhor e o meu pastor')), false,
+  'nenhuma palavra da letra sobra');
+// A linha e mista E passa em isChordLine — e por isso que o filtro antigo nao
+// a pegava.
+eq(M.isChordLine('Am           F        em nenhum dia'), true,
+  'a linha mista passa como linha de acordes (por isso o filtro antigo falhava)');
+// Alineamento preservado: a posicao da coluna de acordes nao anda.
+{
+  const mista = 'C            G        O Senhor e o meu pastor';
+  const so = M.apenasAcordes(mista);
+  const posC = mista.indexOf('C'), posG = mista.indexOf('G');
+  eq(so.indexOf('C') === posC, true, 'o primeiro acorde continua na coluna original');
+  eq(so.indexOf('G') === posG, true, 'o segundo tambem');
+  eq(/Senhor|pastor/.test(so), false, 'e a letra foi embora');
+}
+// So os espacos sobram quando a letra comeca antes dos acordes.
+eq(/^\s*G\s*$/.test(M.apenasAcordes('        G        la la la')), true,
+  'letra antes do acorde: sobra o acorde e o espaco, no lugar');
+
+console.log('\n=== SO ACORDES: o que nao tem acorde desaparece ===');
+eq(M.apenasAcordes('O Senhor e o meu pastor'), null, 'letra pura devolve nada');
+eq(M.apenasAcordes('seculo'), null, 'palavra solta devolve nada');
+eq(M.apenasAcordes(''), null, 'linha vazia devolve nada');
+eq(M.apenasAcordes('   '), null, 'linha so com espacos devolve nada');
+// A capitalizacao e o que separa a letra do acorde. Sem ela, "em" virava Em
+// menor e "e" virava Mi, e o filtro devolveria a letra que devia esconder.
+eq(M.apenasAcordes('Am  em  nenhum  dia'), 'Am      ', 'a preposicao "em" nao vira Em');
+eq(M.apenasAcordes('e  ai  nao  era'), null, '"e" e "ai" tambem nao viram acordes');
+eq(M.apenasAcordes('Em  ai  nao  era'), 'Em      ', 'mas "Em" maiusculo e o acorde mesmo');
+// O titulo da secao nao passa por aqui: quem chama decide, porque um titulo
+// sem texto ficaria invisivel e a pessoa perderia a referencia do trecho.
+eq(M.apenasAcordes('[Verso 1]'), null, 'o titulo de secao e decidido por quem chama');
+eq(M.apenasAcordes('[C]'), '[C]', 'a diretiva de tom, com letra maiuscula, sobrevive');
+
 console.log('\n=================================================');
 console.log('  ' + pass + ' passaram, ' + fail + ' falharam');
 console.log('=================================================\n');

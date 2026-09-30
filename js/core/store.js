@@ -148,7 +148,43 @@
     };
   }
 
-  function normCifra(c) {
+  /**
+ * O estado de estudo da cifra: quais trechos estao escondidos, se o modo
+ * so-acordes esta ligado e a velocidade da rolagem.
+ *
+ * Isto nao e algo descartavel. Esconder tres versos para decorar, fechar o
+ * app e voltar e ver tudo de novo nao e um recurso — e o opposite disso. E
+ * guardando por cifra, e nao globalmente: o que voce esta decorando em uma
+ * musica nao tem nada a ver com a outra.
+ *
+ * A normalizacao tolera as tres formas que chegaram aqui:
+ *   - ausente (toda cifra criada antes deste campo)
+ *   - array (a primeira versao gravava so os indices, como lista)
+ *   - objeto (o formato de hoje)
+ * Qualquer coisa fora disso volta ao padrao, em vez de derrubar a leitura da
+ * cifra inteira — um campo novo nunca pode custar o acesso ao resto.
+ */
+function normEstudo(e) {
+  const base = { ocultos: [], soAcordes: false, velocidade: 1 };
+  if (e == null) return base;
+  // Formato antigo: so a lista de indices.
+  if (Array.isArray(e)) {
+    base.ocultos = e.filter(function (n) { return Number.isInteger(n) && n >= 0 && n < 200; });
+    return base;
+  }
+  if (typeof e !== 'object') return base;
+  if (Array.isArray(e.ocultos)) {
+    base.ocultos = e.ocultos.filter(function (n) { return Number.isInteger(n) && n >= 0 && n < 200; });
+  }
+  base.soAcordes = e.soAcordes === true;
+  const v = Number(e.velocidade);
+  // A velocidade e um fator de tempo: abaixo de 0,25 a rolagem vira um pisca
+  // e acima de 4 ela salta varias linhas. O intervalo do controle e 0,5 a 3.
+  if (isFinite(v) && v >= 0.5 && v <= 3) base.velocidade = v;
+  return base;
+}
+
+function normCifra(c) {
     c = c || {};
     return {
       id: c.id || U.uid('cif'),
@@ -161,6 +197,7 @@
       tags: Array.isArray(c.tags) ? c.tags.slice(0, 20).map(function (t) { return String(t).slice(0, 30); }) : [],
       letra: String(c.letra || ''),
       cifra: String(c.cifra || ''),
+      estudo: normEstudo(c.estudo),
       criadoEm: c.criadoEm || Date.now(),
       atualizadoEm: Date.now(),
     };
@@ -317,7 +354,7 @@
     return { used, limit: MAX_BYTES, pct: Math.min(100, Math.round((used / MAX_BYTES) * 100)) };
   }
 
-  global.Store = {
+  const Store = {
     STORAGE_KEY, SCHEMA,
     carregar, salvar, salvarLogo, gravar, assinar, emitir, mudou,
     get db() { return db; }, vazio,
@@ -325,6 +362,12 @@
     cifras, cifraPorId, filtrarCifras, categorias, tons,
     metricas, ajuste, setAjuste,
     exportar, importar, apagar, storageInfo,
-    normEscala, normMusica, normCifra,
+    normEscala, normMusica, normCifra, normEstudo,
   };
+
+  global.Store = Store;
+  // Sem isto, nenhum teste consegue alcancar o store: o resto dos módulos do
+  // core exporta assim, e sem o store a normalização do modelo — que e onde
+  // mora a migracao — fica sem nenhuma verificacao automatica.
+  if (typeof module !== 'undefined' && module.exports) module.exports = Store;
 })(typeof window !== 'undefined' ? window : globalThis);

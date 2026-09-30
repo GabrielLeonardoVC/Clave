@@ -8,9 +8,78 @@
   const U = global.Utils;
   const S = global.Store;
   const UI = global.UI;
-  const R = global.Render;
+  const M = global.Music;
   const { el, $ } = U;
   const V = global.Views || (global.Views = {});
+
+  /**
+   * O tom de um evento, lido das músicas dele.
+   *
+   * A fonte preferida é o campo `tom` de cada música, porque quem montou a
+   * escala sabe o tom melhor que qualquer análise. Mas esse campo vem vazio
+   * na maioria das vezes. Quando falta, a cifra ligada responde: `detectKey`
+   * monta o histograma de acordes da cifra e compara com os 24 perfis.
+   *
+   * A conta em si mora em `Music.resumoDeTons`, que é pura e tem teste. Aqui
+   * só se junta o que o store tem.
+   */
+  function tomDoEvento(ev) {
+    const ms = (ev && ev.musicas) || [];
+    const tons = [];
+    ms.forEach(function (mu) {
+      if (!mu) return;
+      const declarado = M.parseChord(String(mu.tom || '').trim());
+      if (declarado) {
+        tons.push({
+          pc: declarado.root,
+          modo: declarado.quality === 'm' ? 'minor' : 'major',
+          rotulo: String(mu.tom).trim(),
+        });
+        return;
+      }
+      if (!mu.cifraId) return;
+      const c = S.cifraPorId(mu.cifraId);
+      if (!c) return;
+      const k = M.detectKey(c.cifra || '');
+      if (k) tons.push({ pc: k.pc, modo: k.mode, rotulo: null });
+    });
+    return M.resumoDeTons(tons);
+  }
+
+  /**
+   * A placa de tom: a peça que dá identidade à tela inicial.
+   *
+   * Um app de ensaio que só mostra o nome do evento esconde a informação que
+   * o músico usa no caminho até lá. Esta placa diz em que tom o show vai
+   * estar, quantas alterações esse tom pede — que é o que decide se ele leva
+   * a capotraste — e, se houver, quantas músicas ficaram fora.
+   */
+  function placaDeTom(info) {
+    if (!info) return null;
+    const selo = el('span', { class: 'tom-selo' },
+      info.rotulo || M.keyLabel(info.pc, info.modo === 'minor', false));
+
+    const pecas = [selo];
+    pecas.push(el('span', { class: 'tom-nota' }, [
+      el('b', {}, String(info.n) + '/' + String(info.total)),
+      info.total === 1 ? ' música' : ' músicas',
+    ]));
+
+    const arm = info.armadura;
+    if (arm.quantidade > 0) {
+      // "b" e "#" em vez de bemol e susteno: os simboles unicode nao passam
+      // no verificador de caracteres, e a lista de nomes ja diz o suficiente.
+      pecas.push(el('span', { class: 'tom-nota' }, [
+        'afinação: ',
+        el('b', {}, arm.ordem.map(function (n) { return n + (arm.bemois ? 'b' : '#'); }).join(' ')),
+      ]));
+    }
+    if (info.fora > 0) {
+      pecas.push(el('span', { class: 'tom-fora' },
+        String(info.fora) + (info.fora === 1 ? ' música fora' : ' músicas fora')));
+    }
+    return el('div', { class: 'capa-tom' }, pecas);
+  }
 
   function render(root, params) {
     U.clear(root);
@@ -19,13 +88,13 @@
     const prox = S.proximas(4);
     const hojeEv = S.porData(hoje);
 
-    /* ---- faixa principal ---- */
+    /* ---- a chapa ---- */
     if (prox.length) {
       const p = prox[0];
       const d = U.diffDays(new Date(), U.fromKey(p.data));
       const quando = d === 0 ? 'HOJE' : d === 1 ? 'AMANHÃ' : U.fmtRelativeDay(p.data).toUpperCase();
       root.appendChild(el('button', {
-        class: 'hero w-full', style: { textAlign: 'left', cursor: 'pointer' },
+        class: 'capa',
         onclick: function () { global.App.ir('agenda', { data: p.data, abrir: p.id }); },
       }, [
         el('div', { class: 'k' }, 'PRÓXIMO · ' + quando),
@@ -35,13 +104,14 @@
           p.local ? ' · ' + p.local : '',
           ' · ' + p.musicas.length + (p.musicas.length === 1 ? ' música' : ' músicas'),
         ].join('')),
+        placaDeTom(tomDoEvento(p)),
         el('div', { class: 'cta' }, el('div', { class: 'btn' }, [
           el('i', { 'data-lucide': p.musicas.length ? 'play' : 'arrow-right' }),
           p.musicas.length ? 'Abrir o ensaio' : 'Abrir escala',
         ])),
       ]));
     } else {
-      root.appendChild(el('div', { class: 'hero' }, [
+      root.appendChild(el('div', { class: 'capa plain' }, [
         el('div', { class: 'k' }, 'BEM-VINDO AO ACORDE'),
         el('div', { class: 't' }, 'Monte seu primeiro ensaio'),
         el('div', { class: 'm' }, 'Escolha a data, arraste as músicas e mande pro time.'),
@@ -50,21 +120,21 @@
       ]));
     }
 
-    /* ---- ações rápidas ---- */
-    root.appendChild(el('div', { class: 'mt-5' }, el('div', { class: 'quick-grid' }, [
+    /* ---- a régua ---- */
+    root.appendChild(el('div', { class: 'regua mt-5' }, [
       rapido('calendar-plus', 'Novo ensaio', 'gold', function () { global.App.ir('agenda', { nova: true }); }),
       rapido('music-4', 'Nova cifra', 'green', function () { V.repertorio && V.repertorio.novo(); }),
-      rapido('play-circle', 'Estúdio', 'blue', abrirUltimoEstudio),
+      rapido('audio-lines', 'Afinador', 'blue', function () { V.afinador && V.afinador.abrir(); }),
       rapido('clipboard-paste', 'Colar', '', function () { V.repertorio && V.repertorio.colar(); }),
-    ])));
+    ]));
 
-    /* ---- estatísticas ---- */
-    root.appendChild(el('div', { class: 'mt-5' }, el('div', { class: 'grid-auto' }, [
-      R.statCard({ icon: 'calendar-check', value: m.proximas, label: 'Próximos', color: 'brand' }),
-      R.statCard({ icon: 'file-music', value: m.cifras, label: 'Cifras', color: 'gold' }),
-      R.statCard({ icon: 'list-music', value: m.musicas, label: 'Músicas', color: 'ok' }),
-      R.statCard({ icon: 'users', value: m.ensaios, label: 'Ensaios', color: 'violet' }),
-    ])));
+    /* ---- os números ---- */
+    root.appendChild(el('div', { class: 'numeros' }, [
+      numero(m.proximas, 'Próximos'),
+      numero(m.cifras, 'Cifras'),
+      numero(m.musicas, 'Músicas'),
+      numero(m.ensaios, 'Ensaios'),
+    ]));
 
     /* ---- hoje ---- */
     if (hojeEv.length) {
@@ -106,10 +176,12 @@
 
     /* ---- ferramentas ---- */
     root.appendChild(titulo('wrench', 'Ferramentas'));
-    root.appendChild(el('div', { class: 'grid-auto-lg' }, [
+    root.appendChild(el('div', { class: 'lista-cifras' }, [
       cartao('timer', 'Metrônomo', 'BPM, compasso e tap', function () { V.teoria && V.teoria.metronome(); }),
       cartao('shuffle', 'Transpor', 'Mude o tom de qualquer cifra', function () { V.teoria && V.teoria.transpor(); }),
-      cartao('guitar', 'Acordes', 'Formas no violão', function () { V.teoria && V.teoria.acordes(); }),
+      // O rotulo acompanha os instrumentos: a secao tem violao, baixo, baixo
+      // 5 cordas e ukulele, e dizer "no violao" seria metade da verdade.
+      cartao('guitar', 'Acordes', 'Formas no ' + M.INSTRUMENTOS.map(function (i) { return i.nome; }).join(', ').toLowerCase(), function () { V.teoria && V.teoria.acordes(); }),
       cartao('circle-dot', 'Círculo das quintas', 'Tons e relativas', function () { V.teoria && V.teoria.circulo(); }),
     ]));
 
@@ -133,21 +205,33 @@
   function titulo(icon, txt) { return el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': icon }), txt]); }
 
   function rapido(icon, label, cls, onclick) {
-    return el('button', { class: 'quick ' + cls, onclick: onclick }, [
-      el('div', { class: 'ic' }, el('i', { 'data-lucide': icon })),
+    return el('button', { class: cls, onclick: onclick }, [
+      el('i', { 'data-lucide': icon }),
       el('span', {}, label),
     ]);
   }
 
+  /**
+   * Um algarismo na regua. O zero fica esmaecido de proposito: numa lista
+   * vazia, o "0" é a informacao — e cinza evita que ele dispute atencao com
+   * os numeros que realmente tem conteudo.
+   */
+  function numero(valor, rotulo) {
+    const v = Number(valor) || 0;
+    return el('div', {}, [
+      el('div', { class: 'v' + (v === 0 ? ' zero' : '') }, String(v)),
+      el('div', { class: 'k' }, rotulo),
+    ]);
+  }
+
   function cartao(icon, titulo, sub, onclick) {
+    // Ferramentas nao tem tom, entao a coluna da esquerda fica com o icone.
+    // Mesmo tamanho, mesma posicao: a lista inteira continua uma coluna.
     return el('button', { class: 'song-card', onclick: onclick }, [
-      el('div', { class: 'row gap-3' }, [
-        el('div', { class: 'avatar' }, el('i', { 'data-lucide': icon, style: { width: '17px', height: '17px' } })),
-        el('div', { class: 'grow', style: { textAlign: 'left', minWidth: '0' } }, [
-          el('div', { class: 'n' }, titulo),
-          el('div', { class: 'a' }, sub),
-        ]),
-        el('i', { 'data-lucide': 'chevron-right', style: { width: '16px', height: '16px', color: 'var(--ink-4)', flex: 'none' } }),
+      el('span', { class: 'tom-col icone' }, el('i', { 'data-lucide': icon })),
+      el('div', { class: 'meio' }, [
+        el('div', { class: 'n' }, titulo),
+        el('div', { class: 'a' }, sub),
       ]),
     ]);
   }

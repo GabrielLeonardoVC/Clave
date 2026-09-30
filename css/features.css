@@ -249,18 +249,79 @@
 .cifra-text .sec { color: var(--brand-500); font-weight: 700; }
 .cifra-text .lyric { color: var(--ink); }
 
+/* =======================================================
+   A LINHA DA CIFRA
+   =======================================================
+   Era uma grade de caixas: duas colunas, cada item com a mesma borda, o mesmo
+   raio e um chevron. E a forma que a grade assume quando ninguem decide: ela
+   existe para arrange objetos com imagem, e uma cifra nao tem imagem nenhuma.
+
+   Aqui a cifra e uma LINHA de pauta. Sem caixa, sem raio, sem chevron repetido
+   em cada item — so um filete entre uma e outra. O que sobra de espaco vai
+   para o titulo, que antes truncava em duas colunas, e o tom, que e a
+   informacao que o musician procura na lista, ganha uma coluna propria.
+   */
 .song-card {
-  display: flex; flex-direction: column; gap: 7px;
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r-3); padding: 13px 14px;
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: 11px 2px 11px 12px;
   cursor: pointer; text-align: left; width: 100%;
-  transition: border-color .16s, box-shadow .16s, transform .12s var(--ease);
+  border-left: 2px solid transparent;
+  transition: background .14s ease, border-color .14s ease;
 }
-.song-card:hover { border-color: var(--line-2); box-shadow: var(--sh-2); }
-.song-card:active { transform: scale(.985); }
-.song-card .n { font-size: 14.5px; font-weight: 700; line-height: 1.3; }
-.song-card .a { font-size: 12.5px; color: var(--ink-3); }
-.song-card .foot { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 1px; }
+.song-card + .song-card { border-top: 1px solid var(--line); }
+.song-card:hover { background: var(--surface); border-left-color: var(--line-2); }
+.song-card:active { background: var(--surface-2); }
+
+/* A coluna do tom: um quadrado com o nome do acorde, no mesmo espaco para
+   todas. E a assinatura da lista — da para varrer a coluna e ver os tons de
+   relance, que era o que a grade nao permitia. */
+.song-card .tom-col {
+  flex: none; width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 800;
+  border-radius: var(--r-1);
+  background: var(--brand-tint); color: var(--primary-ink);
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
+}
+.song-card .tom-col.vazio {
+  background: transparent; color: var(--ink-4);
+  border: 1px dashed var(--line-2);
+}
+/* A coluna com icone e a mesma forma, mas cheia. O tracejado era do "tom
+   desconhecido", e um icone tracejado lido como item desabilitado e pior que
+   um card sem forma nenhuma. */
+.song-card .tom-col.icone {
+  background: var(--brand-tint);
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
+  color: var(--primary-ink);
+}
+.song-card .tom-col.icone svg { width: 18px; height: 18px; }
+.song-card .meio { flex: 1; min-width: 0; }
+.song-card .n {
+  font-family: var(--font-d);
+  font-size: 15px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25;
+  color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.song-card .sub {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 2px; min-width: 0;
+}
+.song-card .a {
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 0 1 auto; min-width: 0;
+}
+.song-card .foot {
+  display: flex; align-items: center; gap: 5px; flex-wrap: nowrap;
+  flex: 0 0 auto; margin-left: auto;
+}
+/* Os badges encolhem em vez de empurrar a linha. Uma lista alta e ruim: o
+   espaco gasto com "96 bpm" e o tempo de rolagem da pagina. */
+.song-card .foot .badge { font-size: 10px; padding: 2px 6px; }
+/* O chevron some de cada linha: em dez linhas, sao dez setas apontando para a
+   direita dizendo a mesma coisa. O item inteiro ja e clicavel. */
+.song-card .ir { display: none; }
 
 .chip-acorde {
   display: inline-flex; align-items: center; justify-content: center;
@@ -301,6 +362,208 @@
 }
 .semitone:active { transform: scale(.9); }
 .semitone[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: var(--on-brand); }
+
+/* O botão de meio semitom precisa ser distinguivel dos inteiros sem mudar de
+   tamanho — um retângulo mais largo desalinharia a fileira inteira. A marca
+   de vírgula resolve: o nome do valor já é "0,5", e é a vírgula que diz que
+   aquilo não é um número redondo. */
+.semitone[data-passo="0.5"], .semitone[data-passo="-0.5"] {
+  border-color: var(--line-2);
+  color: var(--primary-ink);
+  font-family: var(--font-mono);
+}
+
+/* ---------- o controle de 0,5 em 0,5 ---------- */
+.tb { margin: var(--sp-3) 0; }
+.tb-topo { display: flex; align-items: baseline; gap: 7px; margin-bottom: 9px; }
+.tb-valor {
+  font-family: var(--font-d);
+  font-size: 30px; font-weight: 800; letter-spacing: -.04em;
+  line-height: 1; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.tb-valor.zero { color: var(--ink-4); }
+.tb-un {
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
+  letter-spacing: .1em; text-transform: uppercase;
+  /* O numero tem tracking negativo de -0,04em, e a virgula do "+0,5" fecha
+     contra a palavra seguinte. O gap do flex nao bastava; e preciso separar
+     a unidade do valor. */
+  margin-left: 4px;
+}
+
+.tb-slider { width: 100%; margin: 0 0 10px; accent-color: var(--primary); height: 26px; cursor: pointer; }
+
+.tb-cents {
+  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+  margin-bottom: 10px;
+}
+.tb-cents:empty { display: none; }
+.tb-cents-num {
+  font-weight: 800; color: var(--warn-500);
+  background: var(--warn-tint); border: 1px solid color-mix(in srgb, var(--warn-500) 32%, transparent);
+  border-radius: 3px; padding: 2px 7px;
+}
+
+/* =======================================================
+   ROLAGEM AUTOMATICA DA CIFRA
+   =======================================================
+   A janela e curta de proposito. Uma tela cheia de cifra e um papel de
+   parede: o musico le os acordes, nao a letra inteira. Limitando a altura, a
+   linha que vem sempre fica no mesmo lugar, e o olho para de correr atras
+   dela. */
+.cs { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.cs-viewport {
+  height: 46vh;
+  min-height: 220px;
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  padding: var(--sp-4) var(--sp-4);
+  /* A borda de cima e de baixo desbotam, para a linha atual parecer estar
+     no meio de uma fita que continua. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+}
+
+.cs-trilha { display: flex; flex-direction: column; }
+
+.cs-linha {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink-3);
+  border-left: 2px solid transparent;
+  padding: 1px 0 1px 9px;
+  margin-left: -9px;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+
+/* A linha que esta tocando: o unico elemento que ganha cor. Todo o resto
+   apaga, que e o que faz o olho ir para o lugar certo sem precisar ler. */
+.cs-linha.atual {
+  color: var(--ink);
+  border-left-color: var(--primary);
+  background: linear-gradient(to right, var(--brand-tint), transparent 70%);
+}
+.cs-linha.atual .ch { color: var(--primary-ink); font-weight: 700; }
+.cs-linha.passou { color: var(--ink-4); }
+.cs-linha.passou .ch { color: var(--ink-4); }
+
+.cs-linha.cs-secao .sec { color: var(--primary); font-weight: 700; }
+.cs-linha.cs-respiro { min-height: 10px; }
+
+/* ---------- o controle ---------- */
+.cs-barra { display: flex; align-items: center; gap: var(--sp-2); }
+.cs-play {
+  width: 46px; height: 46px; flex: none;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary); color: var(--on-brand);
+  border: none; cursor: pointer;
+  transition: transform .12s var(--ease);
+}
+.cs-play:active { transform: scale(.92); }
+.cs-play svg { width: 20px; height: 20px; }
+
+.cs-progresso {
+  flex: 1; height: 4px; border-radius: 999px;
+  background: var(--surface-3); overflow: hidden;
+  min-width: 40px;
+}
+.cs-progresso i {
+  display: block; height: 100%; width: 0;
+  background: var(--primary);
+  border-radius: 999px;
+  transition: width .1s linear;
+}
+
+.cs-tempo {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  letter-spacing: .06em;
+  white-space: nowrap;
+  flex: none;
+}
+
+.cs-velocidade {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
+}
+.cs-velocidade input { flex: 1; min-width: 60px; accent-color: var(--primary); }
+
+/* =======================================================
+   MODO DE ESTUDO — esconder trechos
+   =======================================================
+   Decorar cifra e pedaco por pedaco. O pedaco vem do proprio texto: as
+   linhas entre colchetes. Descobrir na hora, contando linhas, erra. */
+.est-topo { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+
+.est-toggle, .est-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 11px; border-radius: var(--r-2);
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: 11.5px; font-weight: 700; color: var(--ink-2);
+  cursor: pointer; transition: all .14s var(--ease);
+}
+.est-toggle svg, .est-btn svg { width: 14px; height: 14px; }
+.est-toggle:hover, .est-btn:hover { border-color: var(--line-2); background: var(--surface-2); }
+.est-toggle.ligado, .est-toggle[aria-pressed="true"] {
+  background: var(--brand-tint); color: var(--primary-ink);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
+
+.est-resumo { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+.est-badge {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  padding: 3px 8px; border-radius: 3px;
+  background: var(--surface-2); color: var(--ink-3);
+  border: 1px solid var(--line);
+}
+.est-aviso {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  padding: 3px 8px; border-radius: 3px;
+  background: var(--warn-tint); color: var(--warn-500);
+  border: 1px solid color-mix(in srgb, var(--warn-500) 34%, transparent);
+}
+
+/* ---- a fita de trechos ---- */
+.est-fita { display: flex; gap: 7px; flex-wrap: wrap; }
+.est-fita:empty { display: none; }
+
+.est-pedaco {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 10px; border-radius: var(--r-2);
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: 12px; font-weight: 700; color: var(--ink);
+  cursor: pointer; transition: all .14s var(--ease);
+}
+.est-pedaco:hover { border-color: var(--line-2); background: var(--surface-2); }
+.est-pedaco:active { transform: scale(.97); }
+.est-pedaco svg { width: 14px; height: 14px; color: var(--ink-4); flex: none; }
+.est-pedaco-qtd {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  color: var(--ink-4); letter-spacing: .04em;
+}
+/* Trecho escondido: riscado e apagado. O olho precisa ver de relance o que
+   ainda falta, e a risca e o sinal mais barato de "isto aqui nao esta". */
+.est-pedaco.fora {
+  background: var(--surface-2);
+  border-style: dashed;
+  color: var(--ink-4);
+}
+.est-pedaco.fora .est-pedaco-nome { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.est-pedaco.fora svg { color: var(--warn-500); }
+.est-pedaco.anonimo .est-pedaco-nome { font-style: italic; color: var(--ink-3); }
 
 /* =======================================================
    TEORIA
@@ -444,3 +707,92 @@
 @media (max-width: 1023px) {
   .bottomnav { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* =======================================================
+   AFINADOR
+   O visor e um cursor, nao um numero. A leitura de um
+   numero exige tirar o olho do instrumento, e quem esta
+   afinando nao pode fazer isso.
+   ======================================================= */
+.afinador { padding-bottom: 8px; }
+
+.af-visor {
+  padding: 22px 16px 18px;
+  border-radius: var(--r-4);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+.af-nota {
+  font-family: var(--font-d);
+  font-size: 76px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -3px;
+  color: var(--ink-4);
+  transition: color .18s ease;
+}
+.af-nota.afinado { color: var(--primary); }
+
+.af-cents {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-3);
+  min-height: 18px;
+}
+
+.af-trilha-caixa { margin: 18px 0 10px; }
+
+.af-trilha {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.af-marca {
+  position: absolute;
+  top: -4px;
+  width: 1px;
+  height: 14px;
+  background: var(--line-2);
+}
+.af-centro { background: var(--ink-4); height: 18px; top: -6px; }
+
+.af-cursor {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 12px;
+  height: 22px;
+  margin-left: -6px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 45%, transparent);
+  transition: transform .09s linear, background .18s ease;
+}
+
+.af-hz { font-family: var(--font-mono); font-size: 12px; color: var(--ink-4); }
+
+.af-acao { margin-top: 16px; }
+
+.af-estado { margin-top: 12px; font-size: 12px; color: var(--ink-3); text-align: center; }
+
+.af-guia { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.af-guia-nota {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 10px 4px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color .15s ease, transform .1s ease;
+}
+.af-guia-nota:active { transform: scale(.95); }
+.af-guia-nome { font-weight: 700; font-size: 14px; color: var(--ink); }
+.af-guia-hz { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); }

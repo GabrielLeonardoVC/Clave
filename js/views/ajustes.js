@@ -11,12 +11,30 @@
   const { el, $ } = U;
   const V = global.Views || (global.Views = {});
 
+  /**
+   * Acentos disponiveis.
+   *
+   * Nao ha hex aqui: a amostra do botao mede o CSS de verdade, em
+   * corRealDoAcento. Guardar a cor nesta lista e o que fazia a amostra
+   * divergir do que o app realmente aplica. Esta lista precisa cobrir todo
+   * acento que o CSS declara — um que exista no CSS e nao aqui nunca seria
+   * oferecido a pessoa.
+   */
   const ACCENTS = [
-    { id: 'ember', nome: 'Brasa', cor: '#D97B16' },
-    { id: 'jade', nome: 'Jade', cor: '#22A87A' },
-    { id: 'ocean', nome: 'Mar', cor: '#2E8FC9' },
-    { id: 'violet', nome: 'Violeta', cor: '#7C5AE0' },
-    { id: 'rose', nome: 'Rosa', cor: '#DB4A76' },
+    { id: 'ember', nome: 'Brasa' },
+    { id: 'ambar', nome: 'Ambar' },
+    { id: 'coral', nome: 'Coral' },
+    { id: 'lima', nome: 'Lima' },
+    { id: 'floresta', nome: 'Floresta' },
+    { id: 'jade', nome: 'Jade' },
+    { id: 'turquesa', nome: 'Turquesa' },
+    { id: 'ocean', nome: 'Mar' },
+    { id: 'azul', nome: 'Azul' },
+    { id: 'indigo', nome: 'Indigo' },
+    { id: 'violet', nome: 'Violeta' },
+    { id: 'lilas', nome: 'Lilas' },
+    { id: 'magenta', nome: 'Magenta' },
+    { id: 'rose', nome: 'Rosa' },
   ];
 
   /**
@@ -111,15 +129,59 @@
       }));
     lem.appendChild(el('div', { class: 'mt-2' },
       (function () {
+        // Horas e minutos separados, e nao um cursor so.
+        //
+        // O cursor ia de 15 em 15 minutos e chegava a 24 h. Duas coisas
+        // ficam impossiveis nele: pedir "2 h 30" — que e o que a maioria
+        // quer, para a missa das 19h30 com aviso as 17h — e qualquer valor
+        // que nao fosse multiplo de 15. E a frase fica escrita no texto, sem o
+        // "e" que a pessoa usaria falando.
         const val = S.ajuste('antecedenciaNotif', 120);
-        const out = el('div', { class: 'fs-xs muted mb-1' }, 'Avisar com quanto tempo de antecedencia: ' + (val >= 1440 ? Math.round(val / 1440) + ' dia(s)' : val + ' min'));
-        const inp = el('input', { type: 'range', min: '15', max: '1440', step: '15', value: String(val),
-          oninput: function (e) {
-            const v = +e.target.value;
-            out.textContent = 'Avisar com quanto tempo de antecedencia: ' + (v >= 1440 ? Math.round(v / 1440) + ' dia(s)' : v + ' min');
-            S.setAjuste('antecedenciaNotif', v);
-          } });
-        return el('div', {}, [out, inp]);
+        let horas = Math.floor(val / 60);
+        let minutos = val % 60;
+        if (minutos < 0) { minutos += 60; horas -= 1; }
+        if (horas < 0) { horas = 0; minutos = 0; }
+
+        const rotulo = function () {
+          if (horas === 0 && minutos === 0) return 'Avisar na hora do evento';
+          const p = [];
+          if (horas) p.push(horas + (horas === 1 ? ' hora' : ' horas'));
+          if (minutos) p.push(minutos + (minutos === 1 ? ' minuto' : ' minutos'));
+          return 'Avisar ' + p.join(' e ') + ' antes';
+        };
+        const out = el('div', { class: 'fs-xs muted mb-2' }, rotulo());
+
+        // 5 em 5 minutos. Quem programa missa pensa em 5 e 10, nao em 7.
+        const passos = [0, 5, 10, 15, 20, 30, 40, 45, 55];
+        const campoMin = el('select', { class: 'select', 'aria-label': 'Minutos de antecedencia' },
+          passos.map(function (m) {
+            return el('option', { value: String(m), selected: m === minutos },
+              m === 0 ? 'em cima da hora' : m + ' min');
+          }));
+        const campoHora = el('input', {
+          class: 'input', type: 'number', min: '0', max: '24', step: '1',
+          value: String(horas), 'aria-label': 'Horas de antecedencia',
+          style: { width: '5.5rem' },
+        });
+        const gravar = function () {
+          let h = Math.max(0, Math.min(24, parseInt(campoHora.value, 10) || 0));
+          const m = parseInt(campoMin.value, 10) || 0;
+          horas = h; minutos = m;
+          const total = Math.min(1440, h * 60 + m);
+          out.textContent = rotulo();
+          S.setAjuste('antecedenciaNotif', total);
+        };
+        campoHora.addEventListener('change', gravar);
+        campoHora.addEventListener('input', gravar);
+        campoMin.addEventListener('change', gravar);
+
+        return el('div', {}, [
+          out,
+          el('div', { class: 'row gap-2' }, [
+            campoHora,
+            campoMin,
+          ]),
+        ]);
       })()));
     lem.appendChild(el('button', { class: 'btn btn-secondary btn-block mt-3', onclick: function () { global.Notify.testar(); } },
       [el('i', { 'data-lucide': 'send' }), 'Testar notificacao']));

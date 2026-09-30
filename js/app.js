@@ -75,6 +75,10 @@
         [el('i', { 'data-lucide': r.icon }), el('span', { class: 'grow' }, r.titulo)]));
     });
     painel.appendChild(el('h4', {}, 'Ferramentas'));
+    // O afinador fica no topo das ferramentas: e a acao mais repetida na
+    // chegada, antes mesmo de olhar a escala do dia.
+    painel.appendChild(el('button', { class: 'drawer-item', onclick: function () { fechar(); vistas.afinador.abrir(); } },
+      [el('i', { 'data-lucide': 'audio-lines' }), el('span', { class: 'grow' }, 'Afinador')]));
     painel.appendChild(el('button', { class: 'drawer-item', onclick: function () { fechar(); vistas.repertorio.colar(); } },
       [el('i', { 'data-lucide': 'clipboard-paste' }), el('span', { class: 'grow' }, 'Colar cifra')]));
     painel.appendChild(el('button', { class: 'drawer-item', onclick: function () { fechar(); vistas.teoria.transpor(); } },

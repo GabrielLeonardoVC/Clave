@@ -187,6 +187,20 @@
 [data-accent="violet"] { --brand-400: #A98BF5; --brand-500: #7C5AE0; --brand-600: #5B3BB5; --brand-tint: #1E1636; --primary: var(--brand-400); }
 [data-accent="rose"]   { --brand-400: #F1789E; --brand-500: #DB4A76; --brand-600: #A62F55; --brand-tint: #2E1119; --primary: var(--brand-400); }
 
+/* ── Acentos extras ──
+   Cada um declara so o que muda. O padrao nao precisa vir aqui: o bloco
+   acima ja traz todos os tokens, e um acento novo que falte um deles herda o
+   do padrao em vez de ficar sem cor. */
+[data-accent="coral"]   { --brand-400: #FF8A65; --brand-500: #E8573C; --brand-600: #B33A24; --brand-tint: #2E150F; --primary: var(--brand-400); }
+[data-accent="ambar"]   { --brand-400: #FFC94D; --brand-500: #E0A310; --brand-600: #A8790A; --brand-tint: #2A2109; --primary: var(--brand-400); }
+[data-accent="lima"]    { --brand-400: #B4DC4A; --brand-500: #86B123; --brand-600: #5D7E13; --brand-tint: #1B2209; --primary: var(--brand-400); }
+[data-accent="floresta"]{ --brand-400: #6FCF5C; --brand-500: #3FA83A; --brand-600: #2A7A26; --brand-tint: #12230F; --primary: var(--brand-400); }
+[data-accent="turquesa"]{ --brand-400: #45CFC4; --brand-500: #17A79C; --brand-600: #0E7A72; --brand-tint: #0A2422; --primary: var(--brand-400); }
+[data-accent="azul"]    { --brand-400: #6E9BF5; --brand-500: #4070DC; --brand-600: #2A4E9E; --brand-tint: #111B33; --primary: var(--brand-400); }
+[data-accent="indigo"]  { --brand-400: #8E9BF0; --brand-500: #5B68D4; --brand-600: #3C46A0; --brand-tint: #151833; --primary: var(--brand-400); }
+[data-accent="lilas"]   { --brand-400: #B79BF0; --brand-500: #8F6BDC; --brand-600: #6647AC; --brand-tint: #1D1630; --primary: var(--brand-400); }
+[data-accent="magenta"] { --brand-400: #E879C8; --brand-500: #C74EAA; --brand-600: #94347D; --brand-tint: #2A1128; --primary: var(--brand-400); }
+
 /* =======================================================
    RESET
    ======================================================= */

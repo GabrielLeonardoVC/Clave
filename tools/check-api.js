@@ -30,6 +30,7 @@ const MODULOS = [
   { arquivo: 'js/core/print.js', global: 'Print' },
   { arquivo: 'js/core/links.js', global: 'Links' },
   { arquivo: 'js/core/search.js', global: 'Search' },
+  { arquivo: 'js/core/tuner.js', global: 'Tuner' },
   { arquivo: 'js/core/metronome.js', global: 'Metro' },
   { arquivo: 'js/core/studio.js', global: 'Studio' },
   { arquivo: 'js/core/notify.js', global: 'Notify' },
@@ -74,10 +75,15 @@ function carregar() {
  * Descobre os apelidos: `const M = global.Music;` torna `M.parseChord` um
  * acesso a API de Music. Sem resolver isso, todo apelido pareceria um global
  * desconhecido.
+ *
+ * O padrao exige que a parte direita seja o global sozinho. Sem o
+ * lookahead, `const h = global.UI.sheet({...})` contava como apelido do
+ * modulo inteiro, e `h.body` — que existe no valor devolvido por sheet —
+ * virava "acesso quebrado" junto com um punhado de falsos positivos.
  */
 function apelidos(texto) {
   const mapa = new Map();
-  const re = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*global(?:This)?\.([A-Za-z_$][\w$]*)/g;
+  const re = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*global(?:This)?\.([A-Za-z_$][\w$]*)(?![.\w$])/g;
   let m;
   while ((m = re.exec(texto)) !== null) {
     mapa.set(m[1], m[2]);
@@ -135,8 +141,44 @@ if (ruins.length === 0) {
   ruins.forEach((r) => console.log('        ' + r));
 }
 
+console.log('\n=== 3. Acentos: a lista e o CSS precisam bater ===');
+// A lista em ajustes.js e o bloco [data-accent] do base.css sao as duas metades
+// de um mesmo conjunto. Nao ha import entre elas — uma So pode ser conferida
+// por leitura. O sintoma de divergencia e silencioso: a pessoa toca numa
+// amostra, recebe outra cor, e nao ha erro em lugar nenhum.
+const css = fs.readFileSync(path.join(RAIZ, 'css', 'base.css'), 'utf8');const noCss = new Set();
+{
+  const re = /\[data-accent="([a-z]+)"\]/g;
+  let m;
+  while ((m = re.exec(css)) !== null) noCss.add(m[1]);
+}
+const ajustes = fs.readFileSync(path.join(RAIZ, 'js', 'views', 'ajustes.js'), 'utf8');
+const bloco = ajustes.slice(ajustes.indexOf('const ACCENTS'));
+const noJs = new Set();
+{
+  const re = /\{\s*id:\s*'([a-z]+)'/g;
+  let m;
+  const fim = bloco.indexOf('];');
+  while ((m = re.exec(bloco.slice(0, fim))) !== null) noJs.add(m[1]);
+}
+const soCss = [...noCss].filter((x) => !noJs.has(x));
+const soJs = [...noJs].filter((x) => !noCss.has(x));
+eq(soCss.length, 0, 'todo acento do CSS aparece na lista' +
+  (soCss.length ? ' — faltam: ' + soCss.join(', ') : ''));
+eq(soJs.length, 0, 'todo acento da lista existe no CSS' +
+  (soJs.length ? ' — sobram: ' + soJs.join(', ') : ''));
+console.log('  ' + noJs.size + ' acento(s) ofertado(s)');
+
+// ── funcoes de comparacao ──
+let problemaAcento = 0;
+function eq(actual, expected, label) {
+  const good = actual === expected;
+  if (!good) problemaAcento++;
+  console.log((good ? '  ok    ' : '  FALHA ') + label);
+}
+
 console.log('\n=================================================');
-const total = erros.length + ruins.length;
+const total = erros.length + ruins.length + problemaAcento;
 console.log('  ' + (total === 0 ? 'nenhuma quebra de API' : total + ' problema(s)'));
 console.log('=================================================\n');
 process.exit(total ? 1 : 0);

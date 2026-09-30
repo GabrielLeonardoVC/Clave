@@ -305,10 +305,24 @@
    */
   function tokenizeLine(line, chordContext) {
     const toks = [];
-    const re = /\S+/g;
+    // O espaco entre os acordes FAZ PARTE da cifra: e ele que alinha o
+    // acordo com a silaba da letra abaixo. Um padrao /\S+/ — que so casa
+    // trechos sem espaco — descarta esse alinhamento, e a linha inteira
+    // colapsa para "C G". O desenho deixa de ser legivel: o acorde para de
+    // dizer qual palavra ele cobre.
+    //
+    // A transposicao nunca teve o problema, porque `transposeLine` reconstroi
+    // o espacamento por conta propria. Era so a exibicao que perdia.
+    const re = /\s+|\S+/g;
     let m;
     while ((m = re.exec(line)) !== null) {
       const raw = m[0];
+      // Espaco em branco e um token de texto, e nada mais. Sem este ramo o
+      // bloco de baixo tentaria interpretar "   " como acorde.
+      if (!/\S/.test(raw)) {
+        toks.push({ type: 'text', v: raw, espaco: true });
+        continue;
+      }
       // 1) o token inteiro ja e' um acorde? (ex.: "C/G", "Bbmaj7/D", "Am")
       const whole = raw.replace(/^[("'[]+/, '').replace(/[)"'\],.!?;:]+$/, '');
       if (whole && (isChordWord(whole) || (chordContext && looksLikeChord(whole)))) {
@@ -393,9 +407,238 @@
     return parseChord(m[1]);
   }
 
-  /** Transpoe UMA linha de texto, trocando so os tokens de acorde. */
+  /**
+ * Meios semitons nao existem como nota.
+ *
+ * 0,5 semitom e um quarto de tom, e nenhum nome de acorde o representa: nao ha
+ * letra para ele. Sem arredondar, `mod12(9 + 3.5)` devolveria 0.5 e
+ * `noteName(0.5)` nao saberia o que escrever — a saida viraria "undefined" no
+ * meio da cifra, que e o pior defeito possivel num app de cifras: silencioso.
+ *
+ * Entao o motor arredonda para a nota mais proxima, e quem pediu o meio
+ * semitom recebe de volta os cents exatos do desvio, para poder afinar o
+ * instrumento no tom certo.
+ */
+function arredondarSemitons(semis) {
+  const n = Number(semis);
+  if (!isFinite(n)) return 0;
+  return Math.round(n);
+}
+
+/**
+ * Os cents do meio semitom pedido: 50 para 0,5, -50 para -0,5.
+ *
+ * A parte fracionaria e medida contra o inteiro TRUNCADO, nao arredondado.
+ * Importa porque o arredondamento e o que decide a nota final: pedindo +3,5
+ * o app entrega +4, e a nota que vai soar esta 50 cents acima do +3 que se
+ * esperava. Truncar devolve +50 — "meio semitom acima do inteiro" — que e a
+ * leitura de quem esta afinando, e nao a conta interna do motor.
+ */
+function centsDeDesvio(semis) {
+  const n = Number(semis);
+  if (!isFinite(n)) return 0;
+  const frac = n - Math.trunc(n);
+  // Acima de meio semitom, o inteiro mais proximo ja e o seguinte, e o sinal
+  // inverte: 0,7 arredonda para 1, que esta 30 cents ACIMA do pedido. Sem
+  // esta virada, -0,9 passaria de 50 cents — e um desvio de 90 cents nao
+  // existe.
+  if (frac > 0.5) return Math.round((frac - 1) * 100);
+  if (frac < -0.5) return Math.round((frac + 1) * 100);
+  return Math.round(frac * 100);
+}
+
+/* =======================================================
+   1b. ROTEIRO DE ROLAGEM
+   =======================================================
+   O roteiro da rolagem automatica: quais linhas a cifra atravessa, e quanto
+   tempo a rolagem para em cada uma.
+
+   O que separa um scroll que funciona de um scroll inutil e a DURACAO de cada
+   parada. Rolar a velocidade constante da a sensacao de um texto passando, e o
+   musico nao sabe quando mudar de acorde. Parar em cada linha de acordes e
+   pular as estruturais rapido e o que faz a tela virar partitura.
+
+   E um chute honesto: uma cifra nao tem partitura ritmica, entao nao ha como
+   saber quando a musica realmente vira. O app estima pelo andamento e deixa
+   a pessoa corrigir com o controle de velocidade — e a estimativa e
+   declarada como estimativa, nao vendida como sincronizacao. */
+
+const TIPO_LINHA = { ACORDE: 'acorde', SECAO: 'secao', VAZIA: 'vazia', LETRA: 'letra' };
+
+/**
+ * Constroi o roteiro.
+ *
+ * `fator` e a correcao manual de velocidade: 1 e o andamento declarado, 2 e o
+ * dobro do tempo. `bpm` e `compasso` sao os da musica, quando existem.
+ */
+function roteiroDeRolagem(cifra, opts) {
+  opts = opts || {};
+  const bpmBruto = parseInt(opts.bpm, 10);
+  const bpm = isFinite(bpmBruto) && bpmBruto >= 30 && bpmBruto <= 300 ? bpmBruto : 96;
+  const compasso = String(opts.compasso || '4/4');
+  const partes = compasso.split('/');
+  const numBruto = parseInt(partes[0], 10);
+  const numerador = isFinite(numBruto) && numBruto >= 1 && numBruto <= 12 ? numBruto : 4;
+  const fBruto = Number(opts.fator);
+  const fator = isFinite(fBruto) && fBruto > 0 ? fBruto : 1;
+
+  const msPorBatida = 60000 / bpm;
+  // Meia barra por linha de acordes: em 4/4 a 120 bpm dá 1 s por linha, que e
+  // a densidade media de uma linha de cifra cantada. E um meio-tempo, nao um
+  // compasso inteiro — compasso inteiro passaria dev demais para quem esta
+  // aprendendo o texto.
+  const msCheia = msPorBatida * (numerador / 2) * fator;
+
+  const linhas = String(cifra == null ? '' : cifra).replace(/\r\n?/g, '\n').split('\n');
+  const roteiro = [];
+  for (let i = 0; i < linhas.length; i++) {
+    const ln = linhas[i];
+    let tipo;
+    if (!ln.trim()) tipo = TIPO_LINHA.VAZIA;
+    // A secao vem ANTES da linha de acordes, e a ordem importa. Uma linha
+    // entre colchetes e cabecalho, nunca fila de acordes — mas "[C]" passa
+    // nas duas verificacoes, porque "C" esta na lista de acordes sozinhos e
+    // `isChordLine` nao olha os colchetes. Testando o acorde primeiro, o
+    // titulo de tom virava uma parada de meio compasso, e a rolagem gastava
+    // um tempo inteiro parado no "[C]" do topo.
+    else if (isSectionLine(ln)) tipo = TIPO_LINHA.SECAO;
+    else if (isChordLine(ln)) tipo = TIPO_LINHA.ACORDE;
+    else tipo = TIPO_LINHA.LETRA;
+
+    // Uma secao ou um respiro nao e uma mudanca de acorde: passa rapido por
+    // cima, senao o silencio entre os versos vira uma parada longa e o
+    // musico perde o compasso.
+    const ms = tipo === TIPO_LINHA.ACORDE ? msCheia
+      : tipo === TIPO_LINHA.LETRA ? msCheia * 0.75
+        : msCheia * 0.4;
+
+    roteiro.push({ indice: i, tipo: tipo, ms: Math.max(120, Math.round(ms)) });
+  }
+  return {
+    bpm: bpm,
+    compasso: compasso,
+    numerador: numerador,
+    fator: fator,
+    msPorBatida: msPorBatida,
+    msCheia: Math.max(120, Math.round(msCheia)),
+    linhas: roteiro,
+    // So as linhas de acordes mudam de acorde: e o que a barra de progresso
+    // conta, e o que o botao de pular usa.
+    totalAcordes: roteiro.filter((r) => r.tipo === TIPO_LINHA.ACORDE).length,
+    duracaoMs: roteiro.reduce((s, r) => s + r.ms, 0),
+  };
+}
+
+/* =======================================================
+   1c. TRECHOS DA CIFRA
+   =======================================================
+   Estudar cifra e decorar pedaco por pedaco. Para isso o app precisa saber
+   onde acaba um verso e comeca o outro — e a informacao ja esta na propria
+   cifra, nas linhas entre colchetes. Descobrir na hora, contando linhas na
+   mao, seria erro garantido, e um trecho errado esconde a musica errada. */
+
+const SEM_TITULO = 'Inicio';
+
+/**
+ * Divide a cifra em trechos, um por secao.
+ *
+ * O trecho sem titulo existe porque muita cifra comeca direto no acorde, sem
+ * "[Intro]" — e essas linhas precisam entrar em algum lugar. O nome usado e a
+ * diretiva de tom quando ela existe (`[C]`, `[Am]`), que e exatamente a
+ * informacao que o musician le na primeira linha; sem diretiva, um rotulo
+ * neutro.
+ *
+ * Uma secao imediatamente seguida de outra produz um trecho vazio, e isso e
+ * mantido de proposito: se o app escondesse o titulo do segundo verso junto
+ * com o primeiro, a pessoa veria "[Refrao] [Refrao 2]" fundidos e nao saberia
+ * qual estava vendo.
+ */
+function blocosDeCifra(cifra) {
+  const linhas = String(cifra == null ? '' : cifra).replace(/\r\n?/g, '\n').split('\n');
+  if (!linhas.some((l) => l.trim())) return [];
+
+  const blocos = [];
+  let atual = null;
+
+  function abrir(titulo, semTitulo, indice) {
+    atual = {
+      titulo: titulo,
+      semTitulo: semTitulo,
+      indice: indice,
+      linhaInicio: indice,
+      linhaFim: indice,
+      nLinhas: 0,
+    };
+    blocos.push(atual);
+    return atual;
+  }
+
+  for (let i = 0; i < linhas.length; i++) {
+    const ln = linhas[i];
+    if (isSectionLine(ln)) {
+      // O titulo e o miolo dos colchetes, com os espacos de fora aparados.
+      // A diretiva de tom ([C], [Am]) tambem passa por secao, e serve de nome.
+      const titulo = sectionLabel(ln).trim() || SEM_TITULO;
+      abrir(titulo, false, i);
+      continue;
+    }
+    if (!atual) {
+      // Primeira linha com conteudo, ainda sem titulo: procura a diretiva de
+      // tom mais abaixo para dar um nome de verdade a esse trecho.
+      let nome = SEM_TITULO;
+      for (let j = i; j < linhas.length; j++) {
+        const kd = keyDirective(linhas[j]);
+        if (kd) { nome = kd.text; break; }
+        if (isSectionLine(linhas[j])) break;
+      }
+      abrir(nome, true, i);
+    }
+    atual.linhaFim = i;
+    atual.nLinhas++;
+  }
+  return blocos;
+}
+
+/**
+ * A linha sem letra: so as colunas de acordes, no lugar original.
+ *
+ * Descascar a letra e diferente de apagar a linha. "Am    F  em nenhum dia"
+ * passa em `isChordLine` — tem dois acordes, e a regra so conta os — entao um
+ * filtro que apenas descarta "linhas que nao sao de acordes" mantem a letra
+ * inteira, que e o oposto do que se pediu.
+ *
+ * O detalhe que faz isso funcionar e a capitalizacao. Em contexto de acordes
+ * qualquer fragmento vira acorde: "em" vira Em menor, "e" vira Mi, "ai" vira
+ * La com susteno. E por isso que `isChordLine` precisa de uma segunda passada
+ * restritiva. Aqui a regra e mais simples e mais confiavel: **acorde se
+ * escreve com letra maiuscula, palavra em portugues se escreve minuscula**.
+ * "Em" e o acorde; "em" e a preposicao.
+ *
+ * Devolve null quando sobra nenhum acorde: ai a linha era letra. Os espacos
+ * entre os tokens sao preservados de proposito — sem eles as colunas
+ * colapsam, que foi o defeito que a tokenizacao tinha.
+ */
+function apenasAcordes(linha) {
+  const toks = tokenizeLine(linha, true);
+  const partes = [];
+  let nAcordes = 0;
+  for (const t of toks) {
+    if (t.espaco) { partes.push(t.v); continue; }
+    if (t.type !== 'chord') continue;
+    // A pontuacao em volta do acorde nao conta: "[C]", "(Am)" e "Am" sao o
+    // mesmo acorde. O que decide e a primeira letra do miolo.
+    const miolo = String(t.v).replace(/^[("'[]+/, '');
+    if (!/^[A-Z]/.test(miolo)) continue;
+    nAcordes++;
+    partes.push(t.v);
+  }
+  return nAcordes ? partes.join('') : null;
+}
+
+/** Transpoe UMA linha de texto, trocando so os tokens de acorde. */
   function transposeLine(line, semis, flat, emLinhaDeAcordes) {
     if (!line) return line;
+    semis = arredondarSemitons(semis);
     const kd = keyDirective(line);
     if (kd) return '[' + formatChord(mod12(kd.root + semis), kd.quality, null, flat) + ']';
 
@@ -455,6 +698,7 @@
    *    que claramente formam progressão (>=2 acordes na linha).
    */
   function transposeCifra(text, semis, flat) {
+    semis = arredondarSemitons(semis);
     if (!semis) return String(text == null ? '' : text);
     return String(text == null ? '' : text)
       .replace(/\r\n?/g, '\n')
@@ -926,6 +1170,77 @@
   /** A tônica fica no lado "das quintas" que pede bemóis? */
   const useFlatsFor = (pc) => circleIndexOf(pc) > 6;
 
+  // Ordem em que as alteracoes entram na armadura. São as duas escalas
+  // longas do círculo das quintas, e a ordem importa: é ela que diz qual
+  // nota aparece primeiro, que é o que se vê na clave.
+  const ORDEM_SUS = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
+  const ORDEM_BEM = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
+
+  /**
+   * A armadura de um tom: quantas alterações, se são sustenos ou bemóis, e
+   * quais.
+   *
+   * Para um tom menor, a conta é feita no relativo maior. Ré menor tem um
+   * bemol — o mesmo de Fá maior, que é seu relativo. Calcular direto sobre a
+   * tônica menor daria 2 sustenos, que é a armadura de Ré maior, e o app
+   * pediria para afinar meio tom acima do que a peça pede.
+   */
+  function armadura(pc, modo) {
+    const maior = modo === 'minor' ? relativeMajor(pc) : mod12(pc);
+    // O sinal nao vem de sharpsCount: ele devolve a MAGNITUDE e sempre
+    // positiva. O lado do circulo e que diz se a alteracao e susteno ou
+    // bemol. Passar depois das 6 horas e escrever com bemois — e por isso
+    // que Dost susteno aparece aqui como Reb com 5 bemois, e nao com 7.
+    const q = sharpsCount(maior);
+    const bem = useFlatsFor(maior);
+    const ordem = (bem ? ORDEM_BEM : ORDEM_SUS).slice(0, q);
+    let texto;
+    if (q === 0) texto = 'sem alteracoes';
+    else texto = q + (bem ? (q > 1 ? ' bemois' : ' bemol') : (q > 1 ? ' sustenos' : ' susteno')) + (ordem.length ? ' · ' + ordem.join(' ') : '');
+    return { quantidade: q, bemois: bem, ordem: ordem, texto: texto, relativo: maior };
+  }
+
+  /**
+   * Resume a tonalidade de um conjunto de músicas.
+   *
+   * A pergunta que o músico faz ao abrir a escala não é "qual o tom de cada
+   * música", é "em que tom eu vou tocar e tem alguém fora". Por isso o
+   * resultado sai do tom mais frequente, com a contagem do que sobrou — as
+   * músicas em outro tom viram um aviso, não uma segunda linha de texto.
+   *
+   * Empate vai para o primeiro encontrado: com dois tons igualmente
+   * presentes, a resposta é a ordem do repertório, e isso é estável entre
+   * uma renderização e outra. Um aviso que muda de texto a cada toque é pior
+   * que um aviso mínimo.
+   */
+  function resumoDeTons(lista) {
+    if (!lista || !lista.length) return null;
+    const conta = new Map();
+    for (const t of lista) {
+      if (!t || typeof t.pc !== 'number' || !isFinite(t.pc)) continue;
+      const modo = t.modo === 'minor' ? 'minor' : 'major';
+      const id = mod12(t.pc) + '/' + modo;
+      const atual = conta.get(id);
+      if (atual) atual.n++;
+      else conta.set(id, { pc: mod12(t.pc), modo: modo, n: 1, rotulo: t.rotulo || null });
+    }
+    if (!conta.size) return null;
+
+    let melhor = null;
+    conta.forEach(function (v) { if (!melhor || v.n > melhor.n) melhor = v; });
+
+    return {
+      pc: melhor.pc,
+      modo: melhor.modo,
+      rotulo: melhor.rotulo || keyLabel(melhor.pc, melhor.modo === 'minor', useFlatsFor(armadura(melhor.pc, melhor.modo).relativo)),
+      n: melhor.n,
+      total: lista.length,
+      fora: lista.length - melhor.n,
+      distintos: conta.size,
+      armadura: armadura(melhor.pc, melhor.modo),
+    };
+  }
+
   /* =======================================================
      6. GUITARRA — afinacao, formas canonicas e busca
      ======================================================= */
@@ -972,14 +1287,53 @@
     { root: 5, q: 'maj7', shape: [-1, 0, 0, 0, 0, 0] },      // Fmaj7
   ];
 
-  /** Verifica se um voicing (array de trastes) forma o acorde pedido. */
-  function validateVoicing(frets, rootPc, quality) {
+  /**
+ * Os instrumentos com trastes que o app conhece.
+ *
+ * `openPc` e o pitch class da corda ABERTA, na ordem da corda mais grave
+ * para a mais aguda — a mesma convencao de `OPEN_PC` do violao, e por isso
+ * que o indice 0 e sempre a nota mais grave do desenho.
+ *
+ * `tríade` marca os instrumentos onde um acorde de 3 notas ja e a resposta
+ * certa. No violao uma tríade de 3 notas e quase sempre um arranjo ruim: ha
+ * corda sobrando, e vale mais uma 4ª. No baixo as cordas sao 4 e o acorde se
+ * esgota antes — exigir 4 notas la faria o app nao achar quase nada.
+ */
+const INSTRUMENTOS = [
+  { id: 'violao', nome: 'Violão', afinacao: 'Padrão', cordas: 6, trastes: 22,
+    openPc: [4, 9, 2, 7, 11, 4], openMidi: [40, 45, 50, 55, 59, 64], labels: ['E', 'A', 'D', 'G', 'B', 'E'] },
+  { id: 'baixo', nome: 'Baixo', afinacao: 'Padrão', cordas: 4, trastes: 20, triade: true,
+    openPc: [4, 9, 2, 7], openMidi: [28, 33, 38, 43], labels: ['E', 'A', 'D', 'G'] },
+  { id: 'baixo5', nome: 'Baixo 5 cordas', afinacao: 'Padrão', cordas: 5, trastes: 20, triade: true,
+    openPc: [11, 4, 9, 2, 7], openMidi: [23, 28, 33, 38, 43], labels: ['B', 'E', 'A', 'D', 'G'] },
+  { id: 'ukulele', nome: 'Ukulele', afinacao: 'Solastro', cordas: 4, trastes: 12,
+    openPc: [7, 0, 4, 9], openMidi: [55, 60, 64, 69], labels: ['G', 'C', 'E', 'A'] },
+];
+const INSTRUMENTO_PADRAO = INSTRUMENTOS[0];
+
+/** Acha o instrumento pelo id, com queda para o violao. */
+function instrumento(id) {
+  for (const i of INSTRUMENTOS) if (i.id === id) return i;
+  return INSTRUMENTO_PADRAO;
+}
+
+/** O mesmo instrumento, ou o padrao quando o argumento nao serve. */
+function instrumentoOuPadrao(inst) {
+  if (!inst) return INSTRUMENTO_PADRAO;
+  return Array.isArray(inst.openPc) ? inst : INSTRUMENTO_PADRAO;
+}
+
+/** Verifica se um voicing (array de trastes) forma o acorde pedido. */
+  function validateVoicing(frets, rootPc, quality, inst) {
+    const I = instrumentoOuPadrao(inst);
+    const openPc = I.openPc;
+    const n = openPc.length;
     const q = QUALITIES[QUALITIES[quality] ? quality : ''];
     const want = new Set(q.iv.map((i) => mod12(rootPc + i)));
     const played = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < n; i++) {
       if (frets[i] < 0) continue;
-      const pc = mod12(OPEN_PC[i] + frets[i]);
+      const pc = mod12(openPc[i] + frets[i]);
       played.push({ pc, string: i, fret: frets[i] });
     }
     if (played.length < 3) return null;
@@ -988,7 +1342,7 @@
     if (!set.has(mod12(rootPc))) return null;
     if (!set.has(mod12(rootPc + (q.iv[1] !== undefined ? q.iv[1] : 4)))) return null;
     // evita voicings com so 3 notas quando cabem mais
-    if (played.length < 4 && q.iv.length <= 3) return null;
+    if (!I.triade && played.length < 4 && q.iv.length <= 3) return null;
     // 5a: obrigatoria em tríades; em acordes com 7ª a forma aberta
     // classica (C7 = x 3 2 3 1 0) dispensa o Sol.
     if (q.iv.length === 3 && !set.has(mod12(rootPc + q.iv[2]))) return null;
@@ -1002,7 +1356,10 @@
     // pegada util
     const fs = played.map((p) => p.fret);
     const span = Math.max.apply(null, fs) - Math.min.apply(null, fs);
-    if (span > 4) return null;
+    // A mao alcanca uma oitava no baixo sem esforço; no violao, um treste e
+    // um alongamento, e a regra dos 4 trastes e o que separa uma forma
+    // jogavel de um desenho de papel.
+    if (span > (I.triade ? 7 : 4)) return null;
     return played;
   }
 
@@ -1011,11 +1368,14 @@
    * guitarrista: posicao aberta, pegada curta, poucas cordas mudas e
    * sem a "bolha" na 4a corda.
    */
-  function scoreVoicing(frets, rootPc, quality) {
+  function scoreVoicing(frets, rootPc, quality, inst) {
+    const I = instrumentoOuPadrao(inst);
+    const openPc = I.openPc;
+    const n = openPc.length;
     const q = QUALITIES[QUALITIES[quality] ? quality : ''];
     const fs = [];
     let mutes = 0;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < n; i++) {
       if (frets[i] >= 0) fs.push(frets[i]); else mutes++;
     }
     const minF = Math.min.apply(null, fs);
@@ -1027,9 +1387,12 @@
     score -= span * 7;      // pegada curta e' mais facil
     score -= mutes * 5;     // cordas mudas atrapalham
     score += fs.length * 2; // mais cordas = timbre mais cheio
-    // bolha na 4a corda (3a)
-    if (frets[2] >= 0) {
-      const b = mod12(OPEN_PC[2] + frets[2]) - mod12(rootPc);
+    // A "bolha" e um caso do violao: na 3a corda, a nota uma 4a acima da
+    // fundamental (D) ou a propria fundamental (C) formigam sob os dedos.
+    // Nao ha equivalente no ukulele, e no baixo o desenho e outro. Testar a
+    // corda 3 fora do violao penaliza um acorde que estava correto.
+    if (!I.triade && frets[2] >= 0) {
+      const b = mod12(openPc[2] + frets[2]) - mod12(rootPc);
       if (isMinorChord && b === 7) score -= 16;
       if (!isMinorChord && b === 0) score -= 16;
     }
@@ -1102,8 +1465,49 @@
     return out;
   }
 
+  /**
+   * Formas de um acorde em qualquer instrumento com trastes.
+   *
+   * O violao tem um caminho privilegiado: as formas CAGED e as abertas
+   * canonicas, que sao as posicoes que o Algarve realmente usa. Nenhum outro
+   * instrumento tem esse conjunto — nao existe CAGED de ukulele, e as
+   * "abertas canonicas" de baixo sao outra coisa. Inventar equivalentes
+   * seria inventar musica que ninguem toca.
+   *
+   * Entao os outros instrumentos vao direto para a busca por trastes, que
+   * nao depende de nenhuma tradicao: ela varre o braco e devolve o que
+   * realmente forma o acorde. O resultado e menos sleek e sempre correto.
+   *
+   * Para o violao, delega a `guitarShapes` — as formas especiais entram com
+   * bonus e a busca so completa o que faltou.
+   */
+  function instrumentShapes(inst, rootPc, quality, opts) {
+    opts = opts || {};
+    const I = instrumentoOuPadrao(typeof inst === 'string' ? instrumento(inst) : inst);
+    const root = mod12(rootPc);
+    const key = QUALITIES[quality] ? quality : '';
+    const maxFret = opts.maxFret == null ? I.trastes : opts.maxFret;
+    const limit = opts.limit || 6;
+
+    if (I.id === INSTRUMENTO_PADRAO.id) return guitarShapes(root, key, opts);
+
+    const seen = new Set();
+    const out = [];
+    for (const f of searchShapes(root, key, maxFret, opts.budget || 200000, I)) {
+      const id = f.join(',');
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push(f);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
   /** Busca exaustiva por trastes (usada como complemento). */
-  function searchShapes(rootPc, quality, maxFret, budget) {
+  function searchShapes(rootPc, quality, maxFret, budget, inst) {
+    const I = instrumentoOuPadrao(inst);
+    const openPc = I.openPc;
+    const nc = openPc.length;
     const q = QUALITIES[QUALITIES[quality] ? quality : ''];
     const wantSet = new Set(q.iv.map((i) => mod12(rootPc + i)));
     const found = [];
@@ -1111,9 +1515,9 @@
     let left = budget || 60000;
 
     const roots = [];
-    for (let s = 0; s < 6; s++) {
+    for (let s = 0; s < nc; s++) {
       for (let f = 0; f <= maxFret; f++) {
-        if (mod12(OPEN_PC[s] + f) === mod12(rootPc)) roots.push({ s, f });
+        if (mod12(openPc[s] + f) === mod12(rootPc)) roots.push({ s, f });
       }
     }
     roots.sort((a, b) => a.f - b.f || b.s - a.s);
@@ -1122,26 +1526,26 @@
       if (found.length >= 24 || left <= 0) break;
       const lo = Math.max(0, r.f - 3), hi = r.f + 3;
       const opts = [];
-      for (let s = 0; s < 6; s++) {
+      for (let s = 0; s < nc; s++) {
         const arr = [];
         const fs = [0];
         for (let f = lo; f <= hi; f++) if (f > 0) fs.push(f);
         for (const f of fs) {
           if (f > maxFret) continue;
-          if (wantSet.has(mod12(OPEN_PC[s] + f))) arr.push(f);
+          if (wantSet.has(mod12(openPc[s] + f))) arr.push(f);
         }
         opts.push(arr);
       }
       if (opts[r.s].indexOf(r.f) === -1) continue;
-      const cur = new Array(6).fill(-1);
+      const cur = new Array(nc).fill(-1);
       cur[r.s] = r.f;
       let best = null;
       (function rec(s) {
         if (left-- <= 0) return;
-        if (s === 6) {
-          const played = validateVoicing(cur, rootPc, quality);
+        if (s === nc) {
+          const played = validateVoicing(cur, rootPc, quality, I);
           if (played) {
-            const sc = scoreVoicing(cur, rootPc, quality);
+            const sc = scoreVoicing(cur, rootPc, quality, I);
             if (!best || sc > best.score) best = { v: cur.slice(), score: sc };
           }
           return;
@@ -1160,12 +1564,14 @@
   }
 
   /** Nota (pc) de uma corda/traste. */
-  function fretNote(stringIdx, fret) {
-    return mod12(OPEN_PC[stringIdx] + fret);
+  function fretNote(stringIdx, fret, inst) {
+    const I = instrumentoOuPadrao(inst);
+    return mod12(I.openPc[stringIdx] + fret);
   }
   /** Nome da nota de uma corda/traste, ja formatado. */
-  function fretNoteName(stringIdx, fret, flat) {
-    return noteName(mod12(OPEN_PC[stringIdx] + fret), flat);
+  function fretNoteName(stringIdx, fret, flat, inst) {
+    const I = instrumentoOuPadrao(inst);
+    return noteName(mod12(I.openPc[stringIdx] + fret), flat);
   }
   /** Trastes onde a nota aparece na 6a corda. */
   function fretsForNote(pc, maxFret) {
@@ -1201,13 +1607,17 @@
     // cifra
     tokenizeLine, isChordLine, isSectionLine, sectionLabel, keyDirective,
     transposeLine, transposeCifra, transposeCifraPorGrau, semitonsEntre, grauDe,
+    arredondarSemitons, centsDeDesvio,
+    TIPO_LINHA, roteiroDeRolagem, blocosDeCifra, SEM_TITULO, apenasAcordes,
     extractChords, detectKey, analyzeChords,
     // escalas
     SCALES, triadFor, scaleNotes, scaleNames, scaleChords, closestTerm,
     // círculo
     CIRCLE, circleIndexOf, relativeMinor, relativeMajor, sharpsCount, useFlatsFor,
+    ORDEM_SUS, ORDEM_BEM, armadura, resumoDeTons,
     // guitarra
     TUNING, OPEN_PC, STRING_LABELS, guitarShapes, fretNote, fretNoteName, fretsForNote, fretDelta,
+    INSTRUMENTOS, INSTRUMENTO_PADRAO, instrumento, instrumentShapes, validateVoicing,
     // tons
     keyLabel, modeName,
   };

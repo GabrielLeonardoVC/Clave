@@ -115,7 +115,7 @@
         }));
         return;
       }
-      const grid = el('div', { class: 'grid-auto-lg' });
+      const grid = el('div', { class: 'lista-cifras' });
       itens.forEach(function (c) { grid.appendChild(cartaoCifra(c)); });
       box.appendChild(grid);
       UI.icons(box);
@@ -126,18 +126,24 @@
 
   function cartaoCifra(c) {
     return el('button', { class: 'song-card', onclick: function () { abrirCifra(c); } }, [
-      el('div', { class: 'row between' }, [
-        el('div', { class: 'grow', style: { minWidth: '0' } }, [
-          el('div', { class: 'n' }, c.titulo),
-          c.artista ? el('div', { class: 'a ellipsis' }, c.artista) : null,
+      // O tom vira coluna. Em uma lista, a coluna alinhada e o que permite
+      // varrer os tons de relance — o que a grade de caixas nunca permite.
+      // Sem tom, o espaco fica tracejado em vez de sumir: a coluna tem que
+      // manter a mesma largura em todas as linhas, senao os tons desalinham.
+      el('span', { class: 'tom-col' + (c.tom ? '' : ' vazio') }, c.tom || '?'),
+      el('div', { class: 'meio' }, [
+        el('div', { class: 'n' }, c.titulo),
+        // Artista e badges dividem a mesma linha. Empilhados, cada item
+        // ocupava tres blocos e a lista virava uma parede de altura — o
+        // oposto de uma lista.
+        el('div', { class: 'sub' }, [
+          el('span', { class: 'a' }, c.artista || '—'),
+          el('span', { class: 'foot' }, [
+            c.bpm ? el('span', { class: 'badge' }, c.bpm + ' bpm') : null,
+            c.compasso && c.compasso !== '4/4' ? el('span', { class: 'badge' }, c.compasso) : null,
+            c.categoria ? el('span', { class: 'badge badge-brand' }, c.categoria) : null,
+          ]),
         ]),
-        el('i', { 'data-lucide': 'chevron-right', style: { width: '16px', height: '16px', color: 'var(--ink-4)', flex: 'none' } }),
-      ]),
-      el('div', { class: 'foot' }, [
-        c.tom ? el('span', { class: 'badge badge-key' }, c.tom) : null,
-        c.bpm ? el('span', { class: 'badge' }, c.bpm + ' bpm') : null,
-        c.compasso && c.compasso !== '4/4' ? el('span', { class: 'badge' }, c.compasso) : null,
-        c.categoria ? el('span', { class: 'badge badge-brand' }, c.categoria) : null,
       ]),
     ]);
   }
@@ -158,20 +164,19 @@
       wrap.appendChild(UI.empty({ icon: 'book-open', title: 'Nenhuma cifra carregada' }));
       return wrap;
     }
-    const grid = el('div', { class: 'grid-auto-lg' });
+    const grid = el('div', { class: 'lista-cifras' });
     base.forEach(function (h) {
       grid.appendChild(el('button', { class: 'song-card', onclick: function () { abrirDaBase(h); } }, [
-        el('div', { class: 'row between' }, [
-          el('div', { class: 'grow', style: { minWidth: '0' } }, [
-            el('div', { class: 'n' }, h.titulo),
-            el('div', { class: 'a ellipsis' }, h.artista),
+        el('span', { class: 'tom-col' + (h.tom ? '' : ' vazio') }, h.tom || '?'),
+        el('div', { class: 'meio' }, [
+          el('div', { class: 'n' }, h.titulo),
+          el('div', { class: 'sub' }, [
+            el('span', { class: 'a' }, h.artista || '—'),
+            el('span', { class: 'foot' }, [
+              h.bpm ? el('span', { class: 'badge' }, h.bpm + ' bpm') : null,
+              el('span', { class: 'badge badge-brand' }, h.categoria),
+            ]),
           ]),
-          el('i', { 'data-lucide': 'chevron-right', style: { width: '16px', height: '16px', color: 'var(--ink-4)', flex: 'none' } }),
-        ]),
-        el('div', { class: 'foot' }, [
-          h.tom ? el('span', { class: 'badge badge-key' }, h.tom) : null,
-          h.bpm ? el('span', { class: 'badge' }, h.bpm + ' bpm') : null,
-          el('span', { class: 'badge badge-brand' }, h.categoria),
         ]),
       ]));
     });
@@ -264,7 +269,44 @@
         el('pre', { class: 'cifra-text lyric', style: { whiteSpace: 'pre-wrap' } }, v.letra),
       ]));
     }
-    body.appendChild(R.cifraBox(v.cifra));
+    // A rolagem substitui a caixa solta: no celular, uma cifra inteira num
+    // bloco so e um papel de parede. Com a janela rolavel, a linha que vem
+    // fica sempre no mesmo lugar — e a diferenca entre acompanhar a musica e
+    // procurar o proximo acorde com o olho.
+    //
+    // O estado de estudo e guardado por cifra. Esconder tres versos para
+    // decorar, fechar o app e voltar e ver tudo de novo nao e um recurso.
+    // A gravacao vai no objeto do STORE, e nao em `v`.
+    //
+    // `v` e uma copia rasa da cifra, feita para editar sem sujar o original.
+    // Escrever nela parecia funcionar — a tela atualizava na hora — mas o
+    // estado sumia ao fechar: a copia morre junto com a janela. O sintoma era
+    // silencioso e o unico jeito de ver era fechar, reabrir e olhar.
+    //
+    // Pegar o objeto pelo id a cada gravacao evita ainda o outro erro: usar o
+    // `c` da chamada e gravar num objeto que o store ja substituiu.
+    function alvo() { return S.cifraPorId(c.id) || null; }
+    function gravarEstudo(est) {
+      const a = alvo();
+      if (!a) return;
+      a.estudo = S.normEstudo(est);
+      S.mudou('cifra');
+    }
+    function gravarVelocidade(f) {
+      const a = alvo();
+      if (!a) return;
+      a.estudo = Object.assign({}, S.normEstudo(a.estudo), { velocidade: f });
+      S.mudou('cifra');
+    }
+    const rolagem = v.cifra.trim() ? R.painelRolagem(v.cifra, {
+      bpm: v.bpm,
+      compasso: v.compasso,
+      fator: v.estudo && v.estudo.velocidade ? v.estudo.velocidade : 1,
+      estudo: v.estudo,
+      onEstudo: gravarEstudo,
+      onEstudoVelocidade: gravarVelocidade,
+    }) : null;
+    if (rolagem) body.appendChild(rolagem); else body.appendChild(R.cifraBox(v.cifra));
 
     const k = M.detectKey(v.cifra);
     if (k) {
@@ -464,24 +506,17 @@
       saida.appendChild(R.cifraBox(txt));
       UI.icons(saida);
     }
-    // O numero no botao e o numero de semitons. Antes o botao "-8" somava 12:
-    // a etiqueta dizia 8 e o movimento era uma oitava, sem nenhuma explicacao
-    // em tela. Quem clicava achando "desce um seis menor" recebia "desce uma
-    // oitava".
-    const INTERVALOS = [-8, -3, -1, 0, 1, 3, 8];
-    const bar = el('div', { class: 'semitone-bar mb-3' },
-      INTERVALOS.map(function (n) {
-        return el('button', {
-          class: 'semitone',
-          // O estado precisa aparecer: o CSS tem a regra do botao marcado, e
-          // sem isto ela nunca era usada, e o musico nao sabia onde estava.
-          'aria-pressed': semis === n ? 'true' : 'false',
-          'aria-label': n === 0 ? 'Voltar ao tom original'
-            : (n > 0 ? 'Subir ' : 'Descer ') + Math.abs(n) + (Math.abs(n) === 1 ? ' semitom' : ' semitons'),
-          title: n === 0 ? 'Tom original' : (n > 0 ? '+' : '') + n + ' semitons',
-          onclick: function () { semis = U.clamp(semis + n, -12, 12); render(); },
-        }, n > 0 ? '+' + n : String(n));
-      }));
+    // A barra e a mesma de Teoria, com passo de meio semitom.
+    //
+    // Antes eram sete botoes que SOMAVAM deslocamentos, mas rotulados como se
+    // fossem valores absolutos: clicar em "+8" numa transposicao ja em +5
+    // levava a +13, e o rotulo continuava dizendo +8. Duas vezes na mesma
+    // tela — aqui e na barra de Teoria — o numero na tela e o numero que o
+    // botao faz.
+    const bar = R.transposeBar({
+      valor: semis,
+      onChange: function (v) { semis = v; render(); },
+    });
     flatSel.addEventListener('change', render);
 
     const h = UI.sheet({
