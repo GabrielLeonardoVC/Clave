@@ -200,6 +200,11 @@ F=`133211`, G=`320003`…); ~3 ms por acorde.
 
 ## Ferramentas
 
+Ferramentas do **Acorde**. A varredura é fechada no app da raiz
+(`tools/arquivos.js`): o CifraCeleste é um projeto ESM à parte, e varrer os dois
+juntos fazia o `check-syntax` acusar o `import`/`export` do bundle do Vite como
+erro de sintaxe.
+
 ```
 node tools/test-music.js      220 testes do motor de teoria
 node tools/check-syntax.js    sintaxe de todos os .js
@@ -207,6 +212,18 @@ node tools/check-utf8.js      UTF-8 estrito
 node tools/scan.js            detecta caracteres corrompidos
 node tools/icons.js           confere se os ícones existem no Lucide
 node tools/build-hinos.js     gera js/data/hinos.js validando cada acorde
+```
+
+`tools/e2e-body.js` não é comando: é o corpo do teste de ponta a ponta, para
+colar no console da página. O resultado sai em `window.__e2e`.
+
+O CifraCeleste tem a verificação dele, em `cifraceleste/`:
+
+```
+cd cifraceleste
+npm test                      112 testes
+npm run typecheck             TypeScript estrito
+node tools/conferir.mjs       varredura de caracteres e terminologia
 ```
 
 `build-hinos.js` valida todos os acordes antes de gravar: um erro de digitação

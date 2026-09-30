@@ -1,17 +1,9 @@
-﻿// Valida UTF-8 estrito em todos os arquivos de texto
-const fs = require('fs'), path = require('path');
-function walk(d, out=[]) {
-  for (const e of fs.readdirSync(d, {withFileTypes:true})) {
-    if (e.name === 'node_modules' || e.name === '.git') continue;
-    const p = path.join(d, e.name);
-    if (e.isDirectory()) walk(p, out); else out.push(p);
-  }
-  return out;
-}
+﻿// Valida UTF-8 estrito em todos os arquivos de texto do Acorde
+const fs = require('fs');
+const { arquivosDe } = require('./arquivos');
 const decoder = new TextDecoder('utf-8', { fatal: true });
 let bad = 0;
-for (const f of walk('.')) {
-  if (!/\.(js|css|html|json|md|webmanifest)$/.test(f)) continue;
+for (const f of arquivosDe(/\.(js|css|html|json|md|webmanifest)$/)) {
   const buf = fs.readFileSync(f);
   try { decoder.decode(buf); }
   catch (e) {

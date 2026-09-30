@@ -1,17 +1,12 @@
-﻿// Verifica sintaxe de todos os .js do projeto
-const fs = require('fs'), path = require('path'), vm = require('vm');
-function walk(d, out=[]) {
-  for (const e of fs.readdirSync(d, {withFileTypes:true})) {
-    if (e.name === 'node_modules' || e.name === '.git') continue;
-    const p = path.join(d, e.name);
-    if (e.isDirectory()) walk(p, out); else out.push(p);
-  }
-  return out;
-}
+﻿// Verifica sintaxe de todos os .js do Acorde.
+//
+// O Acorde e JS classico, entao compilar com vm.Script e o teste certo. O
+// CifraCeleste e ESM e nao entra aqui: a varredura e fechada pelo modulo
+// arquivos.js, e ele tem o proprio typecheck e build.
+const fs = require('fs'), vm = require('vm');
+const { arquivosDe } = require('./arquivos');
 let erros = 0, n = 0;
-for (const f of walk('.')) {
-  if (!f.endsWith('.js')) continue;
-  if (f.includes('node_modules')) continue;
+for (const f of arquivosDe(/\.js$/)) {
   n++;
   const src = fs.readFileSync(f, 'utf8');
   try {

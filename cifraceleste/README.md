@@ -251,6 +251,7 @@ src/
       keyDetection.ts     tom por perfil de Krumhansl-Schmuckler
       chordTransposer.ts  o motor de transposição
       scales.ts           16 escalas e modos
+      transGrau.ts        reatribuição por grau da escala
     searchLogic.ts        busca tolerante a erro
     store.ts              estado e persistência
     audio.ts              acordes, notas e metrônomo
@@ -259,18 +260,26 @@ src/
     router.ts             navegação por hash
     emergencia.ts         controle do painel flutuante
     pwa.ts                instalação e service worker
+    helpers.ts            utilidades de formatação
+    useDebounce.ts        atraso na digitação
   components/
     SongView.tsx          a tela da cifra
     EmergencyPanel.tsx    busca, tom e colagem
     NotificationScheduler.tsx  lembrete com hora exata
     AudioTools.tsx        metrônomo e gravação
+    TeoriaViews.tsx       acordes, escalas e círculo das quintas
+    ui.tsx                botão, campo, diálogo e aviso
   pages/                  Hoje, Missas, Repertório, Teoria, Ajustes
 tools/
   conferir.mjs            varredura de caracteres, terminologia e bytes NUL
+  VERIFICAR.md            os casos que só o navegador aberto pega
 ```
 
-Navegação por hash, e não History API, porque o app precisa abrir direto de
-um arquivo no disco, sem servidor.
+Navegação por hash, e não History API, porque o app é publicado como arquivos
+estáticos no GitHub Pages. A History API exigiria regra de rewrite no servidor
+(toda rota cair no `index.html`), e hospedagem estática não tem onde colocar
+isso. Com hash, `#/missas` é o próprio arquivo, sem configuração nenhuma — e
+os atalhos do `manifest.webmanifest` abrem a tela direto.
 
 ---
 

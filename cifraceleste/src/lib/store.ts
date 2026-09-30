@@ -59,6 +59,12 @@ export interface Musica {
   responsavel: string
   observacao: string
   cifraId: string | null
+  /**
+   * Vídeo do YouTube da música. Reservado para o Estúdio: hoje nenhuma tela o
+   * lê. Fica no modelo porque a migração de `ytId` (o nome antigo, do app
+   * anterior) é feita abaixo, e apagar o campo agora jogaria fora o dado de
+   * quem já tinha salvo vídeo.
+   */
   youtubeId: string
   /** Chave da gravação no IndexedDB. */
   audioId: string | null

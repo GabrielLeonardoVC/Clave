@@ -13,7 +13,7 @@ qualquer. Cole a que quiser e chame.
 
 ## Por que isto existe
 
-Os testes automatizados (110) cobrem a lógica e a folha de estilo. Eles **não**
+Os testes automatizados (112) cobrem a lógica e a folha de estilo. Eles **não**
 pegam três classes de defeito que só aparecem com o navegador aberto:
 
 1. animação de biblioteca que não roda, deixando o elemento em `opacity: 0`

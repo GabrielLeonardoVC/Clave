@@ -1,16 +1,8 @@
-﻿// Scan all project files for non-Latin / suspicious characters
-const fs = require('fs'), path = require('path');
-function walk(d, out=[]) {
-  for (const e of fs.readdirSync(d, {withFileTypes:true})) {
-    if (e.name === 'node_modules' || e.name === '.git') continue;
-    const p = path.join(d, e.name);
-    if (e.isDirectory()) walk(p, out); else out.push(p);
-  }
-  return out;
-}
+﻿// Scan all Acorde files for non-Latin / suspicious characters
+const fs = require('fs');
+const { arquivosDe } = require('./arquivos');
 const bad = [];
-for (const f of walk('.')) {
-  if (!/\.(js|css|html|json|md|webmanifest)$/.test(f)) continue;
+for (const f of arquivosDe(/\.(js|css|html|json|md|webmanifest)$/)) {
   const txt = fs.readFileSync(f, 'utf8');
   const lines = txt.split('\n');
   lines.forEach((ln, i) => {
