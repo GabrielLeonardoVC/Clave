@@ -23,7 +23,13 @@
   function noteSolfege(pc) { return SOLFEGE[mod12(pc)]; }
 
   function pcFromAccidental(letter, acc) {
+    // Letra fora da tabela nao e erro de sintaxe, e erro de chamada. Deixar
+    // passar devolve undefined, que na conta seguinte vira NaN, e o NaN caminha
+    // pela cifra inteira ate aparecer escrito como "undefined" na tela. O regex
+    // ja garante A-G nos dois chamadores; este guard e a rede de seguranca
+    // para o proximo que chamar daqui.
     let n = LETTER_PC[letter];
+    if (n === undefined) return null;
     if (!acc) return n;
     for (const ch of acc) {
       if (ch === '#' || ch === '\u266f') n += 1;
@@ -169,7 +175,13 @@
     if (!m) return null;
     const root = pcFromAccidental(m[1].toUpperCase(), m[2]);
     const quality = matchQuality(m[3]);
-    const bass = m[4] ? pcFromAccidental(m[4].toUpperCase(), m[4].slice(1)) : null;
+    // O baixo vem do regex como um grupo so, letra junto com o acidente. Passar
+    // o grupo inteiro como se fosse so a letra fazia a busca na tabela de
+    // letras devolver undefined, e o undefined virava NaN na conta. Daí um
+    // acorde como "F#/A#" ter o baixo lido como NaN e a cifra impressa sair
+    // com a palavra "undefined" no lugar da nota. A letra e o acidente sao
+    // separados aqui, como ja era feito com a fundamental.
+    const bass = m[4] ? pcFromAccidental(m[4][0].toUpperCase(), m[4].slice(1)) : null;
     return { root, quality, bass, text: s };
   }
 
@@ -236,7 +248,35 @@
     'tipo', 'to', 'todo', 'todos', 'todas', 'toda', 'tom', 'trabalho', 'trem',
     'tres', 'tudo', 'ultima', 'um', 'uma', 'umas', 'uns', 'vai', 'vao', 'vem',
     'vendo', 'ver', 'verdade', 'vez', 'viu', 'viva', 'viver', 'voce', 'vos',
+
+    // ── Colisoes com nota que faltavam ──
+    // Comparadas uma a uma com a lista do CifraCeleste. "ao" e o caso grave:
+    // casa com o padrao de acorde como A + o (diminuto), e "Ao Senhor" em uma
+    // linha so seria lido como o acorde de La diminuto. As outras sao palavras
+    // curtas que o padrao tambem aceita e que, sozinhas na linha, deviam ser
+    // letra.
+    //
+    // "b" ficou de fora de proposito: B e um acorde de verdade, e uma linha de
+    // hino so com "B" e legitima. O risco oposto — uma linha de letra que seja
+    // a letra B sozinha — nao acontece em letra de hinario.
+    'ao', 'aos', 'à', 'às', 'ás', 'das', 'dos', 'é', 'aí', 'lá', 'ai',
+    'sol', 'fa', 'mi', 're', 'si', 'dó', 'fá', 'ré', 'ti', 'lá',
   ]);
+
+  /**
+   * As unicas palavras da lista que tambem sao acordes de verdade.
+   *
+   * "a" e artigo, "e" e conjuncao, "em" e preposicao — e ao mesmo tempo A, E e
+   * Em, tres dos acordes mais usados do repertorio brasileiro. Nao ha como
+   * decidir olhando so o token: o hino "A / Eu te adoro" usa A como acorde, e
+   * uma frase de letra comecada por "E" nao forma uma linha inteira.
+   *
+   * Sao os tres casos, medidos um a um contra a lista: as demais palavras que
+   * casam com o padrao de acorde ("ao", "as", "ai") nao formam acorde, porque
+   * a letra depois da nota nao e uma qualidade valida. Este trio e a exceptions
+   * que fecha o caso sem afrouxar a protecao para o resto.
+   */
+  const ACORDES_SOZINHOS = new Set(['a', 'e', 'em']);
 
   /** True se a palavra (minuscula) e' um acorde legitimo, e nao prosa. */
   function isChordWord(word) {
@@ -308,7 +348,26 @@
     const toks = tokenizeLine(line, true).filter((t) => t.v.trim() !== '');
     if (!toks.length) return false;
     const chords = toks.filter((t) => t.type === 'chord');
-    if (chords.length < 2) return false;
+    if (chords.length < 2) {
+      // Hinario se escreve com um acorde por vez, cada um na sua linha. Exigir
+      // dois descartava esse formato inteiro, e o efeito era o pior possivel:
+      // a musica nao transpunha e saia no tom original, sem aviso nenhum.
+      //
+      // A pergunta que separa as duas coisas nao e "quantos acordes tem", e
+      // "ha palavra de verdade na linha". Por isso a linha e reconferida na
+      // passada restritiva, onde palavra que colide com nota (a, e, do) conta
+      // como letra. Linha so com "A" e artigo; linha so com "C" e o acorde.
+      if (chords.length !== 1 || toks.length !== 1) return false;
+      const restritiva = tokenizeLine(line, false).filter((t) => t.v.trim() !== '');
+      if (restritiva.length !== 1 || restritiva[0].type !== 'chord') {
+        // Ultimo caso: o token e palavra e acorde ao mesmo tempo (A, E, Em).
+        const unico = toks[0].v
+          .replace(/^[("'[]+/, '')
+          .replace(/[)"'\],.!?;:]+$/, '')
+          .toLowerCase();
+        if (!ACORDES_SOZINHOS.has(unico) || !parseChord(unico)) return false;
+      }
+    }
     return chords.length >= Math.ceil(toks.length * 0.6);
   }
 

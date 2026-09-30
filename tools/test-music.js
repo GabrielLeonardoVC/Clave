@@ -220,6 +220,40 @@ for (let i = 0; i < 60; i++) {
 const dt = Date.now() - t0;
 ok(dt < 4000, '60 geracoes de posicoes em ' + dt + 'ms (limite 4000ms)');
 
+console.log('\n=== 15. Regressao: baixo com acidente ===');
+// O baixo vinha do regex como um grupo so, letra junto com o acidente, e esse
+// grupo era passado a pcFromAccidental como se fosse so a letra. A busca na
+// tabela devolvia undefined, o undefined virava NaN, e a cifra saia impressa
+// com a palavra "undefined" no lugar da nota.
+eq(M.parseChord('F#/A#').bass, 10, 'F#/A# le o baixo A# (e nao NaN)');
+eq(M.parseChord('F#/Ab').bass, 8, 'F#/Ab le o baixo Ab');
+eq(M.parseChord('C#m7b5/E#').bass, 5, 'C#m7b5/E# le o baixo E#');
+eq(M.parseChord('C/G').bass, 7, 'C/G continua lendo o baixo G');
+eq(M.parseChord('Bbmaj7/D').bass, 2, 'Bbmaj7/D continua lendo o baixo D');
+ok(!/undefined|NaN/.test(M.transposeCifra('[F#]\nF#/A#    C#m7b5/E#', 2, false)),
+  'transpor acorde com baixo acentuado nao escreve "undefined"');
+eq(M.transposeCifra('[F#]\nF#/A#', 2, false), '[G#]\nG#/C',
+  'baixo acentuado transpode pelo intervalo (A# +2 = C), e a diretiva de tom tambem');
+
+console.log('\n=== 16. Regressao: hino com um acorde por vez ===');
+// isChordLine exigia dois acordes na linha, o que descartava o formato de
+// hinario. A musica nao transpunha e saia no tom original, sem aviso.
+ok(M.isChordLine('C'), 'linha so com C e linha de acordes');
+ok(M.isChordLine('C/G'), 'linha so com C/G e linha de acordes');
+ok(M.isChordLine('Bbmaj7'), 'linha so com Bbmaj7 e linha de acordes');
+['a', 'e', 'em'].forEach((c) => ok(M.isChordLine(c.toUpperCase()),
+  'linha so com ' + c.toUpperCase() + ' e linha de acordes (palavra que tambem e acorde)'));
+ok(!M.isChordLine('A minha alma'), '"A minha alma" continua sendo letra');
+ok(!M.isChordLine('E o Senhor'), '"E o Senhor" continua sendo letra');
+ok(!M.isChordLine('Ao meu lado'), '"Ao meu lado" continua sendo letra');
+ok(!M.isChordLine('Amém'), '"Amém" continua sendo letra');
+eq(M.transposeCifra('[C]\nC\nO Senhor e o meu pastor\n\nG\nNada me faltara', 2, false),
+  '[D]\nD\nO Senhor e o meu pastor\n\nA\nNada me faltara',
+  'hino de um acorde por vez transpoe, com a letra intacta');
+eq(M.transposeCifra('[C]\nB7', 2, false), '[D]\nC#7', 'acorde so com B7 transpoe');
+eq(M.transposeCifra('[C]\nB7\nFalsa', 2, false), '[D]\nC#7\nFalsa',
+  '"Falsa" e palavra, e continua palavra depois de transpor');
+
 console.log('\n=================================================');
 console.log('  ' + pass + ' passaram, ' + fail + ' falharam');
 console.log('=================================================\n');
