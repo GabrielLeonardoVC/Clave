@@ -181,6 +181,7 @@
 
   function normMusica(m) {
     m = m || {};
+    const vid = normYouTube(m.yt, m.ytId);
     return {
       id: m.id || U.uid('mus'),
       nome: String(m.nome || '').slice(0, 160),
@@ -190,20 +191,26 @@
       compasso: m.compasso || '',
       categoria: String(m.categoria || '').slice(0, 40),
       responsavel: String(m.responsavel || '').slice(0, 80),
+      // O texto, quando a musica da escala nao usa uma cifra do repertorio.
+      // Quem cadastra direto na escala tem letra e cifra proprias, e sem estes
+      // dois campos o texto se perdia na leitura.
+      cifra: String(m.cifra || ''),
+      letra: String(m.letra || ''),
       cifraId: m.cifraId || null,
-      yt: String(m.yt || '').slice(0, 600),
-      ytId: m.ytId || '',
+      yt: vid.yt,
+      ytId: vid.ytId,
       cf: String(m.cf || '').slice(0, 600),
-      foto: m.foto || '',
+      foto: normFoto(m.foto),
       obs: String(m.obs || '').slice(0, 600),
       // A faixa narrada: a voz que a pessoa gravou guiando o ensaio.
       // Fica no aparelho; nada sai sem que ela mande.
-      vs: m.vs && typeof m.vs === 'string' && m.vs.indexOf('data:audio/') === 0
-        ? m.vs.slice(0, 4194304) : "",
+      vs: normAudioGravado(m.vs),
       // O texto da passagem. A pessoa escreve o que falou, para ler sem dar
       // play — e para quem recebe o ensaio saber o que esperar.
       vsTexto: String(m.vsTexto || '').slice(0, 2000),
       vsSeg: m.vsSeg ? U.clamp(Number(m.vsSeg) || 0, 0, 3600) : 0,
+      // As anotacoes com hora, por musica do evento.
+      anotacoes: normAnotacoes(m.anotacoes),
     };
   }
 
@@ -243,8 +250,107 @@ function normEstudo(e) {
   return base;
 }
 
-function normCifra(c) {
+/**
+ * Uma anotacao com hora: "aos 1:32, a bateria entra".
+ *
+ * E o que permite transformar a ficha da musica em algo que se usa no ensaio.
+ * Uma observacao solta ("virada no refrão") exige que a pessoa decore a ordem;
+ * com o tempo marcado, ela clica e o video pula para la.
+ *
+ * O tempo e em segundos, porque e assim que o audio e o video trabalham. Guardar
+ * "1:32" como texto obrigaria a converter de volta toda vez que o app precisasse
+ * comparar com a posicao atual.
+ */
+function normAnotacao(a) {
+    a = a || {};
+    const texto = String(a.texto || '').trim().slice(0, 200);
+    if (!texto) return null;                       // anotacao sem texto nao existe
+    return {
+      id: a.id || U.uid('anot'),
+      t: U.clamp(Number(a.t) || 0, 0, 3600),
+      texto: texto,
+    };
+  }
+
+  /**
+   * As anotacoes da musica.
+   *
+   * Tolera tres formas: ausente (cifra antiga), array de textos soltos (a
+   * primeira versao, sem tempo) e o formato de hoje. Mesma regra do `estudo`:
+   * um campo novo nunca pode custar o acesso ao resto.
+   */
+  function normAnotacoes(lista) {
+    if (!Array.isArray(lista)) return [];
+    const saida = [];
+    for (const a of lista.slice(0, 60)) {
+      // A forma antiga era uma lista de strings. Vira anotacao no tempo zero,
+      // que e onde uma observacao sem tempo estava mesmo.
+      const n = normAnotacao(typeof a === 'string' ? { texto: a } : a);
+      if (n) saida.push(n);
+    }
+    return saida.sort(function (x, y) { return x.t - y.t; });
+  }
+
+  /** O audio gravado da musica: a voz que guia o ensaio. */
+  function normAudioGravado(v) {
+    if (!v || typeof v !== 'string') return '';
+    // So data-URL de audio. Um "javascript:" aqui viraria script ao ser usado
+    // como `src`, e o campo vem de um arquivo de backup — que e entrada nao
+    // confiavel. A verificacao e no prefixo, nao no nome do mime.
+    if (v.indexOf('data:audio/') !== 0) return '';
+    return v.slice(0, 4194304);
+  }
+
+  /**
+   * O link do YouTube, com o id ja extraido.
+   *
+   * `Links` e consultado na hora, e nao guardado no topo do arquivo: o store e
+   * carregado antes do modulo de links, e uma referencia capturada no topo
+   * seria `undefined` para sempre. Se o modulo nao estiver disponivel, o id
+   * guardado ainda e respeitado, e o link fica para a proxima leitura — quem
+   * gravou o link ja gravou o id junto.
+   */
+  function normYouTube(yt, ytId) {
+    const bruto = String(yt || '').slice(0, 600);
+    // O id gravado so vale se tiver mesmo onze caracteres do alfabeto do
+    // YouTube. Sem esta conferencia, qualquer texto de onze caracteres em um
+    // backup virava "video": o app montava `youtube-nocookie.com/embed/<lixo>`
+    // e a tela da mesa abria um video inexistente, sem aviso. Pior do que
+    // nao ter video: e ter video apontando para a coisa errada, e a pessoa nao
+    // tem como saber qual das duas e a certa.
+    const guardado = String(ytId || '').trim();
+    let id = /^[A-Za-z0-9_-]{11}$/.test(guardado) ? guardado : '';
+    if (!id) {
+      id = (global.Links && typeof global.Links.extrairYouTubeId === 'function')
+        ? global.Links.extrairYouTubeId(bruto)
+        : '';
+    }
+    return { yt: bruto, ytId: id };
+  }
+
+  /**
+   * A imagem da cifra, como data-URL.
+   *
+   * So `png`, `jpeg`, `webp` e `gif`. O que entra aqui vem de um arquivo de
+   * backup, e SVG e um documento XML: `<svg onload="...">` executa script no
+   * momento em que a imagem e mostrada. Como a foto aparece em varias telas ao
+   * mesmo tempo, `src="data:image/svg+xml,...` seria execucao de codigo
+   * disparada por abrir o app — vindo de um arquivo que a pessoa mesma
+   * restaurou.
+   *
+   * `data:image/svg+xml` e recusado mesmo sendo a unica forma de SVG, e
+   * nenhum formato aqui perde qualidade que importe para uma foto de partitura.
+   */
+  const FOTOS_OK = /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i;
+  function normFoto(v) {
+    const s = typeof v === 'string' ? v : '';
+    if (!FOTOS_OK.test(s)) return '';
+    return s.length > 3000000 ? '' : s;
+  }
+
+  function normCifra(c) {
     c = c || {};
+    const vid = normYouTube(c.yt, c.ytId);
     return {
       id: c.id || U.uid('cif'),
       titulo: String(c.titulo || 'Sem título').slice(0, 160),
@@ -257,6 +363,31 @@ function normCifra(c) {
       letra: String(c.letra || ''),
       cifra: String(c.cifra || ''),
       estudo: normEstudo(c.estudo),
+
+      /* ---- a ficha do ensaio ----
+         Antes estes campos existiam so em `normMusica`, dentro de uma escala.
+         Isso significava que uma musica do REPERTORIO nao tinha onde guardar
+         o video, a foto nem a faixa narrada: quem cadastrava a musica no
+         repertorio e depois colocava numa escala perdia os tres, ou tinha que
+         cadastrar de novo. Agora a ficha vive na cifra, e a musica da escala
+         aponta para ela. */
+
+      // O video do YouTube que a equipe assiste.
+      yt: vid.yt,
+      ytId: vid.ytId,
+
+      // A foto da cifra, para desenhar por cima.
+      foto: normFoto(c.foto),
+
+      // A faixa narrada: "virada da bateria em 1,2,3,4", dita pela propria
+      // pessoa. E o que toca junto com o video.
+      vs: normAudioGravado(c.vs),
+      vsTexto: String(c.vsTexto || '').slice(0, 2000),
+      vsSeg: c.vsSeg ? U.clamp(Number(c.vsSeg) || 0, 0, 3600) : 0,
+
+      // As anotacoes com hora.
+      anotacoes: normAnotacoes(c.anotacoes),
+
       criadoEm: c.criadoEm || Date.now(),
       atualizadoEm: Date.now(),
     };
@@ -353,12 +484,142 @@ function normCifra(c) {
       musicas: db.escalas.reduce(function (s, e) { return s + e.musicas.length; }, 0),
       proximas: futuras.length,
       confirmadas: db.escalas.filter(function (e) { return e.status === 'confirmada'; }).length,
-      ensaios: db.escalas.filter(function (e) { return e.tipo === 'ensaio' || e.tipo === 'rehearsal'; }).length,
+      // `rehearsal` foi renomeado para `show` e nunca mais e gravado. A
+      // condicao sobrava da versao antiga e inflava a conta: todo evento de
+      // show contava tambem como ensaio.
+      ensaios: db.escalas.filter(function (e) { return e.tipo === 'ensaio'; }).length,
+      shows: db.escalas.filter(function (e) { return e.tipo === 'show'; }).length,
+      // Quantas cifras estao prontas para o ensaio: com video, com audio da
+      // voz ou com anotacao com hora. E a medida de quanto do repertorio
+      // realmente pode ser usado no palco.
+      prontasParaPalco: db.cifras.filter(function (c) {
+        return !!(c.ytId || c.vs || (c.anotacoes && c.anotacoes.length));
+      }).length,
       porTom: db.escalas.reduce(function (m, e) {
         e.musicas.forEach(function (x) { if (x.tom) m[x.tom] = (m[x.tom] || 0) + 1; });
         return m;
       }, {}),
     };
+  }
+
+  /**
+   * A ficha completa de uma musica, junta numa coisa so.
+   *
+   * Existe porque a mesma informacao estava partida em dois lugares: o video,
+   * a foto e a faixa narrada vivem na cifra do repertorio, enquanto o
+   * responsavel e a observacao vivem na musica da escala. Quem abria a tela
+   * tinha de escolher uma das duas, e a metade que escolheu nao aparecia.
+   *
+   * Aqui entra uma fonte e sai o objeto inteiro. A precedencia e: o que a
+   * pessoa escreveu na escala vence sobre o que veio do repertorio, porque
+   * quem escreveu o evento sabe o que aquele dia precisa. E o que a escala
+   * deixou em branco cai no que a cifra ja tinha.
+   */
+  function fichaDe(musica, escala) {
+    const m = musica || {};
+    // A musica da escala pode nao ter ligado uma cifra do repertorio. Quando
+    // nao ligou, ela mesma e a fonte do texto — quem cadastrou a musica direto
+    // na escala, sem passar pelo repertorio, tem letra e cifra proprias.
+    const c = m.cifraId ? cifraPorId(m.cifraId) : null;
+    const texto = function () {
+      if (c) return String(c.cifra || '');
+      return String(m.cifra || '');
+    };
+    const letra = function () {
+      if (c) return String(c.letra || '');
+      return String(m.letra || '');
+    };
+    const primeiro = function (a, b) {
+      const x = a === undefined || a === null ? '' : String(a).trim();
+      return x || String(b || '');
+    };
+    // As anotacoes: as da escala tem prioridade. As da cifra entram atras das
+    // que a pessoa escreveu, porque um item sem texto e um item com tempo zero
+    // nao devem tomar o lugar de uma anotacao marcada.
+    const anot = normAnotacoes((m.anotacoes || []).concat(c && c.anotacoes ? c.anotacoes : []));
+
+    return {
+      // de onde veio
+      musicaId: m.id || null,
+      escalaId: escala ? escala.id : null,
+      escalaTitulo: escala ? escala.titulo : '',
+      escalaData: escala ? escala.data : '',
+      escalaHora: escala ? escala.hora : '',
+      temCifra: !!c,
+
+      // identidade
+      titulo: primeiro(m.nome, c && c.titulo) || 'Sem título',
+      artista: primeiro(m.artista, c && c.artista),
+
+      // o que se toca
+      tom: primeiro(m.tom, c && c.tom),
+      bpm: Number(m.bpm) || Number(c && c.bpm) || 0,
+      compasso: primeiro(m.compasso, c && c.compasso) || '4/4',
+      categoria: primeiro(m.categoria, c && c.categoria),
+      responsavel: primeiro(m.responsavel, ''),
+      obs: String(m.obs || ''),
+
+      // o texto
+      letra: letra(),
+      cifra: texto(),
+
+      // os tres que tocam juntos
+      ytId: primeiro(m.ytId, c && c.ytId),
+      yt: primeiro(m.yt, c && c.yt),
+      foto: primeiro(m.foto, c && c.foto),
+      vs: normAudioGravado(primeiroAudio(m.vs, c && c.vs)),
+      vsTexto: primeiro(m.vsTexto, c && c.vsTexto),
+      vsSeg: Number(m.vsSeg) || Number(c && c.vsSeg) || 0,
+
+      // o que a pessoa anotou
+      anotacoes: anot,
+    };
+  }
+
+  /**
+   * Primeiro audio valido entre dois.
+   *
+   * Diferente do `primeiro` acima, que so ignora string vazia: aqui o que
+   * importa e a data-URL do audio, e uma string vazia nao substitui a outra.
+   * Se a escala nao tem gravacao, vale a do repertorio — que e o caso comum de
+   * quem cadastrou a musica uma vez e so a usa em varios eventos.
+   */
+  function primeiroAudio(a, b) {
+    if (typeof a === 'string' && a.indexOf('data:audio/') === 0) return a;
+    return b || '';
+  }
+
+  /**
+ * A ficha de uma musica do repertorio, sem escala.
+ *
+ * A cifra e passada inteira, e nao so o titulo e o artista. Montando um objeto
+ * com so esses dois campos, a ficha saia sem video, sem narração e sem
+ * anotacoes — porque `fichaDe` so enxerga o que recebe. E o sintoma era
+ * silencioso e enganoso: o cartao do repertorio aparecia sem nenhum icone,
+ * como se a musica nunca tivesse sido gravada.
+   */
+  function fichaDaCifra(cifra) {
+    if (!cifra) return fichaDe({}, null);
+    const f = fichaDe(Object.assign({}, cifra, {
+      id: null,
+      nome: cifra.titulo,
+      responsavel: cifra.responsavel || '',
+      obs: cifra.obs || '',
+    }), null);
+    // Sem escala nao ha musica de evento, entao o id do objeto original e o
+    // que permite saber de onde a ficha veio.
+    f.cifraId = cifra.id;
+    return f;
+  }
+
+  /**
+   * Todas as musicas de um evento, ja com a ficha pronta.
+   *
+   * A ordem e a da escala: quem monta o ensaio nao quer que o app reordene.
+   */
+  function fichasDeEscala(escala) {
+    if (!escala || !Array.isArray(escala.musicas)) return [];
+    return escala.musicas.map(function (m) { return fichaDe(m, escala); });
   }
 
   function ajuste(k, padrao) {
@@ -420,8 +681,9 @@ function normCifra(c) {
     escalas, porData, porId, proximas, ultimas, cmp,
     cifras, cifraPorId, filtrarCifras, categorias, tons,
     metricas, ajuste, setAjuste,
+    fichaDe, fichaDaCifra, fichasDeEscala,
     exportar, importar, apagar, storageInfo,
-    normEscala, normMusica, normCifra, normEstudo,
+    normEscala, normMusica, normCifra, normEstudo, normAnotacao, normAnotacoes,
   };
 
   global.Store = Store;

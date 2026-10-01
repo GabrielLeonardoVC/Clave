@@ -204,11 +204,14 @@
         return { titulo: e.titulo, _texto: e.titulo + ' ' + (e.local || ''), _ref: e };
       }), 5).map(function (r) { return r._ref; });
 
+      // O id da rota e 'repertorio', sem acento. Com o acento, `rota()` caia no
+      // padrao e trazia a tela de Hoje em vez do Repertório: buscar uma cifra e
+      // clicar nela nao abria nada. Sem erro, sem aviso — só a tela errada.
       if (cifras.length) secao('Cifras', cifras.map(function (c) {
-        return linha('file-music', c.titulo, c.artista || c.tom, function () { h.close(); ir('repertório', { id: c.id }); });
+        return linha('file-music', c.titulo, c.artista || c.tom, function () { h.close(); ir('repertorio', { id: c.id }); });
       }));
       if (prontas.length) secao('Repertório pronto', prontas.map(function (h) {
-        return linha('book-open', h.titulo, h.artista, function () { h.close(); ir('repertório', { aba: 'base', importar: h.id }); });
+        return linha('book-open', h.titulo, h.artista, function () { h.close(); ir('repertorio', { aba: 'base', importar: h.id }); });
       }));
       if (musicas.length) secao('Músicas em escalas', musicas.slice(0, 7).map(function (x) {
         return linha('music', x.m.nome, U.fmtDate(x.e.data) + ' - ' + x.e.titulo, function () { h.close(); ir('agenda', { data: x.e.data, abrir: x.e.id }); });

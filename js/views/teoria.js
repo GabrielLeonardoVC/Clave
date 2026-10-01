@@ -1,4 +1,4 @@
-/* =========================================================
+﻿/* =========================================================
    ACORDE - views/teoria.js
    Acordes, escalas, circulo e metronomo.
    ========================================================= */
@@ -88,7 +88,7 @@
       [el('i', { 'data-lucide': 'volume-2' })]));
 
     placa.addEventListener('click', function () {
-      const A = global.Audio;
+      const A = global.Nota;
       if (!A || typeof A.tocarAcorde !== 'function') {
         UI.toast('Áudio indisponível neste navegador', { tipo: 'err' });
         return;

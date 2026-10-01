@@ -162,7 +162,7 @@
       videoStage.appendChild(el('iframe', {
         src: Lk.embedYouTube(id),
         allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen',
-        allowfullscreen: true, title: 'Vídeo: ' + m.nome, loading: 'lazy',
+        title: 'Vídeo: ' + m.nome, loading: 'lazy',
       }));
     }
     if (ytId) botarVideo(ytId);
@@ -219,6 +219,9 @@
         if (!arq) return;
         U.readFile(arq, true).then(function (d) { return U.shrinkImage(d, 1400, 0.8); })
           .then(function (p) {
+            // Vazio aqui e "nao deu para ler". Sem a conferencia, um arquivo
+            // recusado viraria `src=""` e a foto da cifra apareceria quebrada.
+            if (!p) { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); return; }
             m.foto = p; montarImagem(p);
             UI.icons(imgBox);
             UI.toast('Foto anexada - pode desenhar', { tipo: 'ok' });

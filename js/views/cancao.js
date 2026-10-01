@@ -72,8 +72,7 @@
         title: 'Vídeo: ' + titulo,
         loading: 'lazy',
         referrerpolicy: 'strict-origin-when-cross-origin',
-        allow: 'accelerometer; encrypted-media; picture-in-picture; clipboard-write',
-        allowfullscreen: true,
+        allow: 'accelerometer; encrypted-media; picture-in-picture; clipboard-write; fullscreen',
       });
       wrap.appendChild(iframe);
       wrap.appendChild(el('div', { class: 'vid-pe' }, [
@@ -113,7 +112,7 @@
    * Por isso o compasso NAO e um botao separado: ele entra na barra da
    * rolagem, com o andamento da musica, e anda junto.
    */
-  function reguaCompasso(bpm, compasso) {
+  function reguaCompasso(bpm, compasso, folha) {
     const Metro = global.Metro;
     const wrap = el('div', { class: 'mbpm' });
     if (!Metro) return wrap;
@@ -145,9 +144,15 @@
     }
 
     wrap.dataset.pintar = '1';
-    // O estado do metrônomo muda fora daqui (atalho, outros lugares), entao a
-    // pintura acompanha o intervalo dele e nao a cada evento.
+    /* O estado do metrônomo muda fora daqui (atalho, outros lugares), entao a
+       pintura acompanha o intervalo dele e nao a cada evento.
+
+       O intervalo e registrado na folha para morrer com ela. Sem isso, abrir a
+       pagina da musica dez vezes no dia deixava dez timers de 400 ms pintando
+       elementos que ja sairam da tela — trabalho que continua rodando, sem
+       ninguem ver, e sem nenhuma pista de onde veio. */
     const timer = global.setInterval(pintar, 400);
+    UI.limparNoClose(folha, timer);
     wrap.dataset.timer = String(timer);
     pintar();
     return wrap;
@@ -248,7 +253,12 @@
 
       /* ---- o audio ---- */
       if (musica.vs) {
-        wrap.appendChild(el('áudio', {
+        // `audio`, e nao `áudio`. O acento na tag cria um elemento HTML
+        // desconhecido em vez de um `<audio>`: o navegador aceita o elemento
+        // em silencio, e ele nunca toca nem mostra os controles. O bloco
+        // aparecia com o texto da passagem e um retangulo vazio onde deveria
+        // estar o player — com o `tem` logo acima dizendo que havia gravacao.
+        wrap.appendChild(el('audio', {
           class: 'vs-audio', src: musica.vs, controls: true, preload: 'metadata',
           'aria-label': 'Faixa narrada de ' + (musica.nome || 'esta música'),
         }));
@@ -489,6 +499,15 @@
 
     const corpo = el('div', { class: 'stack gap-4 song-page' });
 
+    /* A folha existe desde aqui, antes de ser preenchida.
+     *
+     * O corpo monta um intervalo para o metrônomo, e esse intervalo precisa
+     * morrer quando a folha fechar. Para se registrar nela, a folha precisa
+     * ja existir — e ela so existe depois de `UI.sheet`, que recebe o corpo
+     * pronto. Declarando `let h` antes e atribuindo depois, o `reguaCompasso`
+     * consegue registrar e o `close` continua fechando a folha. */
+    let h = null;
+
     /* ---- cabecalho: os dados, com o tom que se ouve ---- */
     const detectado = M.detectKey((cif && cif.cifra) || '');
     const tomDeclarado = M.parseChord(String(mus.tom || (cif && cif.tom) || '').trim());
@@ -544,7 +563,7 @@ const cabecalho = el('div', { class: 'song-head' });
     /* ---- o compasso ---- */
     corpo.appendChild(el('div', {}, [
       el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'timer' }), 'Compasso']),
-      reguaCompasso(bpm, mus.compasso || (cif && cif.compasso)),
+      reguaCompasso(bpm, mus.compasso || (cif && cif.compasso), h),
     ]));
 
     /* ---- a letra e as observacoes ---- */
@@ -597,7 +616,8 @@ const cabecalho = el('div', { class: 'song-head' });
       ]));
     }
 
-    const h = UI.sheet({
+    /* A folha e criada com o corpo ja montado. */
+    h = UI.sheet({
       title: titulo, sub: artista || 'Música', wide: true, body: corpo,
       foot: [
         el('button', { class: 'btn btn-secondary', onclick: function () { h.close(); } }, 'Fechar'),

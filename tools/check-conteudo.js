@@ -18,7 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const RAIZ = 'C:/Users/Gilson/Documents/Micro Saas/Cifras-pro/js';
+const RAIZ = path.join(__dirname, '..', 'js');
 const arqs = [];
 (function anda(d) {
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {

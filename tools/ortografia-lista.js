@@ -293,6 +293,11 @@ const CODIGOS = [
   'transposicao', 'anotacao', 'configuracao', 'configuracoes',
   'sugestao', 'situacao', 'conexao', 'excecao', 'interacao', 'organizacao',
   'traducao', 'revisao', 'transicao', 'construcao', 'navegacao',
+  /* Identificadores que o codigo usa como chave e que nao aparecem na tela.
+     `ir('repertorio')` e o id da rota; `campoVolume('video', ...)` e o nome
+     da fonte de som. Sao grafados sem acento porque sao chave de objeto — o
+     rotulo que aparece ao lado ("Vídeo") leva acento normalmente. */
+  'repertorio', 'audio', 'video',
 ];
 
 /* ------------------------------------------------------------

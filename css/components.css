@@ -383,6 +383,52 @@
   white-space: nowrap;
 }
 
+/* ---- o cartao de estatistica ----
+   `render.statCard` monta tres coisas: icone, valor e rotulo. Sem regra, os
+   tres caem no tamanho do texto do corpo e o cartao fica sem leitura de
+   numero — que e a unica coisa que ele existe para mostrar. */
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  padding: var(--sp-3);
+  text-align: center;
+  min-width: 0;
+}
+.stat > .ico {
+  width: 17px; height: 17px;
+  color: var(--ink-4);
+  margin: 0 auto 7px;
+}
+.stat > .v {
+  font-family: var(--font-d);
+  font-size: 1.4375rem;
+  font-weight: 800;
+  letter-spacing: -.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.stat > .k {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-top: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* O sufixo de cor entra junto com `stat`: `stat c-jade`. */
+.stat.c-1, .stat.c-2, .stat.c-3, .stat.c-4, .stat.c-brand { }
+.stat.c-1 .v { color: var(--ink); }
+.stat.c-2 .v { color: var(--ink-2); }
+.stat.c-3 .v { color: var(--ink-3); }
+.stat.c-4 .v { color: var(--ink-4); }
+.stat.c-brand .v { color: var(--primary); }
+
 .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); }
 .grid-auto-lg { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--sp-3); }
 
@@ -392,3 +438,14 @@
    entre um item e outro. */
 .lista-cifras { display: flex; flex-direction: column; }
 .lista-cifras .song-card:first-child { border-top: 1px solid var(--line); }
+
+/* ---------- o rodape da lista ----------
+   Quem tem repertorio grande precisa saber quantas faltam e poder pedir as
+   proximas. Sem isto, a lista simplesmente acabava — e nao dava para saber se
+   era o fim da lista ou o fim dos dados. */
+.lista-rodape {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.lista-rodape .btn svg { width: 17px; height: 17px; }

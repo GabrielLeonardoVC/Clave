@@ -51,7 +51,7 @@
   function chordGrid(pcs, opts) {
     opts = opts || {};
     const flat = opts.flat;
-    const wrap = el('div', { class: 'chord-grid', style: { display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: opts.center ? 'center' : 'flex-start' } });
+    const wrap = el('div', { class: 'chord-grid' + (opts.center ? ' centro' : '') });
     pcs.forEach((pc) => {
       const nome = M.noteName(pc, flat);
       wrap.appendChild(el('button', {
@@ -759,6 +759,26 @@ function painelRolagem(cifra, opts) {
   ]);
 
   pintarFita();
+  /**
+    * Delegar para o scroller.
+    *
+    * O painel e a scroller com uma barra de controles em volta. Quem chama o
+    * painel espera achar o mesmo que a scroller oferece — e nao e o que
+    * acontecia: `painelRolagem(...)` devolvia um objeto com um unico metodo,
+    * `destroy`. A tela da mesa de ensaio perguntava `linhaNoTempo` e recebia
+    * `undefined`, entao a rolagem ficava parada na primeira linha enquanto o
+    * relogio corria. Sem erro, sem aviso — so a cifra parada.
+    *
+    * Delegar por lista mantem o painel como o que e: a scroller mais os
+    * controles. Um metodo novo na scroller nao precisa ser lembrado aqui.
+    */
+  ['reproduzir', 'parar', 'destacar', 'irParaAcorde', 'definirVelocidade',
+    'getEstado', 'linhaNoTempo', 'duracaoTotal'].forEach(function (nome) {
+    raiz[nome] = function () {
+      if (typeof scroller[nome] !== 'function') return undefined;
+      return scroller[nome].apply(scroller, arguments);
+    };
+  });
   raiz.destroy = function () { scroller.parar(); };
   return raiz;
 }
@@ -940,6 +960,33 @@ function painelRolagem(cifra, opts) {
       };
     };
 
+    /**
+     * A linha que esta tocando num instante dado.
+     *
+     * Existe para o palco: quando quem conduz o ensaio e o video ou a voz que
+     * marca o tempo, a rolagem deixa de ter relogio proprio e passa a seguir
+     * esse tempo. Para isso ela precisa saber "em quantos segundos comeca a
+     * linha N" — e a resposta esta no roteiro, que ja sabe quanto tempo cada
+     * linha dura.
+     *
+     * Sem este metodo, a unica forma de casar os dois e contar as linhas de
+     * fora, e um meio-tempo de erro no calculo faz a rolagem entrar meio
+     * compasso adiantada — que e justamente o defeito que a rolagem existe para
+     * evitar.
+     */
+    raiz.linhaNoTempo = function (segundos) {
+      const t = Math.max(0, Number(segundos) || 0) * 1000;
+      const ms = Math.max(120, roteiro.msCheia / fator);
+      const i = Math.min(elementos.length - 1, Math.floor(t / ms));
+      return Math.max(0, i);
+    };
+
+    /** O tempo total do roteiro, em segundos. Serve para saber quando acaba. */
+    raiz.duracaoTotal = function () {
+      const ms = Math.max(120, roteiro.msCheia / fator);
+      return (elementos.length * ms) / 1000;
+    };
+
     pintar();
     return raiz;
   }
@@ -982,7 +1029,7 @@ function painelRolagem(cifra, opts) {
 
     let relogio = null;
     botao.addEventListener('click', function () {
-      const A = global.Audio;
+      const A = global.Nota;
       if (!A || typeof A.tocarAcorde !== 'function') {
         if (global.UI && global.UI.toast) global.UI.toast('Áudio indisponível neste navegador', { tipo: 'err' });
         return;
@@ -1130,7 +1177,7 @@ function seletorDeTons(opts) {
   function botaoEscala(notas, rotulo, opts) {
     opts = opts || {};
     const Tuner = global.Tuner;
-    const A = global.Audio;
+    const A = global.Nota;
     const textoParado = rotulo || 'Ouvir a escala';
 
     const botao = el('button', {

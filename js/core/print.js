@@ -30,11 +30,24 @@
       const t = m.tom || '—';
       (porTom[t] = porTom[t] || []).push(m);
     });
-    const tomKeys = Object.keys(porTom).sort((a, b) => {
-      const pa = M.parseChord(a), pb = M.parseChord(b);
-      if (!pa || !pb) return 0;
-      const da = M.relativeMinor(pa.root) === a ? 1 : 0;
-      return 0;
+    /* A ordem dos tons na impressao e a ordem dos circulos: Re, Mi, Sol, La,
+     * Si, Dó, Fa. E a ordem em que quem toca procura o tom no violao, e a
+     * ordem em que o olho reconhece um tom sem ler.
+     *
+     * Havia aqui um `sort` que comparava duas coisas e devolvia zero nos dois
+     * casos — ou seja, nao ordenava nada, e ainda calculava `da` sem usar. A
+     * lista saia na ordem em que a pessoa cadastrou as musicas, que e
+     * aleatoria. */
+    const ordem = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'F', 'Bb', 'Eb', 'Ab', 'Db'];
+    function pesoDoTom(t) {
+      const p = M.parseChord(t);
+      if (!p) return 99;                 // "—" e o que nao tem tom: no fim
+      const i = ordem.indexOf(M.noteName(p.root, M.useFlatsFor(p.root)));
+      return i >= 0 ? i : 99;
+    }
+    const tomOrdenado = Object.keys(porTom).sort((a, b) => {
+      const d = pesoDoTom(a) - pesoDoTom(b);
+      return d !== 0 ? d : a.localeCompare(b, 'pt-BR');
     });
 
     let body = '<div class="ps-head"><h1>' + esc(titulo) + '</h1><div class="meta">' + esc(meta) + '</div></div>';
@@ -55,9 +68,9 @@
     body += '</tbody></table></div>';
 
     // agrupado por tom
-    if (Object.keys(porTom).length > 1) {
+    if (tomOrdenado.length > 1) {
       body += '<div class="ps-sec"><h2>Por tom</h2>';
-      Object.keys(porTom).sort().forEach((t) => {
+      tomOrdenado.forEach((t) => {
         body += '<div style="margin-bottom:4px"><b>' + esc(t) + ':</b> ' +
           esc(porTom[t].map((m) => m.nome).join(', ')) + '</div>';
       });
@@ -78,19 +91,29 @@
       body += '</div>';
     }
 
-    // fotos
+    /* As fotos.
+     *
+     * Antes esta seção imprimia a data-URL da foto como texto. Uma foto de
+     * celular shrunk ocupa 100 KB, e a base64 disso vira uma linha de texto que
+     * ocupa paginas inteiras de papel — ou, pior, trava a janela de impressão
+     * do navegador sem aviso. Quem imprimia uma escala com foto anexada levava
+     * uma folha que nao tinha nada a ver com a escala.
+     *
+     * A foto agora entra como <img>, que e o que a pessoa esperava: a imagem
+     * sai na folha. E a imagem e referenciada pelo mesmo `src` que ja estava
+     * nos dados, entao nao ha nada para carregar antes de imprimir. */
     const comFoto = e.musicas.filter((m) => m.foto);
     if (comFoto.length) {
       body += '<div class="ps-sec"><h2>Cifras fotográficas</h2>';
       comFoto.forEach((m) => {
         body += '<div class="ps-song"><div class="t">' + esc(m.nome) + '</div>' +
-          '<div style="font-size:10px;color:#555;word-break:break-all">' + esc(m.foto) + '</div></div>';
+          '<img class="ps-foto" src="' + esc(m.foto) + '" alt="' + esc(m.nome) + '"></div>';
       });
       body += '</div>';
     }
 
-    body += '<div class="ps-foot"><span>Cifras e Escalas Pro</span><span>' +
-      esc(U.fmtDate(e.data)) + '</span></div>';
+    body += '<div class="ps-foot"><span>' + esc(global.Identidade ? global.Identidade.NOME : 'Clave') +
+      '</span><span>' + esc(U.fmtDate(e.data)) + '</span></div>';
     return body;
   }
 
@@ -135,7 +158,8 @@
         '</td><td>' + esc(c.tom) + '</td><td>' + esc(c.bpm || '') + '</td><td>' + esc(c.categoria) + '</td></tr>';
     });
     body += '</tbody></table></div>';
-    body += '<div class="ps-foot"><span>Cifras e Escalas Pro</span><span>' + U.fmtDate(U.todayKey()) + '</span></div>';
+    body += '<div class="ps-foot"><span>' + esc(global.Identidade ? global.Identidade.NOME : 'Clave') +
+      '</span><span>' + esc(U.fmtDate(U.todayKey())) + '</span></div>';
     return body;
   }
 

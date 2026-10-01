@@ -1,4 +1,4 @@
-/* =========================================================
+﻿/* =========================================================
    ACORDE - views/emergencia.js
    O botao de emergencia: o que se precisa na hora, num toque.
 
@@ -111,7 +111,7 @@
 
   /** Toca uma nota para conferir se o tom alvo e mesmo este. */
   function ouvirTonica(pc, modo) {
-    const A = global.Audio;
+    const A = global.Nota;
     if (!A || typeof A.tocarNota !== 'function') { UI.toast('Áudio indisponível', { tipo: 'err' }); return false; }
     const oitava = modo === 'minor' ? 3 : 4;
     const hz = Tuner && Tuner.notaParaHz ? Tuner.notaParaHz(M.mod12(pc), oitava) : null;

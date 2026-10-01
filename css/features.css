@@ -352,6 +352,16 @@
    O audio em si, com os controles de sempre. Sem enfeite: um `<audio>` nativo na
    tela, porque e o controle que todo aparelho ja sabe usar sem aprender.
    ======================================================= */
+
+/* O bloco inteiro: a faixa narrada da musica. Fica junto do video, do
+   andamento e do tom, e nao numa tela a parte, porque e a mesma coisa que
+   eles: o que a pessoa precisa na hora de tocar. */
+.vs-bloco {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
 .vs-audio {
   display: block; width: 100%;
   border-radius: var(--r-2); border: 1px solid var(--line);
@@ -508,7 +518,12 @@
    Varia de tamano conforme o lugar. Na pagina da musica ele e grande, com o
    nome do tom; na teoria ele e um icone ao lado de um texto que ja diz o tom.
    A forma muda, a funcao nao: e sempre ouvir a tonica com a quinta, porque e
-   isso que serve de referencia contra uma corda. */
+   isso que serve de referencia contra uma corda.
+
+   Fica aqui, e nao colado na pagina da musica, porque uma copia por tela comeca
+   a divergir no primeiro ajuste — e a divergencia aparece como "o tom soa
+   diferente nesta tela", que e o tipo de defeito que faz a pessoa desconfiar
+   do app inteiro. */
 .tom-btn {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 7px 12px; border-radius: var(--r-2);
@@ -522,41 +537,9 @@
 .tom-btn svg { width: 15px; height: 15px; flex: none; }
 .tom-btn.tocando { background: var(--primary); color: var(--on-brand); }
 
-/* Versao compacta: so o icone, encostada num texto que ja nomeia o tom. */
-.tom-btn.mini {
-  padding: 0; width: 24px; height: 24px;
-  border-radius: 50%; background: transparent;
-  border-color: transparent; color: var(--ink-4);
-  justify-content: center;
-}
-.tom-btn.mini:hover { background: var(--brand-tint); color: var(--primary-ink); }
-.tom-btn.mini svg { width: 14px; height: 14px; }
-.tom-btn.mini.tocando { background: var(--primary); color: var(--on-brand); }
-
-.song-head .sh-tons { display: flex; gap: 7px; flex-wrap: wrap; width: 100%; }
-
-/* Uma linha que mostra um tom e tem um botao de som ao lado. */
-.tom-com-ouvir {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-2);
-}
-
-/* O botao de ouvir o tom, usado em varias telas. Fica aqui, e nao colado na
-   pagina da musica, porque uma copia por tela comeca a divergir no primeiro
-   ajuste — e a divergencia aparece como "o tom soa diferente nesta tela", que
-   e o tipo de defeito que faz a pessoa desconfiar do app inteiro. */
-.tom-btn {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 12px; border-radius: var(--r-2);
-  background: var(--brand-tint); color: var(--primary-ink);
-  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
-  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 800;
-  cursor: pointer; transition: all .14s var(--ease);
-}
-.tom-btn:hover { border-color: var(--primary); }
-.tom-btn:active { transform: scale(.97); }
-.tom-btn svg { width: 15px; height: 15px; flex: none; }
-.tom-btn.tocando { background: var(--primary); color: var(--on-brand); }
+/* O nome do tom dentro do botao grande. O botao e monoespacado, e o nome
+   precisa de um respiro antes do icone para nao virar um bloco so. */
+.tom-btn-nome { white-space: nowrap; }
 
 /* Versao compacta: so o icone, encostada num texto que ja nomeia o tom. */
 .tom-btn.mini {
@@ -569,6 +552,9 @@
 .tom-btn.mini svg { width: 14px; height: 14px; }
 .tom-btn.mini.tocando { background: var(--primary); color: var(--on-brand); }
 
+.song-head .sh-tons { display: flex; gap: 7px; flex-wrap: wrap; width: 100%; }
+
+/* Uma linha que mostra um tom e tem um botao de som ao lado. */
 .tom-com-ouvir {
   display: inline-flex; align-items: center; gap: 8px;
   font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-2);
@@ -579,6 +565,7 @@
    que a pessoa envia. A miniatura e limitada: a foto inteira de um celular
    empurraria o formulario para fora da tela, e o que interessa ali e saber
    que ela esta anexada. */
+.foto-ev { display: flex; flex-direction: column; align-items: flex-start; }
 .foto-evia {
   width: 128px; height: 96px; object-fit: cover;
   border-radius: var(--r-1);
@@ -686,7 +673,10 @@
 }
 .day-ev::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--brand-500); }
 .day-ev.t-ensaio::before { background: var(--violet-500); }
-.day-ev.t-rehearsal::before { background: var(--warn-500); }
+/* `show` e o nome novo do que antes se chamava `rehearsal`. A regra antiga ficou
+   com o nome velho, e por isso todo evento de show saia com a tarja cinza de
+   "outro" — cor que aqui significa "nao classificado". */
+.day-ev.t-show::before { background: var(--warn-500); }
 .day-ev.t-outro::before { background: var(--ink-4); }
 .day-ev .time { font-size: 0.8438rem; font-weight: 800; color: var(--primary); flex: none; min-width: 46px; font-variant-numeric: tabular-nums; }
 .day-ev .ttl { font-size: 0.9063rem; font-weight: 700; }
@@ -793,6 +783,16 @@
 .chord-table .cname { font-weight: 800; }
 .chord-table .cdeg { font-size: 0.75rem; font-weight: 800; color: var(--primary); font-family: var(--font-mono); }
 
+/* A fileira de acordes. Era montada com `style` inline no JS; foi para a folha
+   porque so o que mora na folha pode ser conferido. */
+.chord-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+.chord-grid.centro { justify-content: center; }
+
+/* O contêiner do seletor de tons. Ele segura as duas fileiras — a das sete
+   tonalidades sem accidental e, so quando precisa, a das cinco com — e e ele
+   que cuida do respiro entre elas. */
+.seletor-tons { display: flex; flex-direction: column; align-items: center; }
+
 .key-picker { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
 .key-cell {
   width: 40px; height: 40px; border-radius: var(--r-2);
@@ -843,6 +843,11 @@
      a unidade do valor. */
   margin-left: 4px;
 }
+
+/* O mostrador: numero grande e unidade, sempre na mesma linha. O espaco entre
+   os dois e o `margin-left` do `.tb-un`, nao um gap aqui — somar os dois
+   empurraria a unidade para longe do numero. */
+.tb-leitura { display: flex; align-items: baseline; flex-wrap: nowrap; }
 
 .tb-slider { width: 100%; margin: 0 0 10px; accent-color: var(--primary); height: 26px; cursor: pointer; }
 
@@ -909,6 +914,24 @@
 .cs-linha.atual .ch { color: var(--primary-ink); font-weight: 700; }
 .cs-linha.passou { color: var(--ink-4); }
 .cs-linha.passou .ch { color: var(--ink-4); }
+
+/* O acorde dentro da linha. Sem isto, o token `.ch` nao tinha regra nenhuma no
+   scroller — so quando a linha era a atual ou ja tinha passado. Parado, o
+   scroller mostrava a cifra toda no mesmo tom, e o acorde que a pessoa esta
+   procurando nao aparecia em lugar nenhum. */
+.cs-linha .ch {
+  color: var(--primary);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--primary) 13%, transparent);
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+/* Na linha de acordes o realce e o conteudo: ela existe so para mostrar os
+   acordes. Sem isto ela se confunde com a letra logo abaixo. */
+.cs-linha.cs-acorde { color: var(--ink-2); }
+.cs-linha.cs-acorde .ch { background: color-mix(in srgb, var(--primary) 18%, transparent); }
+/* A letra e a linha de apoio: nunca deve competir com o acorde. */
+.cs-linha.cs-letra { color: var(--ink-3); }
 
 .cs-linha.cs-secao .sec { color: var(--primary); font-weight: 700; }
 .cs-linha.cs-respiro { min-height: 10px; }
@@ -1112,6 +1135,17 @@
   .ps-song { margin-bottom: 8px; break-inside: avoid; font-size: 0.8125rem; }
   .ps-song .t { font-weight: 700; }
   .ps-cifra { font-family: var(--font-mono); font-size: 0.6875rem; white-space: pre; line-height: 1.5; margin-top: 3px; }
+/* A foto da cifra na folha impressa. `break-inside: avoid` para a imagem nao
+   ser cortada ao meio entre uma pagina e outra — que e o que acontecia quando
+   a foto ia como texto. */
+.ps-foto {
+  display: block;
+  max-width: 100%;
+  max-height: 22cm;
+  margin-top: 4px;
+  border: 1px solid #ccc;
+  break-inside: avoid;
+}
   .ps-table { font-size: 0.75rem; }
   .ps-table th, .ps-table td { border: 1px solid #999; padding: 5px 7px; text-align: left; }
   .ps-table th { background: #eee; font-weight: 700; }
@@ -1221,6 +1255,9 @@
 }
 .af-centro { background: var(--ink-4); height: 18px; top: -6px; }
 
+/* A marca do meio, desenhada no zero. O cursor passa por cima dela. */
+.af-meio { left: 50%; background: var(--ink-4); height: 18px; top: -6px; }
+
 .af-cursor {
   position: absolute;
   top: -8px;
@@ -1256,3 +1293,193 @@
 .af-guia-nota:active { transform: scale(.95); }
 .af-guia-nome { font-weight: 700; font-size: 0.875rem; color: var(--ink); }
 .af-guia-hz { font-family: var(--font-mono); font-size: 0.625rem; color: var(--ink-4); }
+/* =======================================================
+   A MESA DE ENSAIO
+
+   Tudo o que quem ensaia precisa ver ao mesmo tempo: o video, a rolagem da
+   cifra, o compasso, a voz que guia e as anotacoes com hora.
+
+   A tela e estreita de proposito. Uma mesa que mostra as quatro coisas lado a
+   lado obriga a olhar de longe; aqui cada uma fica na altura em que o olho ja
+   esta, e a rolagem da cifra — que precisa de altura para ter o trecho inteiro
+   a vista — ganha a maior parte dela.
+   ======================================================= */
+.palco { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.pl-head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding-bottom: var(--sp-2);
+}
+.pl-titulo {
+  font-family: var(--font-d);
+  font-size: 1.3125rem; font-weight: 800;
+  letter-spacing: -.04em; line-height: 1.1;
+  color: var(--ink);
+}
+.pl-sub { font-size: 0.7813rem; color: var(--ink-3); margin-top: 2px; }
+
+.pl-start {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 13px 20px; border-radius: var(--r-2);
+  background: var(--primary); color: var(--on-brand);
+  font-size: 0.9375rem; font-weight: 800;
+  border: 1px solid transparent;
+  box-shadow: var(--sh-brand);
+  transition: transform .13s var(--ease), filter .18s;
+  flex: none;
+}
+.pl-start:active { transform: scale(.97); }
+.pl-start svg { width: 18px; height: 18px; }
+
+/* ---------- o video e a foto ---------- */
+.pl-video-caixa {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: var(--r-4);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.pl-video-holder { position: absolute; inset: 0; }
+.pl-video-holder iframe {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  border: 0; display: block;
+}
+/* A foto e a imagem que se desenha por cima no Estudio. Aqui ela e so o
+   fundo: a mesa mostra a foto enquanto o video nao esta. */
+.pl-foto { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+.pl-video-vazio {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; padding: var(--sp-4);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  text-align: center;
+}
+
+/* ---------- a faixa narrada ---------- */
+.pl-vs {
+  background: var(--brand-tint);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  border-radius: var(--r-3);
+  padding: var(--sp-3);
+}
+.pl-vs-topo { display: flex; align-items: center; gap: 9px; }
+.pl-vs-texto {
+  margin-top: 9px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem; line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  max-height: 5.4em; overflow-y: auto;
+}
+
+/* ---------- a rolagem da cifra ---------- */
+.pl-rolagem-vazia {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: var(--sp-5) var(--sp-4);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-3);
+  color: var(--ink-3);
+  text-align: center;
+}
+
+/* ---------- os controles ---------- */
+.pl-controles {
+  display: flex; flex-direction: column; gap: 9px;
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+}
+.pl-controle-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pl-relogio {
+  font-family: var(--font-mono);
+  font-size: 0.9375rem; font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+}
+.pl-barra { flex: 1 1 140px; min-width: 100px; accent-color: var(--primary); height: 26px; cursor: pointer; }
+
+/* Cada fonte de som tem seu volume. Sao tres sons ao mesmo tempo: sem isso a
+   pessoa sobe um e os outros somam alto, e a voz que guia fica embaixo da
+   banda. */
+.pl-vol-caixa {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 8px;
+  border-radius: var(--r-1);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.pl-vol-caixa svg { width: 14px; height: 14px; color: var(--ink-3); flex: none; }
+.pl-vol { width: 54px; accent-color: var(--primary); cursor: pointer; }
+
+.pl-bpm {
+  display: flex; align-items: center; gap: 10px;
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+}
+
+/* ---------- as anotacoes com hora ---------- */
+.pl-anot-lista { display: flex; flex-direction: column; gap: 6px; }
+.pl-anot-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; text-align: left;
+  padding: 9px 11px;
+  border-radius: var(--r-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  transition: border-color .15s, background .15s;
+  cursor: pointer;
+}
+.pl-anot-item:hover { border-color: var(--line-2); }
+/* A anotacao do momento que esta passando. E o unico realce da lista: o olho
+   acha onde esta sem ler todas. */
+.pl-anot-item.agora {
+  border-color: var(--primary);
+  background: var(--brand-tint);
+  color: var(--ink);
+}
+.pl-anot-t {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--primary);
+  flex: none; min-width: 42px;
+  font-variant-numeric: tabular-nums;
+}
+.pl-anot-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- na tela larga, a mesa vira duas colunas ---------- */
+@media (min-width: 860px) {
+  .pl-video-caixa { aspect-ratio: 16 / 9; }
+}
+
+/* Os marcadores da ficha, no cartao da lista do repertorio.
+   Cada icone e uma peca que a musica ja tem: video, narração, foto,
+   anotacoes. Sem eles, quem montava o repertorio nao via o que ja estava
+   pronto — e era so descobrindo na ultima escala que o video estava salvo. */
+.song-card .marcas { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.song-card .marca {
+  display: inline-flex; align-items: center;
+  color: var(--ink-4);
+  line-height: 0;
+}
+.song-card .marca svg { width: 14px; height: 14px; }
+
+/* A miniatura da foto dentro do editor da cifra. */
+.pl-foto-preview {
+  display: none;
+  max-height: 150px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  object-fit: contain;
+  background: var(--surface-2);
+}

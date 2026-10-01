@@ -1,8 +1,22 @@
 /* =========================================================
    CLAVE - sw.js
    Service worker: cache-first, para funcionar offline.
+
+   A LISTA ERA VERIFICADA POR FERRAMENTA, E ESTAVA ERRADA
+
+   A lista vivia escrita a mao e ja estava desatualizada: `identidade.js`,
+   `search.js`, `tuner.js`, `audio.js`, `gravador.js`, `cancao.js`, `afinador.js`
+   e `emergencia.js` nunca entraram. O resultado era um app que abria offline e
+   depois quebrava ao tocar em busca, no afinador ou em emergencia — que sao
+   justamente as coisas de que se precisa sem rede. Quem abriu o app no ensaio,
+   num porao sem sinal, achava que o app estava com defeito.
+
+   Aqui a lista e conferida contra o que o `index.html` realmente carrega, e
+   nao contra o que alguem lembrou de escrever. `npm run check:sw` falha se um
+   arquivo carregado na pagina nao estiver aqui. Um arquivo novo no index
+   entra com um aviso, nao com um defeito em campo.
    ========================================================= */
-const CACHE = 'clave-v1';
+const CACHE = 'clave-v2';
 
 const RECURSOS = [
   './',
@@ -13,6 +27,7 @@ const RECURSOS = [
   './css/base.css',
   './css/components.css',
   './css/features.css',
+  './js/core/identidade.js',
   './js/core/music.js',
   './js/core/utils.js',
   './js/core/store.js',
@@ -20,7 +35,12 @@ const RECURSOS = [
   './js/core/render.js',
   './js/core/print.js',
   './js/core/links.js',
+  './js/core/search.js',
+  './js/core/tuner.js',
+  './js/core/audio.js',
+  './js/core/gravador.js',
   './js/core/metronome.js',
+  './js/core/palco.js',
   './js/core/studio.js',
   './js/core/notify.js',
   './js/core/share.js',
@@ -30,6 +50,10 @@ const RECURSOS = [
   './js/views/repertorio.js',
   './js/views/teoria.js',
   './js/views/ajustes.js',
+  './js/views/afinador.js',
+  './js/views/emergencia.js',
+  './js/views/palco.js',
+  './js/views/cancao.js',
   './js/app.js',
 ];
 

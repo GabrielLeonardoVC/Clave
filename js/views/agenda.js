@@ -487,7 +487,13 @@
     arq.addEventListener('change', function () {
       if (!arq.files[0]) return;
       U.readFile(arq.files[0], true).then(function (d) { return U.shrinkImage(d, 1300, 0.78); })
-        .then(function (p) { foto = p; preview.src = p; preview.style.display = 'block'; });
+        .then(function (p) {
+          // Vazio aqui e "nao deu para ler". Sem esta conferences, um arquivo
+          // recusado virava `src=""` e aparecia um retangulo quebrado sem
+          // nenhuma explicacao.
+          if (!p) { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); return; }
+          foto = p; preview.src = p; preview.style.display = 'block';
+        });
     });
 
     const h = UI.sheet({

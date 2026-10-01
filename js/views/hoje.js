@@ -185,7 +185,10 @@
     if (tons.length) {
       root.appendChild(titulo('music-2', 'Tons que você mais toca'));
       root.appendChild(el('div', { class: 'chips' }, tons.map(function (t) {
-        return el('button', { class: 'chip', onclick: function () { global.App.ir('repertório', { tom: t }); } },
+        // O id da rota e 'repertorio', sem acento. Com acento, `rota()` caia no
+      // padrao e o chip levava para a tela de Hoje em vez do Repertório
+      // filtrado pelo tom — que e o que a pessoa pediu ao tocar nele.
+      return el('button', { class: 'chip', onclick: function () { global.App.ir('repertorio', { tom: t }); } },
           t + ' · ' + m.porTom[t]);
       })));
     }

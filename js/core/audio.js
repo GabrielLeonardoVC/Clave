@@ -3,8 +3,8 @@
    Tocar uma nota. Um unico som, o suficiente para afinar.
 
    Este modulo existe porque dois botoes do app prometiam tocar um som e nao
-   faziam nada: chamavam `global.Audio.tocarNota`, e nao havia Audio nenhum.
-   A interface aparecia, o botao respondia, e o silencio era a resposta.
+   faziam nada: chamavam `global.Audio.tocarNota`, e nao havia este modulo
+   nenhum. A interface aparecia, o botao respondia, e o silencio era a resposta.
 
    O que ele NAO e: um sintetizador. Uma nota so, com envelope, para ninguem
    clicar e levar um estalo no ouvido. Um piano de cola em 60 Hz seria bonito e
@@ -189,6 +189,18 @@
     estado: function () { return ctx ? ctx.state : 'nenhum'; },
   };
 
-  global.Audio = Audio;
+  /* O modulo publica como `Nota`, e nao como `Audio`.
+   *
+   * `window.Audio` ja e uma coisa do navegador: o CONSTRUTOR de `<audio>`, que
+   * existe em qualquer pagina. Publicar aqui com esse nome apagava o construtor
+   * de todo o mundo que carregasse o app, e `new Audio()` — que qualquer
+   * biblioteca, navegador ou script da pagina usa — passaria a receber um
+   * objeto com `tocarNota` em vez de um elemento de audio.
+   *
+   * No app em si quase nao aparecia: so o Estúdio cria audio, e usa o construtor
+   * antes deste arquivo carregar. Mas o dano e para fora, e o dano nao tem
+   * aviso nenhum — e o tipo de coisa que so aparece quando outra pessoa usa o
+   * mesmo codigo. */
+  global.Nota = Audio;
   if (typeof module !== 'undefined' && module.exports) module.exports = Audio;
 })(typeof window !== 'undefined' ? window : globalThis);

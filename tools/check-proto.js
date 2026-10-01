@@ -118,8 +118,8 @@ const achados = [];
 store.split(NL).forEach((l, i) => {
   if (l.indexOf('Object.assign') < 0) return;
   // Comentario e explicacao, nao codigo.
-    const limpo = l.trim();
-  if (limpo.startsWith('*') || trimmed.startsWith('//')) return;
+  const trimmed = l.trim();
+  if (trimmed.startsWith('*') || trimmed.startsWith('//')) return;
   achados.push({ linha: i + 1, texto: trimmed });
 });
 

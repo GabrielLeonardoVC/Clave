@@ -31,7 +31,12 @@ const MODULOS = [
   { arquivo: 'js/core/links.js', global: 'Links' },
   { arquivo: 'js/core/search.js', global: 'Search' },
   { arquivo: 'js/core/tuner.js', global: 'Tuner' },
+  // `Nota`, e nao `Audio`: o nome `Audio` colide com o construtor nativo de
+  // `<audio>`, e um verificador que procura `global.Audio` estaria olhando para
+  // a coisa errada.
+  { arquivo: 'js/core/audio.js', global: 'Nota' },
   { arquivo: 'js/core/metronome.js', global: 'Metro' },
+  { arquivo: 'js/core/palco.js', global: 'Palco' },
   { arquivo: 'js/core/studio.js', global: 'Studio' },
   { arquivo: 'js/core/notify.js', global: 'Notify' },
   { arquivo: 'js/core/share.js', global: 'Share' },

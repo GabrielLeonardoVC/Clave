@@ -56,12 +56,31 @@
   let sheetStack = [];
 
   /**
+   * Limpa os temporizadores de uma folha ao fechá-la.
+   *
+   * Qualquer `setInterval` que uma folha cria precisa morrer com ela. Sem isto,
+   * abrir a mesma tela dez vezes no dia deixa dez temporizadores rodando, cada
+   * um pintando um elemento que ja saiu do documento. No celular isso aparece
+   * como o aparelho esquentando e a bateria caindo sem motivo aparente — e
+   * como uma lentidao que ninguem consegue apontar, porque o culpado e um
+   * intervalo de 400 ms que ninguem lembra de ter criado.
+   *
+   * Como usar: guardar o id com `limparNoClose(folha, setInterval(...))`, em
+   * vez de so `setInterval(...)`.
+   */
+  function limparNoClose(folha, id) {
+    if (folha && typeof folha.noClose === 'function' && id) folha.noClose(id);
+    return id;
+  }
+
+  /**
    * Abre um sheet (mobile) / modal (desktop).
    * opts: {title, sub, body(Node|string), foot[Node], wide, onClose, dismissible}
    * Retorna {close, node}
    */
   function sheet(opts) {
     opts = opts || {};
+    const temporizadores = [];
     const scrim = el('div', { class: 'scrim' });
     const bodyNode = el('div', { class: 'sheet-body' + (opts.flush ? ' flush' : '') });
     if (opts.body) {
@@ -91,6 +110,11 @@
       scrim.style.animation = 'fadeIn .15s reverse';
       setTimeout(() => scrim.remove(), 140);
       document.removeEventListener('keydown', onKey);
+      // Todo temporizador registrado pela folha morre aqui. E o unico lugar do
+      // app onde isso e garantido — uma folha fechada e um no, e a tela e o
+      // `clearInterval` nao existem mais.
+      for (const id of temporizadores) clearInterval(id);
+      temporizadores.length = 0;
       if (opts.onClose) opts.onClose();
     }
     function onKey(ev) {
@@ -107,6 +131,9 @@
     document.body.appendChild(scrim);
 
     const handle = { close, node: panel, body: bodyNode, scrim };
+    /* Registrar o temporizador de uma folha e o que garante que ele pare. Sem
+     * isto, o `setInterval` criado dentro do `body` sobrevive ao `close`. */
+    handle.noClose = function (id) { temporizadores.push(id); return id; };
     sheetStack.push(handle);
     icons(panel);
     // foca o primeiro campo, se houver
@@ -261,5 +288,6 @@
   global.UI = {
     icons, toast, sheet, closeAllSheets, confirmar, prompt,
     empty, openImage, applyTheme, cycleTheme, buzz, print,
+    limparNoClose,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

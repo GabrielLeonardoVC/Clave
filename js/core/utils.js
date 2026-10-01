@@ -307,12 +307,27 @@
           cx.drawImage(img, 0, 0, w, h);
           let out = '';
           try { out = cv.toDataURL('image/jpeg', quality); } catch (e) { out = ''; }
-          resolve(out && out.length > 40 ? out : dataUrl);
-        } catch (e) { resolve(dataUrl); }
+          resolve(out && out.length > 40 ? out : seguro(dataUrl));
+        } catch (e) { resolve(seguro(dataUrl)); }
       };
-      img.onerror = () => resolve(dataUrl);
+      /* Falhou ao carregar: devolve vazio, e nao o original. O original pode
+         ser um SVG — que e um documento com script dentro, e a foto seria
+         descartada pelo store. Devolver vazio faz a tela avisar que nao deu;
+         devolver o original faria a imagem sumir sem ninguem saber por que. */
+      img.onerror = () => resolve('');
       img.src = dataUrl;
     });
+  }
+
+  /**
+   * Devolve a imagem so se ela for de um formato que o app aceita.
+   *
+   * PNG, JPEG, WebP e GIF. SVG e recusado porque e um documento XML que executa
+   * o que tem escrito dentro — e uma foto de partitura nao precisa de SVG para
+   * nada aqui.
+   */
+  function seguro(dataUrl) {
+    return /^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(String(dataUrl || '')) ? dataUrl : '';
   }
 
   /** Tamanho legível de bytes. */

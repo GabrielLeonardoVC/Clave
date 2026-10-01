@@ -16,6 +16,10 @@
 
   let aba = 'minhas';
   let filtro = { q: '', tom: '', categoria: '' };
+  /* Quantas cifras ja foram desenhadas. Volta a 100 a cada filtro novo: quem
+     filtra esta procurando do comeco, e recomecar de onde parou antes esconde
+     justamente o que a pessoa esta procurando. */
+  let mostrar = 100;
 
   function render(root, params) {
     if (params && params.aba) aba = params.aba;
@@ -49,6 +53,12 @@
     if (p && p.classList.contains('active')) render(p, {});
   }
 
+  /** Recomeca a lista do principio. Para usar quando o filtro muda. */
+  function recarregarDoInicio() {
+    mostrar = POR_PAGINA;
+    recarregar();
+  }
+
   /* =======================
      MINHAS CIFRAS
      ======================= */
@@ -60,9 +70,16 @@
     busca.addEventListener('input', U.debounce(function () {
       filtro.q = busca.value;
       gi.classList.toggle('has-value', !!busca.value);
+      // Filtrar recomeca a lista: quem digita esta procurando a cifra desde o
+      // inicio, e recomecar de onde a rolagem parou esconderia o resultado.
+      mostrar = POR_PAGINA;
       pintar();
     }, 150));
-    limpar.addEventListener('click', function () { busca.value = ''; filtro.q = ''; gi.classList.remove('has-value'); pintar(); });
+    limpar.addEventListener('click', function () {
+      busca.value = ''; filtro.q = ''; gi.classList.remove('has-value');
+      mostrar = POR_PAGINA;
+      pintar();
+    });
     wrap.appendChild(gi);
 
     const tons = S.tons().sort();
@@ -71,15 +88,15 @@
       const chips = el('div', { class: 'chips chips-scroll mt-3' });
       chips.appendChild(el('button', {
         class: 'chip', 'aria-pressed': String(!filtro.tom && !filtro.categoria),
-        onclick: function () { filtro.tom = ''; filtro.categoria = ''; recarregar(); },
+        onclick: function () { filtro.tom = ''; filtro.categoria = ''; recarregarDoInicio(); },
       }, 'Todos'));
       tons.forEach(function (t) {
         chips.appendChild(el('button', { class: 'chip', 'aria-pressed': String(filtro.tom === t),
-          onclick: function () { filtro.tom = filtro.tom === t ? '' : t; recarregar(); } }, t));
+          onclick: function () { filtro.tom = filtro.tom === t ? '' : t; recarregarDoInicio(); } }, t));
       });
       cats.forEach(function (c) {
         chips.appendChild(el('button', { class: 'chip', 'aria-pressed': String(filtro.categoria === c),
-          onclick: function () { filtro.categoria = filtro.categoria === c ? '' : c; recarregar(); } }, c));
+          onclick: function () { filtro.categoria = filtro.categoria === c ? '' : c; recarregarDoInicio(); } }, c));
       });
       wrap.appendChild(chips);
     }
@@ -98,7 +115,20 @@
     const box = el('div', {});
     wrap.appendChild(box);
 
-    function pintar() {
+    /**
+     * Quantas cifras a tela desenha de uma vez.
+     *
+     * Medido: com 2.000 cifras, a lista inteira virava 24.607 nós no DOM e
+     * 147.000 px de altura. No celular isso derruba o rolagem — e o pior não é
+     * a lentidão, é que a pessoa precisa rolar por 2.000 itens para chegar na
+     * 2.001ª, sem nenhuma ideia de quantas faltam.
+     *
+     * Cem por página. Abaixo disso a rolagem parece infinita; acima disso, quem
+     * tem repertório grande passa a esperar o app desenhar para poder rolar.
+     */
+  const POR_PAGINA = 100;
+
+  function pintar() {
       U.clear(box);
       const itens = S.filtrarCifras(filtro);
       const total = S.cifras().length;
@@ -115,16 +145,55 @@
         }));
         return;
       }
+
+      /* A busca e a paginacao andam juntas: filtrar recomeca do principio, que
+       * e o que a pessoa espera — quem filtra esta procurando do comeco. */
+      const quantos = Math.min(itens.length, mostrar);
       const grid = el('div', { class: 'lista-cifras' });
-      itens.forEach(function (c) { grid.appendChild(cartaoCifra(c)); });
+      for (let i = 0; i < quantos; i++) grid.appendChild(cartaoCifra(itens[i]));
       box.appendChild(grid);
+
+      /* O rodape da lista: quantas faltam e o botao que carrega. Sem ele, quem
+       * tem 300 cifras so descobre que a lista acaba rolando ate o fim — e
+       * rolar 300 itens na mao para descobrir que faltam mais e o que faz a
+       * pessoa achar que o app perdeu as cifras. */
+      if (quantos < itens.length) {
+        const faltam = itens.length - quantos;
+        box.appendChild(el('div', { class: 'lista-rodape' }, [
+          el('button', { class: 'btn btn-secondary btn-block', onclick: function () {
+            mostrar = Math.min(itens.length, mostrar + POR_PAGINA);
+            pintar();
+            // Volta ao topo da lista: carregar mais enquanto a pessoa esta
+            // lendo a ultima linha visivel faz a lista pular embaixo do dedo.
+            const topo = box.querySelector('.lista-cifras');
+            if (topo) topo.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          } }, [el('i', { 'data-lucide': 'chevrons-down' }),
+            'Carregar mais ' + Math.min(POR_PAGINA, faltam) + ' de ' + faltam + ' restantes']),
+          el('div', { class: 'fs-xs muted center mt-2' },
+            quantos + ' de ' + itens.length + ' cifras' + (itens.length !== total ? ' neste filtro' : '')),
+        ]));
+      }
+
       UI.icons(box);
     }
     pintar();
     return wrap;
   }
 
+  /**
+   * A ficha completa de cada item da lista.
+   *
+   * Antes o cartao mostrava titulo, artista e BPM. O resto da ficha — o video
+   * do YouTube, a faixa narrada, as anotacoes com hora — existia no app mas
+   * nao aparecia aqui. Quem montava o repertorio nao conseguia ver o que ja
+   * tinha pronto: pegava a musica na ultima escala e so descobria entao que o
+   * video estava salvo.
+   *
+   * Cada peca da ficha vira um icone. Sem icone, o que falta nao aparece; e
+   * justamente o que falta que a pessoa precisa saber antes de levar o time.
+   */
   function cartaoCifra(c) {
+    const ficha = S.fichaDaCifra(c);
     return el('button', { class: 'song-card', onclick: function () { abrirCifra(c); } }, [
       // O tom vira coluna. Em uma lista, a coluna alinhada e o que permite
       // varrer os tons de relance — o que a grade de caixas nunca permite.
@@ -133,9 +202,6 @@
       el('span', { class: 'tom-col' + (c.tom ? '' : ' vazio') }, c.tom || '?'),
       el('div', { class: 'meio' }, [
         el('div', { class: 'n' }, c.titulo),
-        // Artista e badges dividem a mesma linha. Empilhados, cada item
-        // ocupava tres blocos e a lista virava uma parede de altura — o
-        // oposto de uma lista.
         el('div', { class: 'sub' }, [
           el('span', { class: 'a' }, c.artista || '—'),
           el('span', { class: 'foot' }, [
@@ -144,8 +210,28 @@
             c.categoria ? el('span', { class: 'badge badge-brand' }, c.categoria) : null,
           ]),
         ]),
+        marcadoresDaFicha(ficha),
       ]),
     ]);
+  }
+
+  /**
+   * Os icones do que a ficha ja tem.
+   *
+   * Nenhum e clicavel aqui: sao leitura. Clicar no cartao abre a ficha, e e o
+   * que a pessoa quer ao tocar num item da lista.
+   */
+  function marcadoresDaFicha(f) {
+    const marcas = [];
+    if (f.ytId) marcas.push(['youtube', 'Vídeo do YouTube', '#FF0000']);
+    if (f.vs) marcas.push(['audio-lines', 'Narração gravada', '']);
+    if (f.foto) marcas.push(['image', 'Foto da cifra', '']);
+    if (f.anotacoes && f.anotacoes.length) marcas.push(['list-music', f.anotacoes.length + ' anotações', '']);
+    if (!marcas.length) return null;
+    return el('div', { class: 'marcas' }, marcas.map(function (m) {
+      return el('span', { class: 'marca', title: m[1], 'aria-label': m[1] },
+        el('i', { 'data-lucide': m[0], style: m[2] ? { color: m[2] } : {} }));
+    }));
   }
 
   /* =======================
@@ -235,6 +321,18 @@
     UI.print(global.Print.folhaCifras(lista, 'Repertório'));
   }
   /* =======================
+     A MESA DE ENSAIO A PARTIR DA CIFRA
+     ======================= */
+  function abrirMesaDeCifra(c) {
+    const Mesa = global.Views && global.Views.palco;
+    if (!Mesa || typeof Mesa.abrirDeCifra !== 'function') {
+      UI.toast('Mesa de ensaio indisponível', { tipo: 'err' });
+      return;
+    }
+    Mesa.abrirDeCifra(c);
+  }
+
+  /* =======================
      VER / EDITAR CIFRA
      ======================= */
   function abrirCifra(c) {
@@ -266,6 +364,18 @@
       v.categoria ? el('span', { class: 'badge badge-brand' }, v.categoria) : null,
     ]));
     body.appendChild(infoTom);
+
+    /* ---- o que a ficha ja tem, e o que falta ----
+       Quem abre uma cifra pergunta "esta pronta para o ensaio?". A resposta
+       esta no video, na narração e nas anotacoes — e nada disso aparecia.
+       A lista mostra o que existe; o que falta vem logo abaixo, como acao. */
+    const partes = [];
+    if (v.ytId) partes.push('vídeo');
+    if (v.vs) partes.push('narração gravada');
+    if (v.foto) partes.push('foto');
+    if (v.anotacoes && v.anotacoes.length) partes.push(v.anotacoes.length + ' anotações');
+    body.appendChild(el('div', { class: 'fs-sm muted' },
+      partes.length ? 'Pronto para o palco: ' + partes.join(' · ') : 'Nada gravado ainda: sem vídeo, narração ou anotações.'));
     if (v.letra) {
       body.appendChild(el('div', {}, [
         el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'align-left' }), 'Letra']),
@@ -317,6 +427,29 @@
       if (analise) body.appendChild(el('div', { class: 'mt-2' }, analise));
     }
 
+    /* ---- A MESA DE ENSAIO ----
+       O botao que junta o que estava espalhado: o video, a voz que guia o
+       ensaio, o compasso, a rolagem da cifra e as anotacoes com hora. E o que
+       separa "a cifra esta salva" de "esta musica esta pronta para o palco".
+       Sem ele, quem montava o ensaio tinha de abrir o Estúdio, o gravador e a
+       agenda — tres telas — para juntar o que aqui esta na mesma.
+
+       A folha fecha antes de abrir a mesa: as duas sao folhas, e duas folhas
+       empilhadas significam que o fundo escuro de uma tapa a outra. */
+    let h = null;
+    body.appendChild(el('div', { class: 'card card-flat mt-3', style: { background: 'var(--brand-tint)', borderColor: 'transparent' } }, [
+      el('div', { class: 'row between gap-2 wrap' }, [
+        el('div', { class: 'grow', style: { minWidth: '0' } }, [
+          el('div', { class: 'fs-sm fw-7' }, 'Mesa de ensaio'),
+          el('div', { class: 'fs-xs muted' }, 'Vídeo, narração, compasso, cifra e anotações juntos'),
+        ]),
+        el('button', { class: 'btn btn-primary btn-sm', onclick: function () {
+          h.close();
+          abrirMesaDeCifra(c);
+        } }, [el('i', { 'data-lucide': 'monitor-play' }), 'Abrir a mesa']),
+      ]),
+    ]));
+
     body.appendChild(el('div', { class: 'row gap-2 mt-4 wrap' }, [
       el('button', { class: 'btn btn-soft btn-sm', onclick: function () { dialogTranspor(c); } },
         [el('i', { 'data-lucide': 'shuffle' }), 'Transpor']),
@@ -326,14 +459,20 @@
         [el('i', { 'data-lucide': 'printer' }), 'Imprimir']),
     ]));
 
-    // links externos
-    body.appendChild(el('div', { class: 'row gap-2 mt-2 wrap' }, Lk.de(v.titulo, v.artista).map(function (f) {
-      return el('button', { class: 'st-link', style: { '--c': f.cor }, title: f.descricao,
-        onclick: function () { Lk.abrir(f.id, v.titulo, v.artista); } },
-        [el('i', { 'data-lucide': f.icone }), el('span', {}, f.curto)]);
-    })));
+    /* ---- os links externos ----
+       Ficavam no fim da folha, depois da cifra inteira. Quem abre a ficha
+       queria saber onde achar a letra e o video antes de ler os acordes — a
+       lista de links era o que justificava a visita. Aqui fica no topo. */
+    body.appendChild(el('div', { class: 'mt-3' }, [
+      el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'link' }), 'Onde achar']),
+      el('div', { class: 'row gap-2 wrap' }, Lk.de(v.titulo, v.artista).map(function (f) {
+        return el('button', { class: 'st-link', style: { '--c': f.cor }, title: f.descricao,
+          onclick: function () { Lk.abrir(f.id, v.titulo, v.artista); } },
+          [el('i', { 'data-lucide': f.icone }), el('span', {}, f.curto)]);
+      })),
+    ]));
 
-    const h = UI.sheet({
+    h = UI.sheet({
       title: c.titulo, sub: c.artista || 'Cifra', wide: true, body: body,
       foot: [
         el('button', { class: 'btn btn-danger', onclick: function () { confirmarExcluir(c, h); } },
@@ -391,6 +530,51 @@
     fCifra.value = v.cifra;
     const status = el('div', { class: 'fs-sm muted mt-2' });
 
+    /* ---- a ficha do ensaio ----
+       Antes estes campos viviam so dentro de uma escala, e so apareciam na tela
+       da musica. Quem cadastrava a cifra no repertorio e depois a usava em
+       varios eventos tinha de colar o video e gravar a naracao de novo em
+       cada uma. Aqui eles fazem parte da cifra, e o que ja foi gravado e
+       reaproveitado. */
+    const fYt = el('input', { class: 'input', value: v.yt || '', placeholder: 'https://youtu.be/...' });
+    const infoYt = el('div', { class: 'fs-xs muted mt-1' });
+    function conferirYt() {
+      const id = Lk.extrairYouTubeId(fYt.value.trim());
+      U.clear(infoYt);
+      if (!fYt.value.trim()) { infoYt.textContent = ''; return; }
+      infoYt.textContent = id
+        ? 'Vídeo reconhecido: ' + id
+        : 'Não reconheci esse link. Aceita youtube.com/watch, youtu.be, /shorts ou /live.';
+      fYt.style.borderColor = id ? '' : 'var(--danger-500)';
+    }
+    fYt.addEventListener('input', U.debounce(conferirYt, 350));
+    conferirYt();
+
+    const previewFoto = el('img', { class: 'pl-foto-preview' });
+    let foto = v.foto || '';
+    function pintarFoto() {
+      U.clear(previewFoto);
+      if (foto) { previewFoto.src = foto; previewFoto.style.display = 'block'; }
+      else previewFoto.style.display = 'none';
+    }
+    pintarFoto();
+    const arqFoto = el('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
+    arqFoto.addEventListener('change', function () {
+      const a = arqFoto.files[0];
+      if (!a) return;
+      U.readFile(a, true).then(function (d) { return U.shrinkImage(d, 1400, 0.8); })
+        .then(function (p) {
+          // Vazio aqui e "nao deu para ler". Sem a conferencia, um arquivo
+          // recusado viraria `src=""` — um retangulo quebrado, sem explicacao.
+          if (!p) { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); return; }
+          foto = p; pintarFoto();
+        })
+        .catch(function () { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); });
+    });
+
+    const infoNar = el('div', { class: 'fs-xs muted mt-1' },
+      v.vs ? 'Narração gravada (' + global.Gravador.relogio(v.vsSeg) + '). Regrave na Mesa de ensaio.' : 'Você grava a narração na Mesa de ensaio.');
+
     function analisar() {
       U.clear(status);
       const txt = fCifra.value;
@@ -413,6 +597,19 @@
         el('div', { class: 'grid-2' }, [campo('Categoria', fCat), campo('Tags', fTags)]),
         campo('Letra', fLetra),
         campo('Cifra', el('div', {}, [fCifra, status])),
+        el('div', { class: 'hr-label' }, 'Para o ensaio'),
+        campo('Vídeo do YouTube', el('div', {}, [fYt, infoYt])),
+        campo('Foto da cifra', el('div', { class: 'stack gap-2' }, [
+          previewFoto,
+          el('div', { class: 'row gap-2' }, [
+            el('button', { class: 'btn btn-secondary btn-sm', onclick: function () { arqFoto.click(); } },
+              [el('i', { 'data-lucide': 'upload' }), foto ? 'Trocar foto' : 'Enviar foto']),
+            foto ? el('button', { class: 'btn btn-ghost btn-sm', onclick: function () { foto = ''; pintarFoto(); } },
+              [el('i', { 'data-lucide': 'trash-2' }), 'Remover']) : null,
+          ].filter(Boolean)),
+          arqFoto,
+        ])),
+        campo('Narração', infoNar),
       ]),
       foot: [
         el('button', { class: 'btn btn-secondary', onclick: function () { h.close(); } }, 'Cancelar'),
@@ -428,6 +625,17 @@
           v.tags = fTags.value.split(',').map(function (t) { return t.trim(); }).filter(Boolean).slice(0, 20);
           v.letra = fLetra.value;
           v.cifra = fCifra.value;
+
+          /* ---- a ficha do ensaio ----
+             O id do YouTube e extraido do link aqui, e nao ao gravar. O campo
+             fica como a pessoa colou, que e o que ela reconhece depois; o id
+             derivado e que a mesa usa para montar o video. Guardar so o id
+             perderia o link original, que e o que permite trocar de gravacao
+             depois sem colar tudo de novo. */
+          v.yt = fYt.value.trim();
+          v.ytId = Lk.extrairYouTubeId(v.yt);
+          v.foto = foto;
+
           v.atualizadaEm = Date.now();
           if (isNew) S.db.cifras.unshift(v);
           else {

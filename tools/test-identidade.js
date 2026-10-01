@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const RAIZ = 'C:/Users/Gilson/Documents/Micro Saas/Cifras-pro';
+const RAIZ = path.join(__dirname, '..');
 const ARQ = path.join(RAIZ, 'tools', 'check-identidade.js');
 const NOME = require('../js/core/identidade.js').NOME;
 

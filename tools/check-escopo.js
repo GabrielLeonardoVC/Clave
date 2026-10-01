@@ -6,7 +6,7 @@
 */
 const fs = require('fs');
 const path = require('path');
-const RAIZ = 'C:/Users/Gilson/Documents/Micro Saas/Cifras-pro';
+const RAIZ = path.join(__dirname, '..');
 
 const IGNORAR = new Set(['node_modules', '.git', 'tools', 'dist', '_site']);
 

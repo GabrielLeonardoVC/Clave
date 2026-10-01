@@ -1,0 +1,897 @@
+/* =========================================================
+   ACORDE - views/palco.js
+   A MESA DE ENSAIO: video, audio da voz, BPM e anotacoes juntos.
+
+   POR QUE UMA TELHA INTEIRA E NAO MAIS UM MENU
+
+   Tudo o que quem ensaia precisa ver ao mesmo tempo cabe mal numa folha: o
+   video ocupa a largura toda, a rolagem da cifra precisa de altura, e as
+   anotacoes precisam ficar visiveis enquanto o video toca. Empilhados numa
+   folha, cada um vira um bloco que se rola, e o trabalho de manter os tres no
+   lugar volta para quem devia estar tocando.
+
+   Aqui eles Dividem a tela por papel: video e imagem no topo, rolagem da cifra
+   embaixo, e a faixa de controle com BPM e anotacoes entre os dois. O que
+   precisa de atencao esta sempre visivel.
+
+   O QUE ANDA JUNTO
+
+     - o video do YouTube, com o audio no volume que a pessoa escolheu;
+     - a faixa narrada, a voz que ela mesma gravou ("virada da bateria em
+       1,2,3,4"), que e o que marca o tempo do ensaio;
+     - o BPM, com o metronomo no volume escolhido;
+     - a rolagem da cifra, que segue o mesmo tempo;
+     - as anotacoes com hora, que acendem conforme passa e pulam o video
+       quando clicadas.
+
+   Quem manda no tempo e a voz gravada. Sem gravacao, quem manda e o video.
+   Nunca o contrario: o relogio do aparelho nao sabe quando a banda entra.
+   ========================================================= */
+(function (global) {
+  'use strict';
+
+  const V = global.Views || (global.Views = {});
+  const U = global.Utils;
+  const S = global.Store;
+  const UI = global.UI;
+  const R = global.Render;
+  const M = global.Music;
+  const Lk = global.Links;
+  const P = global.Palco;
+  const Gravador = global.Gravador;
+  const { el } = U;
+
+  let relogio = null;      // o relogio da sessao atual
+  let cancelarInscricao = null;
+  /* O laco que le a posicao do video fica no escopo do modulo, e nao dentro de
+     `abrir`, porque `encerrar` precisa alcanca-lo. Sendo local, fechar a mesa
+     cancelava o relogio mas nao este temporizador — e ele continuava rodando
+     numa tela fechada. */
+  let quadroFollow = 0;
+
+  /* =======================================================
+     ENTRADA
+
+     Abre a mesa de uma musica. Aceita as duas formas que o app tem:
+     uma musica de uma escala (com a ficha montada) ou uma cifra solta do
+     repertorio.
+     ======================================================= */
+  function abrir(ficha, opcoes) {
+    opcoes = opcoes || {};
+    const f = ficha || {};
+
+    // Uma sessao por vez. Se a pessoa abre outra musica sem fechar esta, o
+    // relogio antigo continuaria mandando na rolagem antiga, que saiu da tela
+    // mas continua no documento.
+    encerrar();
+
+    relogio = P.criarRelogio();
+
+    const corpo = el('div', { class: 'palco' });
+    const estado = {
+      ficha: f,
+      player: null,
+      audio: null,
+      rolagem: null,
+      tocando: false,
+      linhaAtual: -1,
+    };
+
+    /* ---------------------------------------------------------
+       O CABECALHO: o que e esta musica, e o botao que comeca tudo
+       --------------------------------------------------------- */
+    const botaoComecar = el('button', { class: 'pl-start', type: 'button', 'aria-label': 'Começar o ensaio' },
+      [el('i', { 'data-lucide': 'play' }), el('span', {}, 'Começar')]);
+
+    const cabecalho = el('div', { class: 'pl-head' }, [
+      el('div', { class: 'grow', style: { minWidth: '0' } }, [
+        el('h2', { class: 'pl-titulo' }, f.titulo || 'Sem título'),
+        el('div', { class: 'pl-sub' }, [
+          f.artista || (f.escalaTitulo ? f.escalaTitulo : ''),
+          f.escalaHora ? U.fmtTime(f.escalaHora) : '',
+        ].filter(Boolean).join('  ·  ') || 'Sem artista'),
+      ]),
+      botaoComecar,
+    ]);
+    corpo.appendChild(cabecalho);
+
+    /* ---------------------------------------------------------
+       O VIDEO
+       --------------------------------------------------------- */
+    const moldura = el('div', { class: 'pl-video-caixa' });
+
+    /* A foto da cifra. Vira a `src` da imagem, e o lugar para desenhar em
+       cima no Estúdio. */
+    let alvoFoto = f.foto || '';
+
+    /* O video da mesa: o id do YouTube, ou vazio quando o que esta na tela e a
+       foto. Declarado aqui, antes de `mostrarVideo` — a atribuicao acontece na
+       propria declaracao e a variavel precisa existir. */
+    let destinoVideo = f.ytId || '';
+
+    const semNada = el('div', { class: 'pl-video-vazio' }, [
+      el('i', { 'data-lucide': 'youtube', style: { width: '26px', height: '26px' } }),
+      el('p', { class: 'fs-sm' }, 'Sem vídeo nem foto nesta música'),
+      el('div', { class: 'row gap-2 wrap', style: { justifyContent: 'center' } }, [
+        el('button', { class: 'btn btn-soft btn-sm', onclick: pedirVideo },
+          [el('i', { 'data-lucide': 'link' }), 'Colar link do YouTube']),
+        el('button', { class: 'btn btn-secondary btn-sm', onclick: pedirFoto },
+          [el('i', { 'data-lucide': 'image' }), 'Enviar foto da cifra']),
+      ]),
+    ]);
+
+    function mostrarFoto() {
+      destinoVideo = '';
+      U.clear(moldura);
+      moldura.appendChild(el('img', { class: 'pl-foto', src: alvoFoto, alt: 'Cifra de ' + f.titulo }));
+    }
+
+    function mostrarVideo(id) {
+      destinoVideo = id;
+      U.clear(moldura);
+      const holder = el('div', { class: 'pl-video-holder' });
+      moldura.appendChild(holder);
+      montarPlayer(holder, id);
+    }
+
+    if (f.ytId) mostrarVideo(f.ytId);
+    else if (alvoFoto) mostrarFoto();
+    else moldura.appendChild(semNada);
+
+    function montarPlayer(holder, id) {
+      // Primeiro o iframe simples: ele ja mostra o video e ja funciona sem
+      // script nenhum. A API so entra depois, para dar play, pausar e ler o
+      // tempo — e se nao vier, o video continua tocando com os controles
+      // proprios do YouTube. A mesa nao depende de a API carregar.
+      const iframe = el('iframe', {
+        src: Lk.embedYouTube(id, { autoplay: false }),
+        title: 'Vídeo: ' + f.titulo,
+        // `allow` sozinho. O atributo `allowfullscreen` e o jeito antigo e o
+        // navegador avisa no console que o `allow` tem precedencia — e o
+        // aviso some do jeito que o app ja usava.
+        allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
+        referrerpolicy: 'strict-origin-when-cross-origin',
+      });
+      holder.appendChild(iframe);
+
+      P.carregarApi().then(function (YT) {
+        // `holder.isConnected` confere se a folha ainda esta aberta. Sem esta
+        // verificacao, fechar a mesa no meio do carregamento deixava um
+        // Player apontando para um iframe ja removido — e o `playVideo()`
+        // depois disso jogava um erro em uma tela que nao existe mais.
+        if (!YT || !holder.isConnected) return;
+        try {
+          estado.player = new YT.Player(iframe, {
+            events: {
+              /**
+               * Os metodos do Player so existem DEPOIS deste aviso.
+               *
+               * Sem o `onReady`, `new YT.Player(...)` devolve um objeto que tem
+               * `playVideo` como `undefined` — nao como metodo, e nao como
+               * funcao que falha: simplesmente nao existe. E o pior jeito de
+               * falhar: o video aparece e toca, entao parece funcionar; e o app
+               * nunca consegue dar play, ler o tempo nem mudar o volume. O
+               * "Começar" silenciosamente nao comeca nada, e a rolagem fica
+               * parada em 0:00 enquanto o video passa.
+               */
+              onReady: function (ev) {
+                const alvo = ev && ev.target ? ev.target : estado.player;
+                estado.player = alvo;
+                mistura.definirPlayer(alvo);
+                // A duracao real do video e o teto correto do relogio: e o que
+                // faz a barra ter o tamanho certo e o que faz a rolagem parar
+                // no fim da musica, e nao antes.
+                if (typeof alvo.getDuration === 'function') {
+                  try {
+                    const d = alvo.getDuration();
+                    if (isFinite(d) && d > 0) {
+                      estado.duracaoDoVideo = d;
+                      relogio.informarDuracao(d);
+                    }
+                  } catch (e) { /* o video ainda nao sabe a propria duracao */ }
+                }
+                pintar();
+              },
+              onError: function () {
+                // Codigo 2 = Parametro invalido, 5 = HTML5 error, 100 = nao
+                // encontrado, 101/150 = nao reproduzivel. Nenhum deles e
+                // corrigivel pelo app; o que importa e nao travar a mesa.
+                estado.player = null;
+                mistura.definirPlayer(null);
+              },
+            },
+          });
+        } catch (e) {
+          // Sem API o video segue com os controles do YouTube. O unico
+          // recurso que se perde e o botao de dar play daqui.
+          estado.player = null;
+        }
+      });
+    }
+
+    function pedirVideo() {
+      UI.prompt({
+        title: 'Link do YouTube',
+        message: 'Aceita youtube.com/watch, youtu.be, /shorts, /live ou só o código do vídeo.',
+        placeholder: 'https://youtu.be/...', value: f.yt || '',
+      }).then(function (v) {
+        if (!v) return;
+        const id = Lk.extrairYouTubeId(v);
+        if (!id) { UI.toast('Não reconheci esse link. É do YouTube?', { tipo: 'err' }); return; }
+        f.yt = v; f.ytId = id;
+        salvarFicha({ yt: v, ytId: id });
+        mostrarVideo(id);
+        pintar();
+        UI.toast('Vídeo carregado', { tipo: 'ok' });
+      });
+    }
+
+    function pedirFoto() {
+      const arq = el('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
+      document.body.appendChild(arq);
+      arq.addEventListener('change', function () {
+        const a = arq.files[0];
+        document.body.removeChild(arq);
+        if (!a) return;
+        U.readFile(a, true)
+          .then(function (d) { return U.shrinkImage(d, 1400, 0.8); })
+          .then(function (p) {
+            // Vazio aqui e "nao deu para ler". Sem esta conferencia, a mesa
+            // recebia `src=""` e mostrava um retangulo quebrado onde deveria
+            // estar a partitura.
+            if (!p) { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); return; }
+            f.foto = p; alvoFoto = p;
+            salvarFicha({ foto: p });
+            mostrarFoto();
+            UI.toast('Foto anexada', { tipo: 'ok' });
+          })
+          .catch(function () { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); });
+      });
+      arq.click();
+    }
+
+    corpo.appendChild(moldura);
+
+    /* ---------------------------------------------------------
+       A MISTURA DE VOLUME
+
+       Declarada antes da faixa narrada porque e a faixa que a alimenta: o
+       `<audio>` da voz entra na mistura no mesmo instante em que e criado. Na
+       ordem contraria, a primeira gravacao ficaria sem volume nenhum — o
+       controle existiria e nao mexeria no audio.
+       --------------------------------------------------------- */
+    const mistura = P.criarMistura(null, null, { video: 100, voz: 100, metr: 60 });
+
+    /* ---------------------------------------------------------
+       A FAIXA NARRADA — a voz que guia o ensaio
+
+       O elemento `<audio>` nasce invisivel: quem ouve a voz de quem guia e o
+       video com os controles do YouTube, e dois controles de audio na mesma
+       tela fazem a pessoa se perguntar qual dos dois ela deveria tocar. O
+       botao "Começar" toca os dois juntos.
+       --------------------------------------------------------- */
+    const blocoVS = el('div', { class: 'pl-vs' });
+    corpo.appendChild(blocoVS);
+
+    let audioVS = null;
+    function montarVS() {
+      U.clear(blocoVS);
+      const voz = f.vs ? String(f.vs) : '';
+      if (!voz) {
+        blocoVS.appendChild(el('div', { class: 'row gap-2 wrap' }, [
+          el('i', { 'data-lucide': 'mic', style: { width: '17px', height: '17px', color: 'var(--ink-4)' } }),
+          el('span', { class: 'fs-sm muted grow' }, 'Sem narração gravada. Você pode gravar a sua.'),
+          el('button', { class: 'btn btn-soft btn-sm', onclick: gravarVoz },
+            [el('i', { 'data-lucide': 'mic' }), 'Gravar a narração']),
+        ]));
+        audioVS = null;
+        mistura.definirAudio(null);
+        return;
+      }
+      audioVS = el('audio', { src: voz, preload: 'metadata', class: 'sr-only' });
+      /* O `<audio>` precisa estar NO documento para tocar. Um elemento criado e
+         nunca anexado fica sem contexto de reproducao: `play()` e recusado e o
+         `currentTime` nao anda. Por isso ele entra na folha — invisivel, pelo
+         `sr-only`, mas presente. Sem este `appendChild`, a narração aparecia na
+         tela com o texto e a duração, e o botão "Começar" tocava só a
+         rolagem: o app mostrava uma gravação que ele não conseguia ouvir. */
+      blocoVS.appendChild(audioVS);
+      mistura.definirAudio(audioVS);
+      blocoVS.appendChild(el('div', { class: 'pl-vs-topo' }, [
+        el('i', { 'data-lucide': 'audio-lines', style: { width: '17px', height: '17px', color: 'var(--primary)' } }),
+        el('span', { class: 'fs-sm fw-7 grow' }, 'Narração gravada'),
+        el('span', { class: 'fs-xs muted' }, P.tempo(f.vsSeg)),
+        el('button', { class: 'btn-icon sm', 'aria-label': 'Regravar narração', title: 'Regravar', onclick: gravarVoz },
+          el('i', { 'data-lucide': 'refresh-cw' })),
+      ]));
+      if (f.vsTexto) {
+        blocoVS.appendChild(el('div', { class: 'pl-vs-texto' }, f.vsTexto));
+      }
+    }
+    montarVS();
+
+    function gravarVoz() {
+      const disp = Gravador.disponivel();
+      if (!disp.ok) { UI.toast(disp.motivo, { tipo: 'err' }); return; }
+      const aviso = el('div', { class: 'aviso-perm' }, [
+        el('div', { class: 'linha' }, [
+          el('i', { 'data-lucide': 'smartphone' }),
+          el('span', {}, 'O navegador vai pedir o microfone. A gravação fica só neste aparelho.'),
+        ]),
+      ]);
+      const relogioGrav = el('div', { class: 'vs-relogio', text: '0:00' });
+      const status = el('div', { class: 'vs-status' }, relogioGrav);
+      const area = el('textarea', {
+        class: 'textarea vs-texto', rows: '3',
+        placeholder: 'O que você fala. Ex.: "Refrão em 1,2,3,4. Virada da bateria, para tudo em 1,2,3,4."',
+      });
+      area.value = f.vsTexto || '';
+
+      let fluxo = null;
+      let conta = null;
+      const btnGravar = el('button', { class: 'btn btn-primary' }, [el('i', { 'data-lucide': 'mic' }), 'Gravar']);
+
+      btnGravar.addEventListener('click', function () {
+        if (fluxo) {
+          fluxo.parar().then(function (r) {
+            clearInterval(conta);
+            f.vs = r.dataUrl; f.vsSeg = Math.round(r.segundos);
+            f.vsTexto = area.value;
+            salvarFicha({ vs: r.dataUrl, vsSeg: f.vsSeg, vsTexto: f.vsTexto });
+            montarVS();
+            UI.toast('Narração salva', { tipo: 'ok' });
+            h.close();
+          }).catch(function (e) {
+            UI.toast((e && e.message) || 'Não deu para gravar', { tipo: 'err' });
+          });
+          fluxo = null;
+          clearInterval(conta);
+          U.clear(btnGravar);
+          btnGravar.appendChild(el('i', { 'data-lucide': 'mic' }));
+          btnGravar.appendChild(document.createTextNode(' Parar'));
+          btnGravar.className = 'btn btn-secondary';
+          return;
+        }
+        Gravador.iniciar().then(function (fl) {
+          fluxo = fl;
+          U.clear(btnGravar);
+          btnGravar.appendChild(el('i', { 'data-lucide': 'square' }));
+          btnGravar.appendChild(document.createTextNode(' Parar'));
+          btnGravar.className = 'btn btn-danger';
+          conta = setInterval(function () {
+            relogioGrav.textContent = P.tempo(fl.segundos());
+          }, 250);
+        }).catch(function (e) {
+          const n = e && e.name;
+          UI.toast(n === 'NotAllowedError' ? 'Permissão negada. Libere o microfone nas configurações.'
+            : n === 'NotFoundError' ? 'Não achei microfone neste aparelho.'
+              : (e && e.message) || 'Não deu para gravar', { tipo: 'err', dur: 5500 });
+        });
+      });
+
+      const h = UI.sheet({
+        title: 'Gravar a narração', sub: 'a voz que guia o ensaio',
+        body: el('div', { class: 'stack gap-3' }, [aviso, status, area]),
+        foot: [
+          el('button', { class: 'btn btn-secondary', onclick: function () { if (fluxo) { fluxo.cancelar(); clearInterval(conta); } h.close(); } }, 'Cancelar'),
+          btnGravar,
+        ],
+        onClose: function () { if (fluxo) { try { fluxo.cancelar(); } catch (e) { /* ja parou */ } clearInterval(conta); } },
+      });
+    }
+
+    /* ---------------------------------------------------------
+       A ROLAGEM DA CIFRA
+       --------------------------------------------------------- */
+    if (String(f.cifra || '').trim()) {
+      estado.rolagem = R.painelRolagem(f.cifra, {
+        bpm: f.bpm,
+        compasso: f.compasso,
+        fator: 1,
+      });
+      corpo.appendChild(estado.rolagem);
+    } else {
+      corpo.appendChild(el('div', { class: 'pl-rolagem-vazia' }, [
+        el('i', { 'data-lucide': 'music-2', style: { width: '22px', height: '22px' } }),
+        el('p', { class: 'fs-sm' }, 'Esta música ainda não tem cifra vinculada'),
+      ]));
+    }
+
+    /* ---------------------------------------------------------
+       AS ANOTAÇÕES COM HORA
+       --------------------------------------------------------- */
+    const blocoAnot = el('div', {});
+    corpo.appendChild(blocoAnot);
+
+    const listaAnot = el('div', { class: 'pl-anot-lista' });
+    let itensAnot = [];
+
+    function montarAnotacoes() {
+      U.clear(blocoAnot);
+      blocoAnot.appendChild(el('div', { class: 'row between mb-2' }, [
+        el('div', { class: 'section-title', style: { marginBottom: '0' } },
+          [el('i', { 'data-lucide': 'list-music' }), 'Anotações']),
+        el('button', { class: 'btn btn-soft btn-sm', onclick: novaAnotacao },
+          [el('i', { 'data-lucide': 'plus' }), 'Anotar']),
+      ]));
+
+      itensAnot = (f.anotacoes || []).slice();
+      if (!itensAnot.length) {
+        blocoAnot.appendChild(el('p', { class: 'fs-sm muted' },
+          'Marque os momentos: "aos 1:32 a bateria entra". Clicar na anotação pula o vídeo para lá.'));
+        return;
+      }
+      U.clear(listaAnot);
+      itensAnot.forEach(function (a, i) {
+        /* A linha e um `div` com papel de botao, e nao um `<button>`.
+         * Motivo: o botao de apagar precisa ficar DENTRO da linha, e um botao
+         * dentro de botao e HTML invalido — o navegador fecha o de fora no
+         * primeiro `</button>`. O resultado era silencioso e grave: a linha
+         * deixava de ser clicavel, entao clicar na anotacao nao pulava o
+         * video, e o botao de apagar acabava como um botao solto na tela.
+         *
+         * O papel e o foco continuam igualmente acessiveis pelo teclado. */
+        const linha = el('div', {
+          class: 'pl-anot-item', role: 'button', tabindex: '0',
+          'aria-label': 'Pular para ' + P.tempo(a.t) + ': ' + a.texto,
+          onclick: function () { pularPara(a.t); },
+          onkeydown: function (ev) {
+            if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pularPara(a.t); }
+          },
+        }, [
+          el('span', { class: 'pl-anot-t' }, P.tempo(a.t)),
+          el('span', { class: 'pl-anot-texto grow' }, a.texto),
+          el('button', {
+            class: 'btn-icon sm', 'aria-label': 'Apagar anotação', title: 'Apagar',
+            onclick: function (ev) {
+              ev.stopPropagation();
+              removerAnotacao(i);
+            },
+          }, el('i', { 'data-lucide': 'x' })),
+        ]);
+        listaAnot.appendChild(linha);
+      });
+      blocoAnot.appendChild(listaAnot);
+    }
+    montarAnotacoes();
+
+    function novaAnotacao() {
+      const t = el('input', { class: 'input mono', placeholder: 'mm:ss', value: P.tempo(relogio.posicao) });
+      const txt = el('input', { class: 'input', placeholder: 'O que acontece aqui' });
+      const h = UI.sheet({
+        title: 'Nova anotação',
+        body: el('div', { class: 'stack gap-3' }, [
+          el('p', { class: 'fs-sm muted' }, 'O tempo pode ser colado como 1:32. A anotação acende quando a música chegar aí.'),
+          campo('Tempo', t), campo('O que acontece', txt),
+        ]),
+        foot: [
+          el('button', { class: 'btn btn-secondary', onclick: function () { h.close(); } }, 'Cancelar'),
+          el('button', { class: 'btn btn-primary', onclick: function () {
+            const texto = txt.value.trim();
+            if (!texto) { txt.focus(); return; }
+            const seg = segundosDoTexto(t.value);
+            f.anotacoes = (f.anotacoes || []).concat([{ id: U.uid('anot'), t: seg, texto: texto }]);
+            salvarFicha({ anotacoes: f.anotacoes });
+            montarAnotacoes();
+            h.close();
+          } }, [el('i', { 'data-lucide': 'check' }), 'Salvar']),
+        ],
+      });
+      setTimeout(function () { txt.focus(); }, 80);
+    }
+
+    function removerAnotacao(i) {
+      const nova = (f.anotacoes || []).filter(function (_, j) { return j !== i; });
+      f.anotacoes = nova;
+      salvarFicha({ anotacoes: nova });
+      montarAnotacoes();
+    }
+
+    function campo(label, control) {
+      return el('div', { class: 'field' }, [el('label', { class: 'label' }, label), control]);
+    }
+
+    /* ---------------------------------------------------------
+       OS CONTROLES DE VOLUME
+
+       A mistura ja existe desde a faixa narrada. Aqui so entram os controles,
+       que leem e escrevem nela.
+       --------------------------------------------------------- */
+
+    const controles = el('div', { class: 'pl-controles' });
+    const relogioTxt = el('span', { class: 'pl-relogio' }, '0:00');
+    /* A barra so vale quando ha duracao conhecida. Sem ela, um cursor que anda
+       sozinho sobre uma linha sem medida induz a pessoa a procurar um tempo
+       que o app nao tem — e a barra parada seria melhor. */
+    const barra = el('input', { class: 'pl-barra', type: 'range', min: '0', max: '1000', value: '0',
+      'aria-label': 'Posição do ensaio' });
+    function pintarBarra(pos) {
+      const dur = duracaoEnsaio();
+      barra.style.display = dur > 0 ? '' : 'none';
+      if (dur > 0) barra.value = String(Math.round(Math.min(1, pos / dur) * 1000));
+    }
+    pintarBarra(0);
+    barra.addEventListener('input', function () {
+      const frac = Number(barra.value) / 1000;
+      const dur = duracaoEnsaio();
+      if (dur > 0) pularPara(frac * dur);
+    });
+
+    controles.appendChild(el('div', { class: 'pl-controle-linha' }, [
+      botaoComecar,
+      relogioTxt,
+      el('div', { class: 'grow' }, barra),
+      el('div', { class: 'row gap-1' }, [
+        campoVolume('video', 'Vídeo'),
+        campoVolume('voz', 'Voz'),
+        campoVolume('metr', 'Compasso'),
+      ]),
+    ]));
+
+    function campoVolume(qual, rotulo) {
+      const r = el('input', {
+        type: 'range', class: 'pl-vol', min: '0', max: '100',
+        value: String(mistura.valores[qual]), 'aria-label': 'Volume do ' + rotulo,
+        title: rotulo,
+      });
+      r.addEventListener('input', function () {
+        mistura.definir(qual, r.value);
+        if (qual === 'metr' && global.Metro) {
+          global.Metro.definir('volume', Number(r.value) / 100);
+        }
+        if (qual === 'voz' && audioVS) mistura.aplicar();
+      });
+      return el('label', { class: 'pl-vol-caixa', title: rotulo }, [
+        el('i', { 'data-lucide': qual === 'video' ? 'youtube' : qual === 'voz' ? 'audio-lines' : 'timer' }),
+        r,
+      ]);
+    }
+
+    corpo.appendChild(controles);
+    // O campo do BPM fica ao lado do compasso e da rolagem, que e onde o olho
+    // ja esta.
+    const blocoBpm = el('div', { class: 'pl-bpm' });
+    corpo.appendChild(blocoBpm);
+    montarBpm();
+
+    function montarBpm() {
+      U.clear(blocoBpm);
+      const Metro = global.Metro;
+      const num = el('span', { class: 'mbpm-num' }, String(f.bpm || 100));
+      /* O metrônomo e ajustado ao abrir a mesa, e nao so quando o botao
+       * "Começar" e apertado. Sem isto, a tela mostrava 122 bpm e o
+       * metrônomo marcava 100 — o valor global do app. Quem regula no
+       * andamento da musica e ouve outro, e o corpo inteiro sai do compasso
+       * sem nenhuma pista do motivo.
+       *
+       * O compasso tambem: o motor guarda em numero, e a cifra em texto. */
+      if (Metro && f.bpm) {
+        Metro.aplicar({
+          bpm: f.bpm,
+          compasso: String(f.compasso || '4/4').split('/')[0],
+          som: S.ajuste('metroSom', 'click'),
+          volume: mistura.valores.metr / 100,
+          subdivisao: S.ajuste('metroSubdivisao', 1),
+          acento: S.ajuste('metroAcento', true),
+        });
+      }
+      const btn = el('button', { class: 'mbpm-btn', type: 'button', 'aria-label': 'Tocar o compasso',
+        onclick: function () {
+          if (!Metro) return;
+          Metro.alternar();
+          U.clear(btn);
+          btn.appendChild(el('i', { 'data-lucide': Metro.METRONOME.tocando ? 'square' : 'play' }));
+        } }, el('i', { 'data-lucide': 'play' }));
+      blocoBpm.appendChild(btn);
+      blocoBpm.appendChild(el('span', { class: 'mbpm-ajuste' }, [
+        el('button', { type: 'button', 'aria-label': 'Diminuir andamento',
+          onclick: function () { moverBpm(-1); } }, '−'),
+        num,
+        el('button', { type: 'button', 'aria-label': 'Aumentar andamento',
+          onclick: function () { moverBpm(1); } }, '+'),
+      ]));
+      blocoBpm.appendChild(el('span', { class: 'mbpm-compasso' }, f.compasso || '4/4'));
+      blocoBpm.appendChild(el('span', { class: 'fs-xs muted' }, 'bpm'));
+
+      function moverBpm(d) {
+        f.bpm = U.clamp((Number(f.bpm) || 100) + d, 20, 320);
+        num.textContent = String(f.bpm);
+        if (Metro) Metro.definir('bpm', f.bpm);
+        salvarFicha({ bpm: f.bpm });
+        // A rolagem usa o andamento para saber quanto tempo dura a linha. A
+        // ficha ja foi montada com o BPM antigo, entao o roteiro precisa ser
+        // refeito — sem isto, mudar o andamento mudava o numero na tela e o
+        // metrônomo, e a cifra continuava andando no tempo anterior.
+        if (estado.rolagem && estado.rolagem.definirVelocidade) {
+          estado.rolagem.definirVelocidade(1);
+          estado.rolagem = R.painelRolagem(f.cifra, { bpm: f.bpm, compasso: f.compasso, fator: 1 });
+          const antiga = corpo.querySelector('.cs');
+          if (antiga) {
+            const nova = estado.rolagem;
+            antiga.parentNode.replaceChild(nova, antiga);
+            estado.linhaAtual = -1;
+          }
+        }
+      }
+    }
+
+    /* ---------------------------------------------------------
+       O RELOGIO DA SESSAO
+
+       A duracao do ensaio e a da gravacao da voz, quando existe — e e exata,
+       porque a pessoa sabe quanto falou. Sem gravacao, e a do video, quando o
+       YouTube responde.
+
+       Sem nenhum dos dois, nao ha duracao nenhuma: o relogio fica sem teto.
+       E o certo. A alternativa — usar o tamanho da cifra como se fosse a
+       duracao — quebrava o feature mais importante da mesa: com uma cifra de
+       seis linhas, o fim estimado era cinco segundos, e clicar numa anotacao
+       "aos 0:32" era jogado de volta para 0:05. O clico pareceria quebrado,
+       e a anotacao mais importante da musica seria a impossivel de usar.
+       --------------------------------------------------------- */
+    function duracaoEnsaio() {
+      if (f.vsSeg) return f.vsSeg;
+      if (estado.duracaoDoVideo) return estado.duracaoDoVideo;
+      return 0;   // sem teto conhecido
+    }
+
+    cancelarInscricao = relogio.inscrever(function (pos, tocando) {
+      relogioTxt.textContent = P.tempo(pos);
+      pintarBarra(pos);
+
+      // A rolagem segue o mesmo tempo do relogio.
+      if (estado.rolagem && estado.rolagem.linhaNoTempo) {
+        const linha = estado.rolagem.linhaNoTempo(pos);
+        if (linha !== estado.linhaAtual) {
+          estado.linhaAtual = linha;
+          // `destacar` para o laco proprio do scroller; aqui quem manda e o
+          // relogio da mesa.
+          estado.rolagem.destacar(linha);
+        }
+      }
+
+      // A anotacao que esta passando acende.
+      const linhaAnot = listaAnot.children;
+      for (let i = 0; i < linhaAnot.length; i++) {
+        const t = Number(itensAnot[i] ? itensAnot[i].t : -1);
+        const passou = t >= 0 && pos >= t && pos < t + 6;
+        linhaAnot[i].classList.toggle('agora', passou);
+      }
+
+      if (!tocando && estado.tocando === 'tocando') {
+        estado.tocando = false;
+        U.clear(botaoComecar);
+        botaoComecar.appendChild(el('i', { 'data-lucide': 'play' }));
+        botaoComecar.appendChild(document.createTextNode(' Começar'));
+      }
+    });
+
+    botaoComecar.addEventListener('click', function () {
+      if (estado.tocando === 'tocando') { parar(); return; }
+      comecar();
+    });
+
+    /** Repinta o que depende do tempo. */
+    function pintar() {
+      relogio.irPara(relogio.posicao);
+    }
+
+    function comecar() {
+      const temVoz = !!audioVS;
+      const temVideo = !!estado.player;
+      // Quem pausou no meio da passagem e voltou a tocar continua de onde
+      // parou. Recomecar do zero so quando nunca comecou — e o que o botao
+      // "Começar" promete.
+      const jaPausou = estado.tocando === 'pausado';
+      estado.tocando = 'tocando';
+
+      if (temVoz && audioVS) {
+        if (!jaPausou) audioVS.currentTime = 0;
+        audioVS.play().catch(function () {
+          UI.toast('Não consegui tocar a narração. Toque no vídeo para liberar o áudio.', { tipo: 'err', dur: 5000 });
+        });
+        relogio.iniciar(f.vsSeg || 0, !jaPausou);
+        // O video entra junto, mas sem mandar no tempo: quem guia e a voz.
+        if (temVideo) {
+          try { estado.player.playVideo(); } catch (e) { /* o video tem controle proprio */ }
+        }
+      } else if (temVideo) {
+        // Sem gravacao, quem manda no tempo e o video: o relogio da mesa
+        // acompanha a posicao dele.
+        try { estado.player.playVideo(); } catch (e) { /* o video tem controle proprio */ }
+        seguirVideo();
+      } else {
+        // Sem video e sem voz, o relogio proprio roda sem teto conhecido: com
+        // o texto so, ninguem sabe quanto tempo a musica leva.
+        relogio.iniciar(duracaoEnsaio(), !jaPausou);
+      }
+
+      if (global.Metro && f.bpm) {
+        global.Metro.aplicar({
+          bpm: f.bpm, som: S.ajuste('metroSom', 'click'),
+          volume: mistura.valores.metr / 100,
+          subdivisao: S.ajuste('metroSubdivisao', 1),
+          acento: S.ajuste('metroAcento', true),
+        });
+        global.Metro.iniciar();
+      }
+
+      U.clear(botaoComecar);
+      botaoComecar.appendChild(el('i', { 'data-lucide': 'square' }));
+      botaoComecar.appendChild(document.createTextNode(' Parar'));
+    }
+
+    function parar() {
+      if (audioVS) { audioVS.pause(); }
+      if (estado.player && typeof estado.player.pauseVideo === 'function') {
+        try { estado.player.pauseVideo(); } catch (e) { /* ignora */ }
+      }
+      relogio.pausar();
+      pararSeguirVideo();
+      if (global.Metro) global.Metro.parar();
+      // "pausado" e nao "parado": distingue voltar a ouvir da mesma passagem de
+      // comecar o ensaio de novo. O relogio guarda a posicao; quem decide o
+      // que fazer com ela e `comecar`.
+      estado.tocando = 'pausado';
+      U.clear(botaoComecar);
+      botaoComecar.appendChild(el('i', { 'data-lucide': 'play' }));
+      botaoComecar.appendChild(document.createTextNode(' Continuar'));
+    }
+
+    /* O video manda no relogio quando nao ha narração: a cada passo, a posicao
+       dele vira a posicao da mesa.
+
+       O laco para quando a mesa nao esta tocando — e nao quando o video para.
+       Sao coisas diferentes: quem pausa a mesa antes de o video terminar nao
+       pode deixar um laco de leitura de tempo rodando em segundo plano.
+
+       O passo e um temporizador, e nao `requestAnimationFrame`, por causa do
+       mesmo motivo do relogio: com a aba oculta — o estado normal de quem
+       trocou de app no meio do ensaio — o quadro para de vir, e a mesa
+       pararia de acompanhar o video. Ler a posicao de um video e uma operacao
+       barata e que nao precisa de sessenta vezes por segundo.
+
+       A API do YouTube nem sempre fica pronta: ela depende de script de
+       terceiro, de cookies e de rede, e nenhuma dessas coisas se garante num
+       ensaio. Quando ela nao responde, este laco NAO fica parado esperando —
+       assume o tempo com o relogio proprio, que e a mesma estimativa que a
+       rolagem da cifra ja usa. A mesa funciona nos dois casos; o que se perde
+       sem a API e o video tocar junto, e o app avisa. */
+    let semResposta = 0;
+    function seguirVideo() {
+      quadroFollow = 0;
+      if (estado.tocando !== 'tocando' || !estado.player) return;
+      if (typeof estado.player.getCurrentTime === 'function') {
+        const t = estado.player.getCurrentTime();
+        if (typeof t === 'number' && isFinite(t) && t > 0) {
+          semResposta = 0;
+          relogio.irPara(t);
+          quadroFollow = global.setTimeout(seguirVideo, 250);
+          return;
+        }
+      }
+      // O player existe mas nao devolve posicao. Depois de tres segundos sem
+      // uma unica resposta, e o relogio que assume.
+      semResposta++;
+      if (semResposta > 12) {
+        estado.videoSemControle = true;
+        // Sem teto conhecido, o relogio roda livre. Com teto, roda ate ele.
+        relogio.iniciar(duracaoEnsaio(), false);
+        avisoVideo();
+        return;
+      }
+      quadroFollow = global.setTimeout(seguirVideo, 250);
+    }
+
+    /** Diz que o video entrou sem controle, e o que a pessoa pode fazer. */
+    function avisoVideo() {
+      if (estado.avisouVideo) return;
+      estado.avisouVideo = true;
+      UI.toast('O vídeo entrou sem controle aqui. Ele toca com os botões dele; a cifra, as anotações e o compasso seguem no tempo.',
+        { tipo: 'info', dur: 7000 });
+    }
+
+    function pararSeguirVideo() {
+      if (quadroFollow) global.clearTimeout(quadroFollow);
+      quadroFollow = 0;
+      semResposta = 0;
+    }
+
+    function pularPara(segundos) {
+      const t = Math.max(0, Number(segundos) || 0);
+      if (audioVS) audioVS.currentTime = t;
+      if (estado.player && typeof estado.player.seekTo === 'function') {
+        try { estado.player.seekTo(t, true); } catch (e) { /* ignora */ }
+      }
+      relogio.irPara(t);
+      if (estado.tocando !== 'tocando') {
+        // Pular com a mesa parada leva a rolagem junto, sem comecar a tocar.
+        if (estado.rolagem && estado.rolagem.linhaNoTempo) {
+          estado.linhaAtual = estado.rolagem.linhaNoTempo(t);
+          estado.rolagem.destacar(estado.linhaAtual);
+        }
+      }
+    }
+
+    /* ---------------------------------------------------------
+       GRAVAR A FICHA
+       --------------------------------------------------------- */
+    function salvarFicha(campos) {
+      if (f.musicaId) {
+        // Vem de uma escala: grava na musica da escala.
+        const esc = S.porId(f.escalaId);
+        if (!esc) return;
+        const m = esc.musicas.find(function (x) { return x.id === f.musicaId; });
+        if (!m) return;
+        Object.assign(m, campos);
+        S.mudou('escala');
+        return;
+      }
+      // Vem do repertorio: grava na cifra.
+      const c = f.cifraId ? S.cifraPorId(f.cifraId) : null;
+      if (!c) return;
+      Object.assign(c, campos);
+      S.mudou('cifra');
+    }
+
+    /* ---------------------------------------------------------
+       A FOLHA
+       --------------------------------------------------------- */
+    const h = UI.sheet({
+      title: 'Mesa de ensaio',
+      sub: f.titulo,
+      wide: true,
+      body: corpo,
+      onClose: encerrar,
+    });
+    UI.icons(corpo);
+    return h;
+  }
+
+  /** Encerra a sessao: para o relogio e o video, e solta quem escutava. */
+  function encerrar() {
+    if (cancelarInscricao) { cancelarInscricao(); cancelarInscricao = null; }
+    if (relogio) { relogio.pausar(); relogio = null; }
+    // O laco que le a posicao do video e um temporizador. Sem este
+    // cancelamento, fechar a mesa no meio do ensaio deixaria ele rodando: o
+    // video sai do documento e `getCurrentTime` passa a devolver 0, entao o
+    // laco continua puxando a rolagem para o comeco, sozinho, numa tela
+    // fechada.
+    if (quadroFollow) { global.clearTimeout(quadroFollow); quadroFollow = 0; }
+  }
+
+  /** "1:32" ou "92" -> segundos. Devolve 0 para o que nao da para ler. */
+  function segundosDoTexto(s) {
+    const t = String(s || '').trim();
+    if (!t) return 0;
+    if (t.indexOf(':') >= 0) {
+      const p = t.split(':').map(function (n) { return parseInt(n, 10) || 0; });
+      if (p.length === 2) return U.clamp(p[0] * 60 + p[1], 0, 3600);
+      if (p.length === 3) return U.clamp(p[0] * 3600 + p[1] * 60 + p[2], 0, 3600);
+      return 0;
+    }
+    return U.clamp(parseInt(t, 10) || 0, 0, 3600);
+  }
+
+  /** Abre a mesa de uma musica de uma escala. */
+  function abrirDeMusica(escala, musica) {
+    return abrir(S.fichaDe(musica, escala));
+  }
+
+  /** Abre a mesa de uma cifra do repertorio. */
+  function abrirDeCifra(cifra) {
+    const f = S.fichaDaCifra(cifra);
+    f.cifraId = cifra.id;
+    return abrir(f);
+  }
+
+  V.palco = {
+    abrir: abrir,
+    abrirDeMusica: abrirDeMusica,
+    abrirDeCifra: abrirDeCifra,
+    segundosDoTexto: segundosDoTexto,
+  };
+  global.PalcoView = V.palco;
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = V.palco;
+})(typeof window !== 'undefined' ? window : globalThis);
