@@ -133,6 +133,26 @@ conferir(!semNome.length,
   'todo arquivo que leva o nome leva o nome declarado',
   semNome.join(', ') || 'todos', 'todos');
 
+/* 7. o desenho do icone tambem se chama pelo nome.
+ *
+   O verificador confere o `aria-label` do `logo.svg`, e nao do `icon-512.svg` —
+   que sao dois arquivos com o mesmo desenho. O segundo estava com o nome antigo
+   e ninguem olhava: o `logo.svg` estava certo, a tela de inicio estava certa, e
+   o icone que o aparelho usa continuava se anunciando pelo nome que o app teve
+   antes do rename.
+ *
+   E o mesmo furo que a regra 6 descreve, aplicado a um arquivo que ficou de
+   fora da lista. Vale a pena porque o `aria-label` do icone e lido por leitor de
+   tela na tela de inicio, que e um dos poucos lugares do aparelho onde a pessoa
+   ainda nao esta dentro do app. */
+const icone = path.join(RAIZ, 'assets', 'icon-512.svg');
+if (fs.existsSync(icone)) {
+  const r = /aria-label="([^"]*)"/.exec(fs.readFileSync(icone, 'utf8'));
+  conferir(!!r && r[1] === I.NOME,
+    'o aria-label do icone',
+    r ? r[1] : '(sem)', I.NOME);
+}
+
 console.log('');
 console.log('=================================================');
 console.log(problemas
