@@ -264,16 +264,54 @@
       }
 
       /* ---- o audio ---- */
+      let player = null;
       if (musica.vs) {
         // `audio`, e nao `áudio`. O acento na tag cria um elemento HTML
         // desconhecido em vez de um `<audio>`: o navegador aceita o elemento
         // em silencio, e ele nunca toca nem mostra os controles. O bloco
         // aparecia com o texto da passagem e um retangulo vazio onde deveria
         // estar o player — com o `tem` logo acima dizendo que havia gravacao.
-        wrap.appendChild(el('audio', {
+        player = el('audio', {
           class: 'vs-audio', src: musica.vs, controls: true, preload: 'metadata',
           'aria-label': 'Faixa narrada de ' + (musica.nome || 'esta música'),
-        }));
+        });
+        wrap.appendChild(player);
+      }
+
+      /* ---- os capitulos ----
+       *
+       * Onde comeca cada parte. Quem ensaia sozinho chega na parte dois de uma
+       * faixa de tres minutos sem ter com quem combinar o tempo, e recomeca do
+       * zero — que e o que torna a gravacao inutil depois da primeira vez.
+       *
+       * O indice e um botao por capitulo, e o botao e o proprio audio: nao ha
+       * relogio para marcar a nada, e o tempo sai do player. */
+      const caps = S.normVsCapitulos(musica.vsCap);
+      if (caps.length && player) {
+        wrap.appendChild(el('label', { class: 'label mt-3' }, 'Ir para'));
+        wrap.appendChild(el('div', { class: 'vs-cap' }, caps.map(function (c) {
+          return el('button', {
+            class: 'vs-cap-btn', type: 'button',
+            /* O tempo esta no rotulo, e nao so no `title`: quem navega por
+             * teclado ou leitor de tela precisa ouvir para onde vai, e so o
+             * `title` nao e lido de forma confiavel.
+             *
+             * O nome vem primeiro, como na fala. "Entrada solo, 0:08" e o que a
+             * pessoa diria; "0:08, entrada solo" comeca no numero e obriga a
+             * traduzir antes de entender. */
+            'aria-label': c.texto + ', ' + Gravador.relogio(c.t),
+            title: Gravador.relogio(c.t) + ' — ' + c.texto,
+            onclick: function () {
+              // Voltar ao inicio antes de buscar: sem isto, um capitulo com o
+              // tempo exato fica colado no anterior e o play nao anda.
+              player.currentTime = Math.max(0, c.t - 0.05);
+              player.play().catch(function () { /* o navegador pode negar; o tempo ja foi posto */ });
+            },
+          }, [
+            el('span', { class: 'vs-cap-t' }, Gravador.relogio(c.t)),
+            el('span', { class: 'vs-cap-n' }, c.texto),
+          ]);
+        })));
       }
 
       /* ---- o texto da passagem ---- */
@@ -305,6 +343,14 @@
           onclick: function () {
             musica.vs = '';
             musica.vsSeg = 0;
+            /* Os capitulos vao junto com o audio que os marcava.
+             *
+             * Deixa-los seria pior que um defeito: os botoes continuariam
+             * apontando para tempos de um audio que nao existe mais, e clicar
+             * neles nao faria nada. A pessoa veria um indice de seis partes de
+             * uma faixa apagada, e pensaria que o app perdeu a gravacao outra
+             * vez. Sao duas linhas e evitam um estado que so existe no bug. */
+            musica.vsCap = [];
             salvar();
             UI.toast('Gravação apagada. O texto da passagem continua.', { tipo: 'ok' });
           },
@@ -312,9 +358,14 @@
       ]));
     }
 
-    /** Grava no evento e redesenha o bloco. */
+    /** Grava no evento e redesenha o bloco.
+     *
+     * `aoMudar` recebe a ficha — a mesma que o bloco leu. Sem isso, quem chamou
+     * nao tem como saber o que mudou: ele abriu a tela com a musica da escala,
+     * que nao tem a gravacao, e a ficha que tem esta e um objeto separado.
+     * Gravar nela e nada: o audio seria perdido ao fechar a folha. */
     function salvar() {
-      aoMudar();
+      aoMudar(musica);
       montar();
     }
 
@@ -374,8 +425,93 @@
     const relogio = el('div', { class: 'vs-relogio', text: '0:00' });
     const barra = el('div', { class: 'vs-status' }, relogio);
 
+    /* ---- os capitulos, marcados enquanto se fala ----
+     *
+     * Dois cliques e um nome. E o que a pessoa precisa: enquanto grava, o
+     * microfone esta aberto e a voz esta ocupada, e digitar seria pior do que
+     * nao ter o indice.
+     *
+     * As variacoes ficam aqui fora da montagem porque precisam sobreviver ao
+     * redesenho do bloco: a gravacao acontece numa folha, e o bloco se redesenha
+     * depois. Se ficassem dentro, cada redesenhe perderia os capitulos que a
+     * pessoa ja tinha marcado. */
+    let capitulos = S.normVsCapitulos(musica.vsCap);
     let fluxo = null;
     let conta = null;
+
+    /* O aviso fica no painel, e nao dentro da lista.
+     *
+     * A lista e reescrita a cada capitulo marcado — `U.clear` e remontagem.
+     * Com o aviso dentro dela, marcar um capitulo o apagaria e reescreveria
+     * junto, e a pessoa veria o texto piscar a cada clique. */
+    const avisoCaps = el('span', { class: 'fs-xs muted' },
+      'Marque as partes para pular direto para elas depois.');
+    const listaCaps = el('div', { class: 'vs-cap-lista' });
+    const entradaCap = el('input', {
+      class: 'input', type: 'text', maxlength: '60',
+      placeholder: 'Nome da parte. Ex.: Refrão',
+      'aria-label': 'Nome do capítulo',
+    });
+
+    function desenharCaps() {
+      /* O aviso so existe enquanto nao ha capitulo. Depois que o primeiro entra,
+       * a lista fala por si e o aviso seria ruido. */
+      avisoCaps.style.display = capitulos.length ? 'none' : '';
+
+      U.clear(listaCaps);
+      if (!capitulos.length) return;
+      listaCaps.appendChild(el('div', { class: 'vs-cap-lista' }, capitulos.map(function (c, i) {
+        return el('span', { class: 'vs-cap-pill' }, [
+          el('span', { class: 'vs-cap-t' }, Gravador.relogio(c.t)),
+          el('span', { class: 'vs-cap-n' }, c.texto),
+          el('button', {
+            class: 'vs-cap-x', type: 'button',
+            'aria-label': 'Tirar o capítulo ' + c.texto,
+            title: 'Tirar',
+            onclick: function () {
+              capitulos.splice(i, 1);
+              desenharCaps();
+            },
+          }, '×'),
+        ]);
+      })));
+    }
+
+    /** Marca um capitulo no tempo de agora. */
+    function marcar() {
+      const texto = entradaCap.value.trim();
+      if (!texto) {
+        UI.toast('Dê um nome para a parte', { tipo: 'warn', dur: 2500 });
+        return;
+      }
+      if (!fluxo) return;
+      capitulos = S.normVsCapitulos(capitulos.concat([{ t: fluxo.segundos(), texto: texto }]));
+      entradaCap.value = '';
+      desenharCaps();
+      relogio.classList.add('pulsa');
+      global.setTimeout(function () { relogio.classList.remove('pulsa'); }, 260);
+    }
+
+    const botaoMarcar = el('button', {
+      class: 'btn btn-secondary', type: 'button', onclick: marcar,
+    }, [el('i', { 'data-lucide': 'bookmark-plus' }), 'Marcar aqui']);
+
+    /* O Enter marca. Quem segura o aparelho com uma mao e fala com a outra
+     * encontra o Enter mais rapido do que o botao — e marcar e uma acao que se
+     * repete dezenas de vezes numa gravacao de tres minutos. */
+    entradaCap.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter') return;
+      ev.preventDefault();
+      marcar();
+    });
+
+    const painelCaps = el('div', { class: 'vs-cap-painel' }, [
+      el('label', { class: 'label' }, 'Onde começa cada parte'),
+      el('div', { class: 'row gap-2' }, [entradaCap, botaoMarcar]),
+      avisoCaps,
+      listaCaps,
+    ]);
+    desenharCaps();
 
     async function comecar() {
       try {
@@ -392,10 +528,20 @@
       relogio.textContent = '0:00';
       relogio.classList.add('vivo');
       rotuloGravar.textContent = 'Parar';
-      dica.textContent = 'Gravando. Fale o que acontece em cada parte.';
+      /* Os capitulos acumulados de uma gravacao anterior nao valem para esta.
+       *
+       * Sem esta linha, quem reescrevia a faixa via o indice antigo, marcado no
+       * audio antigo: os botoes pulavam para tempos que nao batiam com o que
+       * estava tocando. A pessoa marcava "refrão" no meio de um solo e ouvia o
+       * intro — e a conclusão natural seria que o indice estava quebrado. */
+      capitulos = [];
+      entradaCap.value = '';
+      desenharCaps();
+      dica.textContent = 'Gravando. Fale o que acontece, e marque as partes se quiser pular direto.';
       conta = setInterval(function () {
         relogio.textContent = Gravador.relogio(fluxo.segundos());
       }, 250);
+      entradaCap.focus();
     }
 
     async function terminar() {
@@ -416,12 +562,29 @@
         UI.toast((e && e.message) || 'Não deu para ler a gravação', { tipo: 'err' });
         return;
       }
+      /* Um capitulo marcado depois do fim da faixa nao tem onde levar.
+       *
+       * Acontece quando a pessoa aperta "Parar" com o indice ainda em edicao:
+       * o ultimo capitulo ficaria em 2:58 numa faixa de 2:40, e o botao pularia
+       * para o fim. Um indice com um tempo impossivel e pior do que um indice
+       * sem aquela ultima parte — e a parte que a pessoa acabou de marcar foi
+       * a que mais importava. */
+      const total = saida.segundos;
+      const validos = capitulos.filter(function (c) { return c.t <= total + 0.5; });
+      const perdidos = capitulos.length - validos.length;
+
       fluxo = null;
       musica.vs = saida.dataUrl;
       musica.vsSeg = saida.segundos;
+      musica.vsCap = S.normVsCapitulos(validos);
       aoMudar();
       h.close();
-      UI.toast('Faixa gravada — ' + Gravador.relogio(saida.segundos), { tipo: 'ok' });
+      UI.toast(
+        'Faixa gravada — ' + Gravador.relogio(total)
+        + (musica.vsCap.length ? ' com ' + U.plural(musica.vsCap.length, 'capítulo') : '')
+        + (perdidos ? ' · ' + U.plural(perdidos, 'marca fora do fim', 'marcas fora do fim')
+          + ' descartada' + (perdidos > 1 ? 's' : '') : ''),
+        { tipo: 'ok', dur: perdidos ? 6500 : 4000 });
     }
 
     /**
@@ -432,6 +595,11 @@
     function limpar() {
       if (conta) { clearInterval(conta); conta = null; }
       if (fluxo) { fluxo.cancelar(); fluxo = null; }
+      /* Sem isto, fechar a folha deixava `fluxo` apontando para uma gravacao
+       * cancelada, e `marcar` — que so age quando `fluxo` existe — continuaria
+       * achando que estava gravando. Não dava erro: o capitulo era criado com
+       * `segundos()` de um fluxo morto, e ficava em 0. */
+      fluxo = null;
     }
 
     // O rotulo fica num `span` proprio para poder virar "Parar" sem levar o
@@ -449,6 +617,7 @@
 
     corpo.appendChild(dica);
     corpo.appendChild(barra);
+    corpo.appendChild(painelCaps);
     corpo.appendChild(el('div', { class: 'row gap-2' }, [
       bGravar,
       el('button', {
@@ -606,8 +775,47 @@ const cabecalho = el('div', { class: 'song-head' });
       ]));
     }
 
-    /* ---- a faixa narrada ---- */
-    corpo.appendChild(blocoVS(mus, escala, function () {
+    /* ---- a faixa narrada ----
+     *
+     * `mus` sozinho NAO tem a gravacao. Quem cadastrou a musica no repertorio,
+     * gravou a faixa, e depois montou a escala, deixou a gravacao na CIFRA — e
+     * a musica da escala so aponta para ela por `cifraId`.
+     *
+     * Passar `mus` direto aqui mostrava "Gravar a faixa" mesmo com quatro
+     * capitulos e dois minutos de audio guardados na cifra. O bloco estava
+     * certo e a tela mentia, que e a pior combinacao: a pessoa gravaria de novo
+     * por causa de um campo que estava no lugar certo e nao foi lido.
+     *
+     * A ficha junta os dois, com a precedencia que o resto da tela ja usa. */
+    /* ---- a faixa narrada ----
+     *
+     * `mus` sozinho NAO tem a gravacao. Quem cadastrou a musica no repertorio,
+     * gravou a faixa, e depois montou a escala, deixou a gravacao na CIFRA — e
+     * a musica da escala so aponta para ela por `cifraId`.
+     *
+     * Passar `mus` direto mostrava "Gravar a faixa" mesmo com quatro capitulos e
+     * dois minutos de audio guardados na cifra. O bloco estava certo e a tela
+     * mentia — a pior combinacao: a pessoa gravaria de novo por causa de um
+     * campo que estava no lugar certo e nao foi lido.
+     *
+     * E o inverso: gravar em `mus` sem levar a ficha junto perderia a gravacao,
+     * porque `persistir` reescreve a musica da escala. Por isso o bloco le a
+     * ficha e devolve ela no `aoMudar` — quem chamou e quem decide onde ela
+     * vai parar, como em todo o resto da tela. */
+    const ficha = S.fichaDe(mus);
+    corpo.appendChild(blocoVS(ficha, escala, function (f) {
+      const mudou = f || {};
+      /* A ficha e a fonte da verdade depois de mudar, e o rascunho da escala
+       * precisa receber o que nela mudou — senao `persistir` reescreve a musica
+       * com o audio velho e a gravacao desta sessao desaparece. */
+      if (typeof mudou.vs !== 'undefined') mus.vs = mudou.vs;
+      if (typeof mudou.vsTexto !== 'undefined') mus.vsTexto = mudou.vsTexto;
+      if (typeof mudou.vsSeg !== 'undefined') mus.vsSeg = mudou.vsSeg;
+      if (typeof mudou.vsCap !== 'undefined') mus.vsCap = mudou.vsCap;
+      if (mus.vs !== undefined || mudou.vs) mus.vs = mudou.vs;
+      if (mus.vsTexto !== undefined || mudou.vsTexto) mus.vsTexto = mudou.vsTexto;
+      if (mus.vsSeg !== undefined || mudou.vsSeg) mus.vsSeg = mudou.vsSeg;
+      if (mus.vsCap !== undefined || mudou.vsCap) mus.vsCap = mudou.vsCap;
       persistir(escala, mus, aoSalvar);
     }));
 

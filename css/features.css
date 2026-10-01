@@ -388,7 +388,96 @@
 }
 /* Gravando: o relogio ganha a cor do alerta e uma batida, para saber que o
    microfone esta aberto sem precisar ver o indicador do aparelho. */
+/* Gravando: o relogio ganha a cor do alerta e uma batida, para saber que o
+   microfone esta aberto sem precisar ver o indicador do aparelho. */
 .vs-relogio.vivo { color: var(--danger-500); }
+
+/* O relogio pisca no instante em que um capitulo e marcado.
+ *
+ * O gesto de marcar acontece OLHANDO para a gravacao, e o relogio e a unica
+ * coisa que muda na tela naquele instante — o nome digitado so aparece na lista
+ * embaixo, que pode estar fora da vista em tela pequena. A piscada e o
+ * confirmação de que o clique pegou, sem tirar o olho do audio. */
+.vs-relogio.pulsa { animation: vsPulsa .26s var(--ease); }
+@keyframes vsPulsa {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+/* =======================================================
+   OS CAPITULOS DA FAIXA
+
+   Onde comeca cada parte: "refrão", "verso 2", "virada da bateria".
+
+   Dois usos distintos e duas aparencias distintas, porque sao momentos
+   diferentes da vida da gravacao:
+
+     - GRAVANDO, a pessoa esta ocupada com a voz. O capitulo vira uma pilha
+       pequena com o X ao lado, e remover e um toque.
+     - OUVINDO, a pessoa esta com o violao. O capitulo vira um botao que leva
+       ao ponto, e o tempo e o que se le primeiro.
+   ======================================================= */
+.vs-cap-painel {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px;
+  border-radius: var(--r-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.vs-cap-lista { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.vs-cap-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 6px 4px 9px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  font-size: 0.8125rem;
+}
+.vs-cap-pill .vs-cap-t {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--brand-500);
+  font-variant-numeric: tabular-nums;
+}
+.vs-cap-pill .vs-cap-n { color: var(--ink); max-width: 13ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* O X precisa de area de toque de verdade: e a unica acao destrutiva aqui, e
+   quem apaga um capitulo esta com a mao ocupada e o olho longe. */
+.vs-cap-x {
+  width: 22px; height: 22px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 999px;
+  background: transparent;
+  color: var(--ink-4);
+  font-size: 1rem; line-height: 1;
+  cursor: pointer;
+}
+.vs-cap-x:hover { background: var(--danger-tint); color: var(--danger-500); }
+
+/* Ouvindo: um botao por parte, com o tempo a esquerda. */
+.vs-cap { display: flex; flex-wrap: wrap; gap: 6px; }
+.vs-cap-btn {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  padding: 7px 11px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  text-align: left;
+  min-height: 40px;
+}
+.vs-cap-btn:hover { border-color: var(--brand-400); background: var(--brand-tint); }
+.vs-cap-btn:active { transform: translateY(1px); }
+.vs-cap-btn .vs-cap-t {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--brand-600);
+  font-variant-numeric: tabular-nums;
+}
+.vs-cap-btn .vs-cap-n { font-weight: 600; }
 .vs-relogio.vivo::before {
   content: '';
   display: inline-block;

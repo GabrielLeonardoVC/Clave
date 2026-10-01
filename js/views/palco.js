@@ -304,6 +304,50 @@
         el('button', { class: 'btn-icon sm', 'aria-label': 'Regravar narração', title: 'Regravar', onclick: gravarVoz },
           el('i', { 'data-lucide': 'refresh-cw' })),
       ]));
+
+      /* ---- os capitulos ----
+       *
+       * E AQUI que eles servem. Na Mesa de ensaio a pessoa esta com o violao na
+       * coxa e a faixa tocando de fundo, e ela precisa ir de um ponto a outro
+       * sem parar o ensaio: e a unica tela em que o indice é realmente usado.
+       *
+       * Aqui o botao nao da play — quem toca é a metrônoma, e isso quebraria o
+       * que ela mantem. Ele busca o audio na narração e deixa a metrônima
+       * correr. E se a narração estiver sem som, ele recomeça do zero. */
+      const caps = S.normVsCapitulos(f.vsCap);
+      if (caps.length) {
+        blocoVS.appendChild(el('div', { class: 'row gap-2 wrap mt-2' }, caps.map(function (c) {
+          return el('button', {
+            class: 'vs-cap-btn', type: 'button',
+            'aria-label': c.texto + ', ' + Gravador.relogio(c.t),
+            title: Gravador.relogio(c.t) + ' — ' + c.texto,
+            onclick: function () {
+              /* O pulo e para um pouco ANTES do capitulo.
+               *
+               * Clicar "Virada" em 1:36 e cair exatamente em 1:36 funciona na
+               * teoria. Na pratica, quem ouviu ate la esta em 1:36,2 — e a
+               * metrônima, que so anda para a frente, fica parada: o tempo
+               * procurado ja passou. Voltar meio segundo resolve, e o ouvido nao
+               * nota meio segundo de repeticao.
+               *
+               * E o audio da narração volta junto, pela mesma razao: se ele
+               * fica em 1:36,2 e o relogio vai para 1:35,5, as duas vozes
+               * discordam do tempo, e a metrônima deixa de governar a mesa.
+               *
+               * A busca tem que ser incondicional — `if (currentTime < t)` era
+               * o jeito obvio de escrever e o jeito errado: quem pulou para tras
+               * ficaria preso no tempo velho. */
+              const t = Math.max(0, c.t - 0.5);
+              audioVS.currentTime = t;
+              relogio.irPara(t);
+            },
+          }, [
+            el('span', { class: 'vs-cap-t' }, Gravador.relogio(c.t)),
+            el('span', { class: 'vs-cap-n' }, c.texto),
+          ]);
+        })));
+      }
+
       if (f.vsTexto) {
         blocoVS.appendChild(el('div', { class: 'pl-vs-texto' }, f.vsTexto));
       }

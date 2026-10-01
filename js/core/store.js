@@ -209,6 +209,8 @@
       // play — e para quem recebe o ensaio saber o que esperar.
       vsTexto: String(m.vsTexto || '').slice(0, 2000),
       vsSeg: m.vsSeg ? U.clamp(Number(m.vsSeg) || 0, 0, 3600) : 0,
+      // As capitulos: onde comeca cada parte da faixa narrada.
+      vsCap: normVsCapitulos(m.vsCap),
       // As anotacoes com hora, por musica do evento.
       anotacoes: normAnotacoes(m.anotacoes),
     };
@@ -286,6 +288,42 @@ function normAnotacao(a) {
       // A forma antiga era uma lista de strings. Vira anotacao no tempo zero,
       // que e onde uma observacao sem tempo estava mesmo.
       const n = normAnotacao(typeof a === 'string' ? { texto: a } : a);
+      if (n) saida.push(n);
+    }
+    return saida.sort(function (x, y) { return x.t - y.t; });
+  }
+
+  /**
+   * As capitulos da faixa narrada: onde comeca cada parte.
+   *
+   * O VS sem marcação de tempo funciona, e a voz e a marcação: quem fala "refrão
+   * em 1,2,3,4" diz o tempo com o corpo. Quem ensaia SOZINHO nao tem com quem
+   * combinar, e chegar na parte dois de uma faixa de três minutos sem saber onde
+   * ela começa e o problema que o indice resolve.
+   *
+   * São dois cliques durante a gravação: a pessoa marca "refrão", segue falando,
+   * marca "verso 2". Nada de digitação com o microfone aberto, nada de relógio a
+   * mais para manter em dia — a voz ja marca o ritmo, e o indice apenas nomeia
+   * o que a voz disse.
+   *
+   * O tempo e em segundos, como o das anotacoes e como o audio trabalha.
+   */
+  function normVsCapitulo(c) {
+    if (!c || typeof c !== 'object') return null;
+    const texto = String(c.texto || '').trim().slice(0, 60);
+    if (!texto) return null;                        // capitulo sem nome nao tem utilidade
+    return {
+      id: c.id || U.uid('vscap'),
+      t: U.clamp(Number(c.t) || 0, 0, 3600),
+      texto: texto,
+    };
+  }
+
+  function normVsCapitulos(lista) {
+    if (!Array.isArray(lista)) return [];
+    const saida = [];
+    for (const c of lista.slice(0, 40)) {
+      const n = normVsCapitulo(c);
       if (n) saida.push(n);
     }
     return saida.sort(function (x, y) { return x.t - y.t; });
@@ -384,6 +422,8 @@ function normAnotacao(a) {
       vs: normAudioGravado(c.vs),
       vsTexto: String(c.vsTexto || '').slice(0, 2000),
       vsSeg: c.vsSeg ? U.clamp(Number(c.vsSeg) || 0, 0, 3600) : 0,
+      // Onde comeca cada parte da faixa: "refrão", "verso 2", "virada".
+      vsCap: normVsCapitulos(c.vsCap),
 
       // As anotacoes com hora.
       anotacoes: normAnotacoes(c.anotacoes),
@@ -570,6 +610,12 @@ function normAnotacao(a) {
       vs: normAudioGravado(primeiroAudio(m.vs, c && c.vs)),
       vsTexto: primeiro(m.vsTexto, c && c.vsTexto),
       vsSeg: Number(m.vsSeg) || Number(c && c.vsSeg) || 0,
+      /* Os capitulos vem da musica da escala quando ela tem, e da cifra quando
+       * nao tem — a mesma regra do audio. Uma musica cadastrada no repertorio e
+       * depois colocada numa escala nao pode perder o indice que a pessoa
+       * gravou; era o mesmo defeito que a ficha da cifra teve. */
+      vsCap: normVsCapitulos(
+        (Array.isArray(m.vsCap) && m.vsCap.length ? m.vsCap : (c && c.vsCap)) || []),
 
       // o que a pessoa anotou
       anotacoes: anot,
@@ -684,6 +730,7 @@ function normAnotacao(a) {
     fichaDe, fichaDaCifra, fichasDeEscala,
     exportar, importar, apagar, storageInfo,
     normEscala, normMusica, normCifra, normEstudo, normAnotacao, normAnotacoes,
+    normVsCapitulo, normVsCapitulos,
   };
 
   global.Store = Store;

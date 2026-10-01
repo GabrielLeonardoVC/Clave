@@ -4,7 +4,7 @@
   "private": true,
   "description": "A mesa de trabalho de quem toca. Cifras, escalas e teoria musical para musicos ao vivo.",
   "scripts": {
-    "test": "node tools/test-music.js && node tools/test-links.js && node tools/test-search.js && node tools/test-tuner.js && node tools/test-estudo.js && node tools/test-emergencia.js && node tools/test-gravador.js && node tools/test-proto.js && node tools/test-extrator.js && node tools/test-identidade.js && node tools/test-palco.js && node tools/test-3d.js && node tools/test-traste-queda.js && node tools/test-icones.js && node tools/test-importacao.js && node tools/test-armazenamento.js && node tools/test-plural.js && node tools/test-vida.js && node tools/test-seguranca.js && node tools/test-concordancia.js",
+    "test": "node tools/test-music.js && node tools/test-links.js && node tools/test-search.js && node tools/test-tuner.js && node tools/test-estudo.js && node tools/test-emergencia.js && node tools/test-gravador.js && node tools/test-proto.js && node tools/test-extrator.js && node tools/test-identidade.js && node tools/test-palco.js && node tools/test-3d.js && node tools/test-traste-queda.js && node tools/test-vscap.js && node tools/test-icones.js && node tools/test-importacao.js && node tools/test-armazenamento.js && node tools/test-plural.js && node tools/test-vida.js && node tools/test-seguranca.js && node tools/test-concordancia.js",
     "test:motor": "node tools/test-music.js",
     "test:links": "node tools/test-links.js",
     "test:busca": "node tools/test-search.js",
@@ -35,6 +35,7 @@
     "test:palco": "node tools/test-palco.js",
     "test:3d": "node tools/test-3d.js",
     "test:traste": "node tools/test-traste-queda.js",
+    "test:vscap": "node tools/test-vscap.js",
     "test:icones": "node tools/test-icones.js",
     "check:icones": "node tools/check-icones.js",
     "icones": "node tools/fazer-icones.js",
