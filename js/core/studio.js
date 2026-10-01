@@ -146,7 +146,7 @@
   /* =======================================================
      TELA DO ESTÚDIO
      ======================================================= */
-  function abrir(musica, escala) {
+  function abrir(musica, escala, aoSalvar) {
     escala = escala || null;
     const m = Object.assign({}, musica);
     const corpo = el('div', { class: 'studio' });
@@ -162,28 +162,28 @@
       videoStage.appendChild(el('iframe', {
         src: Lk.embedYouTube(id),
         allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen',
-        allowfullscreen: true, title: 'Video: ' + m.nome, loading: 'lazy',
+        allowfullscreen: true, title: 'Vídeo: ' + m.nome, loading: 'lazy',
       }));
     }
     if (ytId) botarVideo(ytId);
     else {
       videoStage.appendChild(el('div', { class: 'st-video-empty' }, [
         el('i', { 'data-lucide': 'youtube' }),
-        el('p', { class: 'fs-sm' }, 'Cole o link do YouTube para ver o video aqui do lado'),
+        el('p', { class: 'fs-sm' }, 'Cole o link do YouTube para ver o vídeo aqui do lado'),
         el('button', { class: 'btn btn-soft btn-sm', onclick: pedirVideo }, [el('i', { 'data-lucide': 'link' }), 'Colar link']),
       ]));
     }
     function pedirVideo() {
       UI.prompt({
         title: 'Link do YouTube',
-        message: 'Aceita youtube.com/watch, youtu.be, /shorts, /live ou so o codigo do video.',
+        message: 'Aceita youtube.com/watch, youtu.be, /shorts, /live ou só o código do vídeo.',
         placeholder: 'https://youtu.be/...', value: m.yt || '',
       }).then(function (v) {
         if (!v) return;
         const id = Lk.extrairYouTubeId(v);
-        if (!id) { UI.toast('Nao reconheci esse link. E do YouTube?', { tipo: 'err' }); return; }
+        if (!id) { UI.toast('Não reconheci esse link. E do YouTube?', { tipo: 'err' }); return; }
         m.yt = v; m.ytId = id; botarVideo(id);
-        UI.toast('Video carregado', { tipo: 'ok' });
+        UI.toast('Vídeo carregado', { tipo: 'ok' });
       });
     }
 
@@ -272,7 +272,7 @@
     const subTxt = el('div', { class: 'st-sub' }, (m.compasso || Metro.METRONOME.compasso) + '/4');
 
     const btnPlay = el('button', {
-      class: 'st-play', 'aria-label': 'Tocar metronomo',
+      class: 'st-play', 'aria-label': 'Tocar metrônomo',
       onclick: function () {
         const t = Metro.alternar();
         btnPlay.classList.toggle('on', t);
@@ -383,13 +383,13 @@
         el('button', { class: 'btn btn-secondary', onclick: function () {
           if (!pincel || !pincel.temAlgo()) { UI.toast('Desenhe algo na foto antes de salvar', { tipo: 'err' }); return; }
           pincel.exportar(imgBase).then(function (png) {
-            if (!png) { UI.toast('Nao consegui gerar a imagem', { tipo: 'err' }); return; }
+            if (!png) { UI.toast('Não consegui gerar a imagem', { tipo: 'err' }); return; }
             const a = el('a', { href: png, download: m.nome + ' (anotada).jpg' });
             document.body.appendChild(a); a.click(); a.remove();
             UI.toast('Imagem anotada salva', { tipo: 'ok' });
           });
-        } }, [el('i', { 'data-lucide': 'download' }), 'Salvar anotacao']),
-        escala ? el('button', { class: 'btn btn-success', onclick: function () { gravarNaEscala(escala, m); h.close(); } },
+        } }, [el('i', { 'data-lucide': 'download' }), 'Salvar anotação']),
+        escala ? el('button', { class: 'btn btn-success', onclick: function () { gravarNaEscala(escala, m, aoSalvar); h.close(); } },
           [el('i', { 'data-lucide': 'check' }), 'Salvar na escala']) : el('span', { class: 'grow' }),
       ],
     });
@@ -398,14 +398,28 @@
     setTimeout(function () { if (pincel) pincel.repintar(); }, 150);
   }
 
-  function gravarNaEscala(escala, dados) {
+  /**
+   * Grava o desenho na musica da escala.
+   *
+   * `aoSalvar`, quando vem, e quem de fato persiste. Ver `persistir` em
+   * views/cancao.js para o porque: a agenda abre a pagina da musica sobre um
+   * rascunho, e escrever direto em `S.db.escalas` aqui funcionaria e perderia
+   * o desenho — o `salvar` do evento sobrescreveria o banco com o rascunho, que
+   * ainda estava sem a foto.
+   */
+  function gravarNaEscala(escala, dados, aoSalvar) {
     const S = global.Store;
     const alvo = escala.musicas.find(function (x) { return x.id === dados.id; });
     if (!alvo) return;
     ['tom', 'bpm', 'compasso', 'yt', 'ytId', 'foto'].forEach(function (k) {
       if (dados[k]) alvo[k] = dados[k];
     });
-    S.mudou('musica');
+    escala.atualizadaEm = Date.now();
+    if (typeof aoSalvar === 'function') {
+      aoSalvar();
+    } else {
+      S.mudou('musica');
+    }
     UI.toast('Atualizado na escala', { tipo: 'ok' });
   }
 

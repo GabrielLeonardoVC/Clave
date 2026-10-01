@@ -31,7 +31,7 @@
    */
   const FONTES = [
     { id: 'cifraclub', nome: 'Cifra Club', icone: 'music', desc: 'A cifra pronta' },
-    { id: 'youtube', nome: 'YouTube', icone: 'youtube', desc: 'O video da gravacao' },
+    { id: 'youtube', nome: 'YouTube', icone: 'youtube', desc: 'O vídeo da gravação' },
     { id: 'letras', nome: 'Letras', icone: 'file-text', desc: 'A letra completa' },
     { id: 'inartist', nome: 'InArtist', icone: 'disc-3', desc: 'Tabs e cifras em PDF' },
     { id: 'livre', nome: 'Google', icone: 'globe', desc: 'Buscar em qualquer lugar' },
@@ -112,7 +112,7 @@
   /** Toca uma nota para conferir se o tom alvo e mesmo este. */
   function ouvirTonica(pc, modo) {
     const A = global.Audio;
-    if (!A || typeof A.tocarNota !== 'function') { UI.toast('Audio indisponivel', { tipo: 'err' }); return false; }
+    if (!A || typeof A.tocarNota !== 'function') { UI.toast('Áudio indisponível', { tipo: 'err' }); return false; }
     const oitava = modo === 'minor' ? 3 : 4;
     const hz = Tuner && Tuner.notaParaHz ? Tuner.notaParaHz(M.mod12(pc), oitava) : null;
     if (!hz) return false;
@@ -129,12 +129,12 @@
     const entrada = el('input', {
       class: 'input', placeholder: 'Ex.: Am', maxlength: '6',
       autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false',
-      'aria-label': 'Tonica de origem',
+      'aria-label': 'Tônica de origem',
     });
     const alvo = el('input', {
       class: 'input', placeholder: 'Ex.: C', maxlength: '6',
       autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false',
-      'aria-label': 'Tonica desejada',
+      'aria-label': 'Tônica desejada',
     });
 
     function calcular() {
@@ -144,11 +144,11 @@
 
       if (!a && !b) {
         saida.appendChild(el('p', { class: 'fs-xs muted' },
-          'Digite a tonica de origem e a que voce quer tocar.'));
+          'Digite a tônica de origem e a que você quer tocar.'));
         return;
       }
-      if (!a) { saida.appendChild(el('p', { class: 'fs-xs muted' }, 'A tonica de origem nao foi entendida.')); return; }
-      if (!b) { saida.appendChild(el('p', { class: 'fs-xs muted' }, 'A tonica desejada nao foi entendida.')); return; }
+      if (!a) { saida.appendChild(el('p', { class: 'fs-xs muted' }, 'A tônica de origem não foi entendida.')); return; }
+      if (!b) { saida.appendChild(el('p', { class: 'fs-xs muted' }, 'A tônica desejada não foi entendida.')); return; }
 
       const d = diferenca(a.pc, b.pc);
       saida.appendChild(el('div', { class: 'emg-resultado' + (d.mesmo ? ' igual' : '') }, [
@@ -159,7 +159,7 @@
       saida.appendChild(el('button', {
         class: 'btn btn-secondary btn-sm mt-3',
         onclick: function () {
-          if (!ouvirTonica(b.pc, b.modo)) UI.toast('Nao foi possivel tocar aqui', { tipo: 'err' });
+          if (!ouvirTonica(b.pc, b.modo)) UI.toast('Não foi possível tocar aqui', { tipo: 'err' });
         },
       }, [el('i', { 'data-lucide': 'volume-2' }), 'Ouvir ' + b.rotulo]));
     }
@@ -172,7 +172,7 @@
     });
 
     wrap.appendChild(el('div', { class: 'row gap-2' }, [
-      el('div', { class: 'grow' }, [el('label', { class: 'label' }, 'Esta na'), entrada]),
+      el('div', { class: 'grow' }, [el('label', { class: 'label' }, 'Está em'), entrada]),
       el('div', { class: 'grow' }, [el('label', { class: 'label' }, 'Quer tocar em'), alvo]),
     ]));
     wrap.appendChild(saida);
@@ -212,7 +212,7 @@
       U.clear(lista);
       if (!termo) {
         lista.appendChild(el('p', { class: 'fs-xs muted' },
-          'Escreva o nome e o app pergunta onde voce quer procurar.'));
+          'Escreva o nome e o app pergunta onde você quer procurar.'));
         return;
       }
       lista.appendChild(el('label', { class: 'label mt-2' }, 'Onde procurar "' + termo + '"?'));
@@ -235,7 +235,7 @@
       pintar();
     }, 160));
 
-    wrap.appendChild(el('label', { class: 'label' }, 'O que voce procura?'));
+    wrap.appendChild(el('label', { class: 'label' }, 'O que você procura?'));
     wrap.appendChild(campo);
     wrap.appendChild(lista);
     pintar();
@@ -264,7 +264,7 @@
       ]),
     ]);
 
-    const h = UI.sheet({ title: 'Emergencia', sub: 'tom, busca e afinador', wide: true, body: corpo });
+    const h = UI.sheet({ title: 'Emergência', sub: 'tom, busca e afinador', wide: true, body: corpo });
     UI.icons(corpo);
     const primeiro = corpo.querySelector('input');
     if (primeiro) setTimeout(function () { primeiro.focus(); }, 140);

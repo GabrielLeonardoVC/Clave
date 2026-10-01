@@ -59,6 +59,51 @@
     return db;
   }
 
+  /**
+   * Copia um conjunto de campos conhecidos de um objeto para outro.
+   *
+   * Existe no lugar de Object.assign para dados vindos de fora. Com
+   * Object.assign, uma chave "__proto__" no arquivo de backup altera o
+   * prototipo do destino, e toda leitura passa a resolver por ele. Aqui so
+   * entram os campos nomeados, entao o objeto fica com o que ele deveria
+   * ter, qualquer que seja o que o arquivo traga.
+   *
+   * Chave a mais nao e erro: um backup de versao mais nova pode ter ajustes
+   * que esta versao ainda nao conhece, e recusar o arquivo inteiro por
+   * causa disso seria pior do que ignorar.
+   */
+  function copiarCampos(destino, origem, campos) {
+    const de = (origem && typeof origem === 'object' && !Array.isArray(origem)) ? origem : {};
+    for (let i = 0; i < campos.length; i++) {
+      const c = campos[i];
+      // So copia quando a chave existe DE VERDADE no origem.
+      //
+      // Sem esta checagem, um backup que nao traga o campo apaga o padrao do
+      // app: o destino ja vem com `tema: 'auto'`, a copia escreve `undefined`
+      // por cima, e o app fica sem tema sem erro nenhum. E o oposto de
+      // completar um backup — e apaga-lo.
+      //
+      // A chave "__proto__" continua barrada porque o laco anda pela lista de
+      // campos conhecidos, nunca pelas chaves do arquivo.
+      if (Object.prototype.hasOwnProperty.call(de, c)) destino[c] = de[c];
+    }
+    return destino;
+  }
+
+  /** Os ajustes reconhecidos. A lista e a mesma de `vazio()`. */
+  const CAMPOS_AJUSTES = ['tema', 'accent', 'densidade', 'fontsize', 'motion', 'notificacoes', 'antecedenciaNotif', 'usarAmoles', 'inicioSemana', 'autoLink', 'bpmPadrao', 'compassoPadrao', 'metroSom', 'metroVolume', 'metroSubdivisao', 'metroAcento'];
+  /** O que o app guarda sobre a pessoa. Lista curta de proposito. */
+  const CAMPOS_META = ['criadoEm', 'atualizadoEm'];
+
+  /* =========================================================
+     o que abaixo e a entrada nao confiavel de verdade
+
+     Nao ha servidor, nem formulario, nem parametro de URL. O unico lugar
+     onde entra dado de fora e a importacao de backup — um arquivo que a
+     pessoa abre com a mao.
+     ========================================================= */
+  /* Os campos sao lidos de `vazio()` por `tools/check-proto.js`, que falha
+     se a lista aqui e a de la deixarem de bater. */
   function migrar(d) {
     const base = vazio();
     if (!d || typeof d !== 'object') return base;
@@ -78,8 +123,8 @@
     }
     base.escalas = (Array.isArray(d.escalas) ? d.escalas : []).map(normEscala);
     base.cifras = (Array.isArray(d.cifras) ? d.cifras : []).map(normCifra);
-    base.ajustes = Object.assign(base.ajustes, d.ajustes || {});
-    base.meta = Object.assign(base.meta, d.meta || {});
+    base.ajustes = copiarCampos(base.ajustes, d.ajustes, CAMPOS_AJUSTES);
+    base.meta = copiarCampos(base.meta, d.meta, CAMPOS_META);
     base.version = SCHEMA;
     return base;
   }
@@ -151,6 +196,14 @@
       cf: String(m.cf || '').slice(0, 600),
       foto: m.foto || '',
       obs: String(m.obs || '').slice(0, 600),
+      // A faixa narrada: a voz que a pessoa gravou guiando o ensaio.
+      // Fica no aparelho; nada sai sem que ela mande.
+      vs: m.vs && typeof m.vs === 'string' && m.vs.indexOf('data:audio/') === 0
+        ? m.vs.slice(0, 4194304) : "",
+      // O texto da passagem. A pessoa escreve o que falou, para ler sem dar
+      // play — e para quem recebe o ensaio saber o que esperar.
+      vsTexto: String(m.vsTexto || '').slice(0, 2000),
+      vsSeg: m.vsSeg ? U.clamp(Number(m.vsSeg) || 0, 0, 3600) : 0,
     };
   }
 
@@ -194,7 +247,7 @@ function normCifra(c) {
     c = c || {};
     return {
       id: c.id || U.uid('cif'),
-      titulo: String(c.titulo || 'Sem titulo').slice(0, 160),
+      titulo: String(c.titulo || 'Sem título').slice(0, 160),
       artista: String(c.artista || '').slice(0, 160),
       tom: String(c.tom || '').slice(0, 12),
       bpm: c.bpm ? U.clamp(parseInt(c.bpm, 10) || 0, 20, 320) : '',
@@ -316,7 +369,7 @@ function normCifra(c) {
 
   function exportar() {
     return JSON.stringify({
-      app: 'Acorde', version: SCHEMA,
+      app: global.Identidade ? global.Identidade.NOME : 'Clave',
       exportadoEm: new Date().toISOString(),
       escalas: db.escalas, cifras: db.cifras, ajustes: db.ajustes,
     }, null, 2);
@@ -324,13 +377,13 @@ function normCifra(c) {
   function importar(json, modo) {
     let d;
     try { d = typeof json === 'string' ? JSON.parse(json) : json; }
-    catch (e) { throw new Error('Arquivo invalido: nao e um backup JSON valido.'); }
-    if (!d || typeof d !== 'object') throw new Error('Arquivo invalido.');
+    catch (e) { throw new Error('Arquivo inválido: não e um backup JSON válido.'); }
+    if (!d || typeof d !== 'object') throw new Error('Arquivo inválido.');
     const inc = migrar(d);
     if (modo === 'substituir') {
       db = vazio();
       db.escalas = inc.escalas; db.cifras = inc.cifras;
-      db.ajustes = Object.assign(db.ajustes, inc.ajustes);
+      db.ajustes = copiarCampos(db.ajustes, inc.ajustes, CAMPOS_AJUSTES);
     } else {
       const eids = new Set(db.escalas.map(function (e) { return e.id; }));
       inc.escalas.forEach(function (e) {

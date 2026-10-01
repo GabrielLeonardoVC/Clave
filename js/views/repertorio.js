@@ -54,7 +54,7 @@
      ======================= */
   function painelMinhas() {
     const wrap = el('div', {});
-    const busca = el('input', { class: 'input', value: filtro.q, placeholder: 'Buscar por titulo, artista ou letra...' });
+    const busca = el('input', { class: 'input', value: filtro.q, placeholder: 'Buscar por título, artista ou letra...' });
     const limpar = el('button', { class: 'clear-btn', 'aria-label': 'Limpar' }, el('i', { 'data-lucide': 'x' }));
     const gi = el('div', { class: 'input-group' + (filtro.q ? ' has-value' : '') }, [el('i', { 'data-lucide': 'search' }), busca, limpar]);
     busca.addEventListener('input', U.debounce(function () {
@@ -110,7 +110,7 @@
           icon: total ? 'search-x' : 'library',
           title: total ? 'Nada encontrado' : 'Repertório vazio',
           message: total ? 'Ajuste a busca ou os filtros.'
-            : 'Guarde aqui as cifras que voce usa sempre. Depois e so puxar para qualquer escala.',
+            : 'Guarde aqui as cifras que você usa sempre. Depois é só puxar para qualquer escala.',
           action: total ? null : { label: 'Criar primeira cifra', icon: 'plus', onClick: novo },
         }));
         return;
@@ -356,7 +356,7 @@
   function confirmarExcluir(c, h) {
     UI.confirmar({
       title: 'Excluir cifra', danger: true, okText: 'Excluir',
-      message: 'Excluir "' + c.titulo + '"? As escalas que ja a usaram continuam com a musica.',
+      message: 'Excluir "' + c.titulo + '"? As escalas que já a usaram continuam com a música.',
     }).then(function (ok) {
       if (!ok) return;
       const i = S.db.cifras.findIndex(function (x) { return x.id === c.id; });
@@ -408,7 +408,7 @@
     const h = UI.sheet({
       title: isNew ? 'Nova cifra' : 'Editar cifra', wide: true,
       body: el('div', { class: 'stack gap-3' }, [
-        campo('Titulo *', fTitulo), campo('Artista', fArtista),
+        campo('Título *', fTitulo), campo('Artista', fArtista),
         el('div', { class: 'grid-3' }, [campo('Tom', fTom), campo('BPM', fBpm), campo('Compasso', fComp)]),
         el('div', { class: 'grid-2' }, [campo('Categoria', fCat), campo('Tags', fTags)]),
         campo('Letra', fLetra),
@@ -454,7 +454,7 @@
       const txt = ta.value;
       if (!txt.trim()) { aviso.textContent = ''; return; }
       const chords = M.extractChords(txt);
-      if (!chords.length) { aviso.textContent = 'Nao encontrei acordes. Confira a formatacao.'; return; }
+      if (!chords.length) { aviso.textContent = 'Não encontrei acordes. Confira a formatação.'; return; }
       const k = M.detectKey(txt);
       const nomes = Array.from(new Set(chords.map(function (c) { return c.text; }))).join(' - ');
       const knome = k ? (M.noteName(k.pc, M.useFlatsFor(k.pc)) + (k.mode === 'minor' ? 'm' : '')) : '?';
@@ -486,7 +486,7 @@
     const saida = el('div', {});
     const alvo = el('div', { class: 'fs-sm muted mb-3' });
     const flatSel = el('select', { class: 'select', style: { width: 'auto' } }, [
-      el('option', { value: 'auto' }, 'Bemois automatico'),
+      el('option', { value: 'auto' }, 'Bemois automático'),
       el('option', { value: 'sharps' }, 'Usar oficiais'),
       el('option', { value: 'flats' }, 'Usar bemois'),
     ]);

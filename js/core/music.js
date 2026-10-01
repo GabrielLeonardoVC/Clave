@@ -218,7 +218,6 @@
      ======================================================= */
 
   /**
-  /**
    * Palavras da lingua portuguesa que comecam com letra de nota e
    * seriam confundidas com acordes por um parser ingenuo.
    * "Senhor" -> S, "maior" -> M, "nota" -> N, "ai" -> A, "e" -> E...

@@ -151,7 +151,7 @@
   function testar() {
     if (permissao() === 'unsupported') { global.UI.toast('Seu navegador não suporta notificações', { tipo: 'err' }); return; }
     if (permissao() === 'granted') {
-      notificar('Teste do Acorde', 'Se você viu isso, os lembretes vão funcionar.', { tag: 'teste' });
+      notificar('Teste do ' + global.Identidade.NOME, 'Se você viu isso, os lembretes vão funcionar.', { tag: 'teste' });
       global.UI.toast('Notificação enviada!', { tipo: 'ok' });
       return;
     }

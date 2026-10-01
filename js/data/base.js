@@ -1,5 +1,5 @@
 /* =========================================================
-   Acorde - data/base.js
+   Clave - data/base.js
    Repertorio de referencia, para comecar.
 
    ATENCAO: sao cifras de REFERENCIA, nao fonte oficial.

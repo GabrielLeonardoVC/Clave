@@ -22,6 +22,7 @@
   const M = global.Music;
   const Lk = global.Links;
   const Tuner = global.Tuner;
+  const Gravador = global.Gravador;
   const { el } = U;
 
   /* =======================================================
@@ -68,7 +69,7 @@
       const iframe = el('iframe', {
         class: 'vid-frame',
         src: 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&modestbranding=1&playsinline=1',
-        title: 'Video: ' + titulo,
+        title: 'Vídeo: ' + titulo,
         loading: 'lazy',
         referrerpolicy: 'strict-origin-when-cross-origin',
         allow: 'accelerometer; encrypted-media; picture-in-picture; clipboard-write',
@@ -88,7 +89,7 @@
     // Sem video: a busca, em vez de um buraco.
     wrap.appendChild(el('div', { class: 'vid-vazio' }, [
       el('i', { 'data-lucide': 'youtube', style: { width: '22px', height: '22px' } }),
-      el('span', { class: 'fs-sm' }, 'Nenhum video colado nesta musica'),
+      el('span', { class: 'fs-sm' }, 'Nenhum vídeo colado nesta música'),
       el('a', {
         class: 'btn btn-secondary btn-sm',
         href: Lk.buscaYouTube(titulo, artista), target: '_blank', rel: 'noopener noreferrer',
@@ -167,7 +168,7 @@
     const obs = String((musica && musica.obs) || '').trim();
     if (!obs) return null;
     return el('div', { class: 'obs-bloco' }, [
-      el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'sticky-note' }), 'Observacoes']),
+      el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'sticky-note' }), 'Observações']),
       el('pre', { class: 'obs-texto' }, obs),
       escala ? el('div', { class: 'fs-xs muted mt-1' }, 'de ' + escala.titulo + (escala.data ? ', ' + escala.data : '')) : null,
     ]);
@@ -177,25 +178,25 @@
      A FOTO E O DESENHO
      ======================================================= */
 
-  function blocoFoto(musica, escala) {
+  function blocoFoto(musica, escala, aoSalvar) {
     const foto = String((musica && musica.foto) || '').trim();
     const wrap = el('div', {});
     wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'image' }), 'Foto e desenho']));
     if (!foto) {
-      wrap.appendChild(el('p', { class: 'fs-sm muted' }, 'Sem foto anexada a esta musica.'));
+      wrap.appendChild(el('p', { class: 'fs-sm muted' }, 'Sem foto anexada a esta música.'));
     } else {
       const img = el('img', { class: 'foto-cheia', src: foto, alt: 'Foto da partitura' });
       wrap.appendChild(img);
-      wrap.appendChild(el('p', { class: 'fs-xs muted' }, 'Abrir o Estudio para desenhar por cima.'));
+      wrap.appendChild(el('p', { class: 'fs-xs muted' }, 'Abrir o Estúdio para desenhar por cima.'));
     }
     wrap.appendChild(el('button', {
       class: 'btn btn-soft btn-sm mt-2',
       onclick: function () {
-        if (!global.Studio || !musica) { UI.toast('Estudio indisponivel', { tipo: 'err' }); return; }
+        if (!global.Studio || !musica) { UI.toast('Estúdio indisponível', { tipo: 'err' }); return; }
         document.querySelectorAll('.scrim').forEach(function (s) { s.click(); });
-        setTimeout(function () { global.Studio.abrir(musica, escala); }, 240);
+        setTimeout(function () { global.Studio.abrir(musica, escala, aoSalvar); }, 240);
       },
-    }, [el('i', { 'data-lucide': 'pen-tool' }), 'Abrir o Estudio']));
+    }, [el('i', { 'data-lucide': 'pen-tool' }), 'Abrir o Estúdio']));
     return wrap;
   }
 
@@ -203,10 +204,287 @@
      A PAGINA
      ======================================================= */
 
-  function abrir(musica, escala, cifra) {
+/* =========================================================
+     A FAIXA NARRADA
+
+     A voz que a pessoa gravou guiando o ensaio: "refrão em 1, 2, 3, 4",
+     "virada da bateria, e para tudo".
+
+     Fica junto do video, do andamento e do tom — e nao numa tela a parte,
+     porque e a mesma coisa que eles: o que a pessoa precisa na hora de tocar.
+     =========================================================== */
+  function blocoVS(musica, escala, aoMudar) {
+    const wrap = el('div', { class: 'vs-bloco' });
+
+    /*
+     * O bloco se redesenha depois de cada mudanca, em vez de confiar que quem
+     * chamou vai redesenhar a pagina.
+     *
+     * Sem isto, gravar funcionava e a tela nao mudava: a folha da gravacao
+     * fechava, o audio estava salvo, e a pagina continuava mostrando "Gravar a
+     * faixa" como se nada tivesse acontecido. A pessoa gravaria de novo, e de
+     * novo, ate achar que o microfone estava com defeito. E o pior: o app
+     * estava certo e parecia errado — o pior tipo de defeito.
+     *
+     * Quem redesenha e o proprio bloco, sobre o proprio espaco. Nada mais
+     * precisa saber disso: a folha da gravacao, o apagamento e a edicao do texto
+     * gravam, gravam de novo, e o bloco aparece no estado certo.
+     */
+    function montar() {
+      U.clear(wrap);
+      const tem = !!(musica.vs || musica.vsTexto);
+
+      wrap.appendChild(el('div', { class: 'section-title' }, [
+        el('i', { 'data-lucide': 'mic' }), 'Faixa narrada',
+      ]));
+
+      if (!tem) {
+        wrap.appendChild(el('p', { class: 'fs-sm muted' },
+          'Grave a própria voz dizendo o que acontece em cada parte — '
+          + 'refrão, virada, volta. A faixa toca junto enquanto você toca.'));
+        wrap.appendChild(botaoGravarVS(musica, salvar));
+        return;
+      }
+
+      /* ---- o audio ---- */
+      if (musica.vs) {
+        wrap.appendChild(el('áudio', {
+          class: 'vs-audio', src: musica.vs, controls: true, preload: 'metadata',
+          'aria-label': 'Faixa narrada de ' + (musica.nome || 'esta música'),
+        }));
+      }
+
+      /* ---- o texto da passagem ---- */
+      // O texto e o que permite ler sem dar play, e o que a pessoa ve enquanto
+      // a faixa toca de fundo.
+      const texto = el('textarea', {
+        class: 'textarea vs-texto', rows: '4',
+        placeholder: 'O que você fala. Ex.: "Refrao em 1,2,3,4. Virada da bateria, para tudo em 1,2,3,4. Voltou."',
+      });
+      texto.value = musica.vsTexto || '';
+      texto.addEventListener('change', function () {
+        musica.vsTexto = texto.value;
+        salvar();
+      });
+      wrap.appendChild(el('label', { class: 'label mt-2' }, 'A passagem'));
+      wrap.appendChild(texto);
+
+      const meta = [];
+      if (musica.vsSeg) meta.push(Gravador.relogio(musica.vsSeg));
+      if (musica.vs) meta.push(Math.round(Gravador.tamanhoDe(musica.vs) / 1024) + ' KB');
+      wrap.appendChild(el('div', { class: 'row gap-2 mt-2 wrap' }, [
+        meta.length ? el('span', { class: 'badge' }, meta.join(' · ')) : null,
+        // O rotulo segue o que existe. Depois de apagar a gravacao sobra o
+        // texto, e o bloco precisa oferecer a gravacao de novo — senao a pessoa
+        // ficava presa num estado sem audio e sem botao para gravar.
+        botaoGravarVS(musica, salvar, musica.vs ? 'Regravar' : 'Gravar a faixa'),
+        musica.vs ? el('button', {
+          class: 'btn btn-secondary btn-sm',
+          onclick: function () {
+            musica.vs = '';
+            musica.vsSeg = 0;
+            salvar();
+            UI.toast('Gravação apagada. O texto da passagem continua.', { tipo: 'ok' });
+          },
+        }, [el('i', { 'data-lucide': 'trash-2' }), 'Apagar a gravação']) : null,
+      ]));
+    }
+
+    /** Grava no evento e redesenha o bloco. */
+    function salvar() {
+      aoMudar();
+      montar();
+    }
+
+    montar();
+    return wrap;
+  }
+
+  /* ===========================================================
+     GRAVAR
+
+     Antes de pedir o microfone, a pessoa ve o que vai acontecer. O navegador
+     mostra a propria janela de permissao logo depois, e a duplicidade e
+     proposital: a do navegador diz "queremos usar o microfone" e nao explica
+     para que serve, nem o que acontece com o que for gravado.
+
+     Um app que explica antes de pedir ganha o direito de pedir. Um que pede
+     sem explicar ensina a pessoa a aceitar tudo, e no dia em que precisar
+     mesmo de uma permissao, ela nao vai ler mais.
+     =========================================================== */
+  function botaoGravarVS(musica, aoMudar, rotulo) {
+    return el('button', {
+      class: 'btn btn-soft btn-sm mt-2',
+      onclick: function () { folhaGravarVS(musica, aoMudar); },
+    }, [el('i', { 'data-lucide': 'mic' }), rotulo || 'Gravar a faixa']);
+  }
+
+  function folhaGravarVS(musica, aoMudar) {
+    const disp = Gravador.disponivel();
+    if (!disp.ok) { UI.toast(disp.motivo, { tipo: 'err' }); return; }
+
+    const corpo = el('div', { class: 'stack gap-3' });
+
+    corpo.appendChild(el('p', { class: 'fs-sm' }, [
+      el('strong', {}, 'O que o navegador vai pedir: '),
+      'acesso ao microfone, só enquanto a gravação estiver aberta.',
+    ]));
+
+    corpo.appendChild(el('div', { class: 'aviso-perm' }, [
+      el('div', { class: 'linha' }, [
+        el('i', { 'data-lucide': 'smartphone' }),
+        el('span', {}, 'Fica no aparelho. Não há servidor, não há upload, e nada sai sem você mandar.'),
+      ]),
+      el('div', { class: 'linha' }, [
+        el('i', { 'data-lucide': 'trash-2' }),
+        el('span', {}, 'Você pode apagar a qualquer momento, aqui ou em Ajustes.'),
+      ]),
+    ]));
+
+    const dica = el('p', { class: 'fs-xs muted' },
+      'Fale no ritmo: e a sua voz que marca o tempo. "Refrao em 1,2,3,4", '
+      + '"virada da bateria, para tudo", "voltou" — na contagem, como você canta.');
+
+    // `text`, e nao `textContent`: o construtor de elemento so conhece algumas
+    // chaves para conteudo. Passando `textContent`, ele cria um atributo com
+    // esse nome e o elemento fica vazio — sem erro e sem aviso. Foi o que
+    // aconteceu: o relogio da gravacao aparecia como um retangulo vazio.
+    const relogio = el('div', { class: 'vs-relogio', text: '0:00' });
+    const barra = el('div', { class: 'vs-status' }, relogio);
+
+    let fluxo = null;
+    let conta = null;
+
+    async function comecar() {
+      try {
+        fluxo = await Gravador.iniciar();
+      } catch (e) {
+        const nome = e && e.name;
+        UI.toast(
+          nome === 'NotAllowedError' ? 'Permissão negada. Libere o microfone nas configurações do navegador.'
+            : nome === 'NotFoundError' ? 'Não achei microfone neste aparelho.'
+              : (e && e.message) || 'Não deu para gravar',
+          { tipo: 'err', dur: 5500 });
+        return;
+      }
+      relogio.textContent = '0:00';
+      relogio.classList.add('vivo');
+      rotuloGravar.textContent = 'Parar';
+      dica.textContent = 'Gravando. Fale o que acontece em cada parte.';
+      conta = setInterval(function () {
+        relogio.textContent = Gravador.relogio(fluxo.segundos());
+      }, 250);
+    }
+
+    async function terminar() {
+      if (!fluxo) return;
+      if (conta) { clearInterval(conta); conta = null; }
+      relogio.classList.remove('vivo');
+      let saida;
+      try {
+        saida = await fluxo.parar();
+      } catch (e) {
+        // O microfone ja foi solto dentro de `parar()`, antes de o erro subir.
+        // Aqui so se devolve a folha ao estado de "pronto para tentar de novo" —
+        // deixar o botao em "Parar" com nada gravando seria pior que a falha.
+        fluxo = null;
+        rotuloGravar.textContent = 'Gravar';
+        dica.textContent = 'Fale no ritmo: e a sua voz que marca o tempo. ' +
+          '"Refrao em 1,2,3,4", "virada da bateria, para tudo", "voltou".';
+        UI.toast((e && e.message) || 'Não deu para ler a gravação', { tipo: 'err' });
+        return;
+      }
+      fluxo = null;
+      musica.vs = saida.dataUrl;
+      musica.vsSeg = saida.segundos;
+      aoMudar();
+      h.close();
+      UI.toast('Faixa gravada — ' + Gravador.relogio(saida.segundos), { tipo: 'ok' });
+    }
+
+    /**
+     * Solta o microfone e para o relogio. Pode ser chamada varias vezes — o
+     * `onClose` dispara tambem depois de uma gravacao bem sucedida, quando ja
+     * nao ha mais fluxo para soltar.
+     */
+    function limpar() {
+      if (conta) { clearInterval(conta); conta = null; }
+      if (fluxo) { fluxo.cancelar(); fluxo = null; }
+    }
+
+    // O rotulo fica num `span` proprio para poder virar "Parar" sem levar o
+    // icone junto. Trocar o `textContent` do botao inteiro apagaria o icone no
+    // meio da gravacao — o botao mudaria de conteudo bem no instante em que a
+    // pessoa esta mais atlhe a ele.
+    const rotuloGravar = el('span', {}, 'Gravar');
+    const bGravar = el('button', { class: 'btn btn-primary grow' },
+      [el('i', { 'data-lucide': 'mic' }), rotuloGravar]);
+
+    bGravar.addEventListener('click', function () {
+      if (fluxo) terminar();
+      else comecar();
+    });
+
+    corpo.appendChild(dica);
+    corpo.appendChild(barra);
+    corpo.appendChild(el('div', { class: 'row gap-2' }, [
+      bGravar,
+      el('button', {
+        class: 'btn btn-secondary',
+        onclick: function () { h.close(); },
+      }, 'Cancelar'),
+    ]));
+
+    const h = UI.sheet({
+      title: 'Gravar a faixa narrada', sub: musica.nome || '', body: corpo,
+      foot: [],
+      // Sem isto, fechar a folha pelo X, pelo fundo ou pelo Escape no meio da
+      // gravacao deixaria o microfone aberto: o indicador do aparelho continua
+      // aceso, a bateria continua consumindo e, em alguns aparelhos, o
+      // microfone fica travado para outro uso ate a aba fechar.
+      onClose: limpar,
+    });
+    UI.icons(corpo);
+    return h;
+  }
+
+  /**
+   * Devolve a musica ao evento e avisa que mudou.
+   *
+   * Este e o caminho de reserva: so e usado quando a pagina foi aberta sem um
+   * `aoSalvar`. Ver `persistir`.
+   */
+  function guardarMusica(escala, musica) {
+    if (!escala || !musica) return;
+    const lista = escala.musicas || (escala.musicas = []);
+    const i = lista.findIndex(function (m) { return m.id === musica.id; });
+    if (i >= 0) lista[i] = musica; else lista.push(musica);
+    escala.atualizadaEm = Date.now();
+    S.mudou('escala');
+  }
+
+  /**
+   * Salva a musica depois de uma mudanca.
+   *
+   * A pagina da musica NAO sabe como a musica chegou nela, e isso importa. A
+   * agenda abre a pagina sobre um rascunho — uma copia do evento, que so vai
+   * para o banco quando a pessoa aperta "Salvar" no evento. Escrever direto no
+   * `S.db.escalas` a partir daqui seemingly funcionaria e perderia tudo: o
+   * rascunho sobrescreve o banco no `salvar`, e a gravacao some.
+   *
+   * Por isso quem abre e quem decide: a agenda passa `aoSalvar`, e ele chama o
+   * `salvar` de la, que ja sabe reescrever o rascunho inteiro. Sem `aoSalvar`
+   * (musica aberta por outro caminho) resta a gravacao direta.
+   */
+  function persistir(escala, musica, aoSalvar) {
+    if (typeof aoSalvar === 'function') { aoSalvar(); return; }
+    guardarMusica(escala, musica);
+  }
+
+  function abrir(musica, escala, cifra, aoSalvar) {
     const mus = musica || {};
     const cif = cifra || S.cifraPorId(mus.cifraId) || null;
-    const titulo = mus.nome || (cif && cif.titulo) || 'Musica';
+    const titulo = mus.nome || (cif && cif.titulo) || 'Música';
     const artista = mus.artista || (cif && cif.artista) || '';
 
     const corpo = el('div', { class: 'stack gap-4 song-page' });
@@ -293,12 +571,17 @@ const cabecalho = el('div', { class: 'song-head' });
       ]));
     } else {
       corpo.appendChild(el('div', { class: 'card' }, [
-        el('p', { class: 'fs-sm muted' }, 'Esta musica ainda nao tem cifra vinculada.'),
+        el('p', { class: 'fs-sm muted' }, 'Esta música ainda não tem cifra vinculada.'),
       ]));
     }
 
+    /* ---- a faixa narrada ---- */
+    corpo.appendChild(blocoVS(mus, escala, function () {
+      persistir(escala, mus, aoSalvar);
+    }));
+
     /* ---- a foto ---- */
-    corpo.appendChild(blocoFoto(mus, escala));
+    corpo.appendChild(blocoFoto(mus, escala, aoSalvar));
 
     /* ---- links ---- */
     const fontes = Lk.de(titulo, artista);
@@ -315,7 +598,7 @@ const cabecalho = el('div', { class: 'song-head' });
     }
 
     const h = UI.sheet({
-      title: titulo, sub: artista || 'Musica', wide: true, body: corpo,
+      title: titulo, sub: artista || 'Música', wide: true, body: corpo,
       foot: [
         el('button', { class: 'btn btn-secondary', onclick: function () { h.close(); } }, 'Fechar'),
       ],

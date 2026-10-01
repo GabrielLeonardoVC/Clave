@@ -144,23 +144,39 @@
       root.appendChild(box);
     }
 
-    /* ---- próximos ---- */
-    if (prox.length) {
-      root.appendChild(titulo('clock', 'Próximos eventos'));
+    /* ---- o resto da semana, e o que vem depois ----
+       Cada lista tem um alcance proprio e nenhuma repete a anterior.
+
+       Antes o evento de hoje aparecia tres vezes na tela: em "Hoje", em
+       "Proximos eventos" e em "Esta semana". As tres contavam o mesmo dia —
+       `proximas` comeca em `>= hoje`, e a semana aceitava zero dias de
+       distancia. Com um evento so, a primeira tela mostrava a mesma missa
+       listada tres vezes, e nenhuma das tres dizia por que estava ali.
+
+       A ordem tambem estava errada: depois de "Proximos" vinha "Esta semana",
+       que volta para tras no calendario. Agora sao faixas que se encaixam na
+       ordem em que os dias acontecem. */
+    const semana = S.escalas().filter(function (e) {
+      const d = U.diffDays(new Date(), U.fromKey(e.data));
+      return d >= 1 && d <= 6;
+    });
+    if (semana.length) {
+      root.appendChild(titulo('calendar-range', 'O resto da semana'));
       const box = el('div', { class: 'card' });
-      prox.slice(0, 4).forEach(function (e) { box.appendChild(linhaEvento(e)); });
+      U.sortBy(semana, function (e) { return e.data + (e.hora || ''); }).forEach(function (e) { box.appendChild(linhaEvento(e)); });
       root.appendChild(box);
     }
 
-    /* ---- ensaios da semana ---- */
-    const semana = S.escalas().filter(function (e) {
-      const d = U.diffDays(new Date(), U.fromKey(e.data));
-      return d >= 0 && d <= 6;
+    /* ---- mais a frente ---- */
+    const depois = S.escalas().filter(function (e) {
+      return U.diffDays(new Date(), U.fromKey(e.data)) > 6;
     });
-    if (semana.length) {
-      root.appendChild(titulo('calendar-range', 'Esta semana'));
+    if (depois.length) {
+      root.appendChild(titulo('clock', 'Mais à frente'));
       const box = el('div', { class: 'card' });
-      U.sortBy(semana, function (e) { return e.data + (e.hora || ''); }).forEach(function (e) { box.appendChild(linhaEvento(e)); });
+      U.sortBy(depois, function (e) { return e.data + (e.hora || ''); })
+        .slice(0, 4)
+        .forEach(function (e) { box.appendChild(linhaEvento(e)); });
       root.appendChild(box);
     }
 
@@ -169,7 +185,7 @@
     if (tons.length) {
       root.appendChild(titulo('music-2', 'Tons que você mais toca'));
       root.appendChild(el('div', { class: 'chips' }, tons.map(function (t) {
-        return el('button', { class: 'chip', onclick: function () { global.App.ir('repertorio', { tom: t }); } },
+        return el('button', { class: 'chip', onclick: function () { global.App.ir('repertório', { tom: t }); } },
           t + ' · ' + m.porTom[t]);
       })));
     }

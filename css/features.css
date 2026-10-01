@@ -347,6 +347,64 @@
 }
 
 /* =======================================================
+   A FAIXA NARRADA
+
+   O audio em si, com os controles de sempre. Sem enfeite: um `<audio>` nativo na
+   tela, porque e o controle que todo aparelho ja sabe usar sem aprender.
+   ======================================================= */
+.vs-audio {
+  display: block; width: 100%;
+  border-radius: var(--r-2); border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.vs-texto {
+  min-height: 84px;
+  font-family: var(--font-mono);
+  line-height: 1.6;
+}
+
+/* O relogio da gravacao. O numero vai crescendo enquanto a pessoa fala — e o
+   que da para ela ver que a gravar mesmo sem olhar o aparelho. */
+.vs-status {
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px 0;
+}
+.vs-relogio {
+  font-family: var(--font-mono);
+  font-size: 1.75rem; font-weight: 800;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+/* Gravando: o relogio ganha a cor do alerta e uma batida, para saber que o
+   microfone esta aberto sem precisar ver o indicador do aparelho. */
+.vs-relogio.vivo { color: var(--danger-500); }
+.vs-relogio.vivo::before {
+  content: '';
+  display: inline-block;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--danger-500);
+  margin-right: 9px;
+  vertical-align: middle;
+  animation: pulsar 1s steps(2, end) infinite;
+}
+@keyframes pulsar { 50% { opacity: .15; } }
+
+/* O aviso antes de pedir o microfone. Explicar antes e o que da direito a
+   pedir depois. */
+.aviso-perm {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--primary);
+}
+.aviso-perm .linha { display: flex; align-items: flex-start; gap: 10px; }
+.aviso-perm .linha svg { width: 15px; height: 15px; color: var(--ink-4); flex: none; margin-top: 2px; }
+.aviso-perm .linha span { font-size: 0.8125rem; color: var(--ink-2); line-height: 1.5; }
+
+/* =======================================================
    A PAGINA DA MUSICA
    ======================================================= */
 .song-page { gap: var(--sp-4); }

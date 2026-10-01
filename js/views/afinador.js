@@ -60,7 +60,7 @@
     async function ligar() {
       if (ctx) return;
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        estadoEl.textContent = 'Este navegador nao da acesso ao microfone.';
+        estadoEl.textContent = 'Este navegador não da acesso ao microfone.';
         return;
       }
       try {
@@ -146,12 +146,12 @@
 
     // ── Guia de corda ──
     const GUIA = [
-      { inst: 'Violao', nota: 'Mi2', pc: 4, oit: 2 },
-      { inst: 'Violao', nota: 'La2', pc: 9, oit: 2 },
-      { inst: 'Violao', nota: 'Re3', pc: 2, oit: 3 },
-      { inst: 'Violao', nota: 'Sol3', pc: 7, oit: 3 },
-      { inst: 'Violao', nota: 'Si3', pc: 11, oit: 3 },
-      { inst: 'Violao', nota: 'Mi4', pc: 4, oit: 4 },
+      { inst: 'Violão', nota: 'Mi2', pc: 4, oit: 2 },
+      { inst: 'Violão', nota: 'La2', pc: 9, oit: 2 },
+      { inst: 'Violão', nota: 'Re3', pc: 2, oit: 3 },
+      { inst: 'Violão', nota: 'Sol3', pc: 7, oit: 3 },
+      { inst: 'Violão', nota: 'Si3', pc: 11, oit: 3 },
+      { inst: 'Violão', nota: 'Mi4', pc: 4, oit: 4 },
     ];
     const guia = el('div', { class: 'af-guia' },
       GUIA.map(function (g) {
@@ -179,12 +179,12 @@
     wrap.appendChild(el('div', { class: 'af-acao' }, [botao]));
     wrap.appendChild(el('div', { class: 'row gap-2 mt-3' }, [
       el('div', { class: 'grow' }, [
-        el('label', { class: 'label' }, 'La de referencia'),
+        el('label', { class: 'label' }, 'Lá de referência'),
         selA4,
       ]),
     ]));
     wrap.appendChild(el('div', { class: 'section-title mt-4' }, [
-      el('i', { 'data-lucide': 'music' }), 'Violao — cordas soltas',
+      el('i', { 'data-lucide': 'music' }), 'Violão — cordas soltas',
     ]));
     wrap.appendChild(guia);
     wrap.appendChild(estadoEl);

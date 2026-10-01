@@ -15,6 +15,13 @@
     if (attrs) {
       for (const k in attrs) {
         if (!Object.prototype.hasOwnProperty.call(attrs, k)) continue;
+        // Uma chave "__proto__" num atributo viraria o prototipo do elemento:
+        // `node.__proto__ = valor` e uma atribuicao de prototipo, nao uma
+        // propriedade comum. `constructor` e `prototype` nao mudam o prototipo
+        // sozinhos, mas sao o caminho que um objeto malformado usa para chegar
+        // la. O filtro de propriedade propria acima ja impede o `__proto__` que
+        // veio herdado; este bloqueia o que veio escrito.
+        if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
         const v = attrs[k];
         if (v === null || v === undefined || v === false) continue;
         if (k === 'class') node.className = v;

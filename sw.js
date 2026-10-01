@@ -1,8 +1,8 @@
 /* =========================================================
-   ACORDE - sw.js
+   CLAVE - sw.js
    Service worker: cache-first, para funcionar offline.
    ========================================================= */
-const CACHE = 'acorde-v4';
+const CACHE = 'clave-v1';
 
 const RECURSOS = [
   './',

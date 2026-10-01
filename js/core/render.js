@@ -684,7 +684,7 @@ function painelRolagem(cifra, opts) {
   play.addEventListener('click', function () {
     const st = scroller.getEstado();
     if (st.tocando) { scroller.parar(); }
-    else if (!scroller.reproduzir()) { UI.toast('Esta cifra nao tem linhas de acordes para rolar', { tipo: 'err' }); }
+    else if (!scroller.reproduzir()) { UI.toast('Esta cifra não tem linhas de acordes para rolar', { tipo: 'err' }); }
     pintarBotao();
     if (globalThis.UI && globalThis.UI.icons) globalThis.UI.icons(play);
   });
@@ -984,7 +984,7 @@ function painelRolagem(cifra, opts) {
     botao.addEventListener('click', function () {
       const A = global.Audio;
       if (!A || typeof A.tocarAcorde !== 'function') {
-        if (global.UI && global.UI.toast) global.UI.toast('Audio indisponivel neste navegador', { tipo: 'err' });
+        if (global.UI && global.UI.toast) global.UI.toast('Áudio indisponível neste navegador', { tipo: 'err' });
         return;
       }
       // Cortar o que ainda estava soando: dois tons juntos nao ajudam ninguem a
@@ -994,7 +994,7 @@ function painelRolagem(cifra, opts) {
 
       const Tuner = global.Tuner;
       if (!Tuner || typeof Tuner.notaParaHz !== 'function') {
-        if (global.UI && global.UI.toast) global.UI.toast('Sintese indisponivel', { tipo: 'err' });
+        if (global.UI && global.UI.toast) global.UI.toast('Sintese indisponível', { tipo: 'err' });
         return;
       }
       const oitava = opts.oitava || 3;
@@ -1157,7 +1157,7 @@ function seletorDeTons(opts) {
 
     botao.addEventListener('click', function () {
       if (!A || typeof A.tocarSequencia !== 'function') {
-        if (global.UI && global.UI.toast) global.UI.toast('Audio indisponivel', { tipo: 'err' });
+        if (global.UI && global.UI.toast) global.UI.toast('Áudio indisponível', { tipo: 'err' });
         return;
       }
 

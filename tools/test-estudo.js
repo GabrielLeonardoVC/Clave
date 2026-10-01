@@ -33,7 +33,10 @@ deep(semEstudo.estudo, { ocultos: [], soAcordes: false, velocidade: 1 },
   'cifra sem o campo recebe o estado padrao');
 eq(S.normCifra(null).estudo.ocultos.length, 0, 'cifra nula tambem');
 eq(S.normCifra(undefined).estudo.velocidade, 1, 'cifra indefinida tambem');
-eq(S.normCifra({}).titulo, 'Sem titulo', 'o resto da cifra continua normal');
+// A expectativa tem o acento: o app escreve "Sem título" na tela, e um teste
+  // que espera a forma sem acento so continuaria passando enquanto a tela
+  // estivesse errada.
+  eq(S.normCifra({}).titulo, 'Sem título', 'o resto da cifra continua normal');
 
 console.log('\n=== 2. Estado bem formado ===');
 deep(S.normEstudo({ ocultos: [0, 2, 5], soAcordes: true, velocidade: 1.5 }),

@@ -20,7 +20,7 @@
     { id: 'show', nome: 'Show' },
     { id: 'outro', nome: 'Outro' },
   ];
-  const CATEGORIAS = ['Entrada', 'Oferta', 'Leitura', 'Comunhao', 'Ofertorio', 'Saida', 'Fundo', 'Mesa'];
+  const CATEGORIAS = ['Entrada', 'Oferta', 'Leitura', 'Comunhao', 'Ofertorio', 'Saída', 'Fundo', 'Mesa'];
 
   let ref = new Date();
   let sel = U.todayKey();
@@ -32,7 +32,7 @@
 
     root.appendChild(el('div', { class: 'page-head' }, el('div', { class: 'row between' }, [
       el('div', {}, [el('h1', {}, 'Agenda'), el('div', { class: 'sub' }, 'Ensaios, missas e shows')]),
-      el('button', { class: 'btn-icon', 'aria-label': 'Opcoes', onclick: menuDia }, el('i', { 'data-lucide': 'more-vertical' })),
+      el('button', { class: 'btn-icon', 'aria-label': 'Opções', onclick: menuDia }, el('i', { 'data-lucide': 'more-vertical' })),
     ])));
 
     root.appendChild(calendario());
@@ -60,7 +60,7 @@
       el('button', { class: 'btn-icon', 'aria-label': 'Mes anterior', onclick: function () { ref = U.addMonths(ref, -1); recarregar(); } },
         el('i', { 'data-lucide': 'chevron-left' })),
       el('div', { class: 'month-label' }, [el('div', {}, U.capitalize(U.MESES[mes])), el('small', {}, String(ano))]),
-      el('button', { class: 'btn-icon', 'aria-label': 'Proximo mes', onclick: function () { ref = U.addMonths(ref, 1); recarregar(); } },
+      el('button', { class: 'btn-icon', 'aria-label': 'Próximo mes', onclick: function () { ref = U.addMonths(ref, 1); recarregar(); } },
         el('i', { 'data-lucide': 'chevron-right' })),
     ]));
 
@@ -141,7 +141,7 @@
         ]));
       });
     }
-    UI.sheet({ title: 'Acoes do dia', body: body, foot: [el('button', { class: 'btn btn-secondary btn-block', onclick: function () { UI.closeAllSheets(); } }, 'Fechar')] });
+    UI.sheet({ title: 'Ações do dia', body: body, foot: [el('button', { class: 'btn btn-secondary btn-block', onclick: function () { UI.closeAllSheets(); } }, 'Fechar')] });
   }
   /* =======================
      LISTA DO DIA
@@ -197,7 +197,7 @@
             onclick: function (ev) { ev.stopPropagation(); verResponsaveis(e); },
           }, [el('i', { 'data-lucide': 'users' }), nResp]) : null,
           nObs ? el('span', {
-            class: 'badge badge-warn', title: 'Observacoes',
+            class: 'badge badge-warn', title: 'Observações',
             onclick: function (ev) { ev.stopPropagation(); verObservacoes(e); },
           }, [el('i', { 'data-lucide': 'message-square' }), String(nObs)]) : null,
         ]),
@@ -214,9 +214,9 @@
   function menuEscala(e) {
     const linhas = [
       ['list-music', 'Abrir / editar', function () { abrirEditor(e, false); }],
-      ['play-circle', 'Abrir no estudio', function () {
+      ['play-circle', 'Abrir no estúdio', function () {
         if (e.musicas.length) global.Studio.abrir(e.musicas[0], e);
-        else UI.toast('Adicione musicas primeiro', { tipo: 'err' });
+        else UI.toast('Adicione músicas primeiro', { tipo: 'err' });
       }],
       ['share-2', 'Compartilhar / .ics / imprimir', function () { global.Share.menu(e); }],
       ['copy', 'Duplicar nesta data', function () { duplicar(e); }],
@@ -256,7 +256,7 @@
   function confirmarExcluir(e) {
     UI.confirmar({
       title: 'Excluir evento', danger: true, okText: 'Excluir',
-      message: 'Excluir "' + e.titulo + '" de ' + U.fmtDate(e.data) + '? Nao da para desfazer.',
+      message: 'Excluir "' + e.titulo + '" de ' + U.fmtDate(e.data) + '? Não da para desfazer.',
     }).then(function (ok) {
       if (!ok) return;
       const i = S.db.escalas.findIndex(function (x) { return x.id === e.id; });
@@ -291,7 +291,7 @@
       U.readFile(arq, true)
         .then(function (d) { return U.shrinkImage(d, 1400, 0.8); })
         .then(function (p) {
-          if (!p) { UI.toast('Nao deu para ler a imagem', { tipo: 'err' }); return; }
+          if (!p) { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); return; }
           alvo.foto = p;
           UI.toast('Foto anexada ao evento', { tipo: 'ok' });
           // A escala e re-renderizada para a foto aparecer na hora, em vez
@@ -303,7 +303,7 @@
             p2.appendChild(el('img', { class: 'foto-evia', src: p, alt: 'Foto do evento' }));
           }
         })
-        .catch(function () { UI.toast('Nao deu para ler a imagem', { tipo: 'err' }); });
+        .catch(function () { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); });
     });
     entrada.click();
   }
@@ -317,13 +317,13 @@
     const fLocal = el('input', { class: 'input', value: base.local, placeholder: 'Ex.: Salão paroquial' });
     const fTipo = el('select', { class: 'select' }, TIPOS.map(function (t) { return el('option', { value: t.id, selected: base.tipo === t.id }, t.nome); }));
     const fData = el('input', { class: 'input', type: 'date', value: base.data });
-    const fObs = el('textarea', { class: 'textarea', style: { minHeight: '70px' }, placeholder: 'Observacoes, tema, avisos...' });
+    const fObs = el('textarea', { class: 'textarea', style: { minHeight: '70px' }, placeholder: 'Observações, tema, avisos...' });
     fObs.value = base.obs;
 
-    form.appendChild(campo('Titulo do evento', fTitulo));
+    form.appendChild(campo('Título do evento', fTitulo));
     form.appendChild(el('div', { class: 'grid-2' }, [campo('Data', fData), campo('Horario', fHora)]));
     form.appendChild(el('div', { class: 'grid-2' }, [campo('Local', fLocal), campo('Tipo', fTipo)]));
-    form.appendChild(campo('Observacoes', fObs));
+    form.appendChild(campo('Observações', fObs));
 
     // ---- a foto do evento ----
     //
@@ -361,14 +361,14 @@
     form.appendChild(fFoto);
 
     const listaBox = el('div', {});
-    form.appendChild(el('div', { class: 'hr-label' }, 'Musicas'));
+    form.appendChild(el('div', { class: 'hr-label' }, 'Músicas'));
     form.appendChild(listaBox);
 
     function renderLista() {
       U.clear(listaBox);
       if (!base.musicas.length) {
         listaBox.appendChild(el('p', { class: 'fs-sm muted center', style: { padding: '14px 0' } },
-          'Nenhuma musica. Puxe do repertorio ou crie na hora.'));
+          'Nenhuma música. Puxe do repertório ou crie na hora.'));
       } else {
         const box = el('div', { class: 'card card-flat', style: { padding: '6px 12px' } });
         base.musicas.forEach(function (m, i) {
@@ -386,9 +386,9 @@
             class: 'row gap-2', style: { padding: '9px 0', borderBottom: i < base.musicas.length - 1 ? '1px solid var(--line)' : 'none' },
             role: 'button', tabindex: '0',
             title: 'Abrir ' + m.nome,
-            onclick: function () { if (V.cancao) V.cancao.abrir(m, base); },
+            onclick: function () { if (V.cancao) V.cancao.abrir(m, base, null, function () { salvar(base); }); },
             onkeydown: function (ev) {
-              if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (V.cancao) V.cancao.abrir(m, base); }
+              if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (V.cancao) V.cancao.abrir(m, base, null, function () { salvar(base); }); }
             },
           }, [
             el('span', { class: 'mono fs-xs muted', style: { width: '18px', flex: 'none' } }, String(i + 1)),
@@ -404,7 +404,7 @@
               ]),
             ]),
             el('button', {
-              class: 'btn-icon sm', 'aria-label': 'Abrir no estudio', type: 'button',
+              class: 'btn-icon sm', 'aria-label': 'Abrir no estúdio', type: 'button',
               onclick: function (ev) { ev.stopPropagation(); global.Studio.abrir(m, base); },
             }, el('i', { 'data-lucide': 'play-circle' })),
             el('button', { class: 'btn-icon sm', 'aria-label': 'Subir', disabled: i === 0, onclick: function () { mover(-1); } },
@@ -417,9 +417,9 @@
       }
       listaBox.appendChild(el('div', { class: 'row gap-2 mt-3 wrap' }, [
         el('button', { class: 'btn btn-soft btn-sm', onclick: function () { escolherDoRepertorio(base, renderLista); } },
-          [el('i', { 'data-lucide': 'library' }), 'Do repertorio']),
+          [el('i', { 'data-lucide': 'library' }), 'Do repertório']),
         el('button', { class: 'btn btn-soft btn-sm', onclick: function () { addMusica(base, renderLista); } },
-          [el('i', { 'data-lucide': 'plus' }), 'Nova musica']),
+          [el('i', { 'data-lucide': 'plus' }), 'Nova música']),
       ]));
       UI.icons(listaBox);
     }
@@ -464,15 +464,15 @@
      NOVA MUSICA
      ======================= */
   function addMusica(escala, onChange) {
-    const nome = el('input', { class: 'input', placeholder: 'Nome da musica' });
+    const nome = el('input', { class: 'input', placeholder: 'Nome da música' });
     const artista = el('input', { class: 'input', placeholder: 'Artista / compositor' });
     const tom = R.selectTon({ value: '', placeholder: 'Tom' });
     const bpm = el('input', { class: 'input', type: 'number', min: '20', max: '320', placeholder: 'BPM' });
     const comp = el('select', { class: 'select' }, global.Metro.COMPASSOS.map(function (c) { return el('option', { value: c.v }, c.n); }));
     const cat = el('select', { class: 'select' }, [el('option', { value: '' }, 'Categoria')].concat(CATEGORIAS.map(function (c) { return el('option', { value: c }, c); })));
-    const resp = el('input', { class: 'input', placeholder: 'Quem toca / responsavel' });
-    const obs = el('input', { class: 'input', placeholder: 'Observacao (ex.: sobe no refrão)' });
-    const yt = el('input', { class: 'input', placeholder: 'Link do YouTube (a gente extrai o video)' });
+    const resp = el('input', { class: 'input', placeholder: 'Quem toca / responsável' });
+    const obs = el('input', { class: 'input', placeholder: 'Observação (ex.: sobe no refrão)' });
+    const yt = el('input', { class: 'input', placeholder: 'Link do YouTube (a gente extrai o vídeo)' });
 
     let foto = '';
     const preview = el('img', { style: { display: 'none', maxHeight: '110px', borderRadius: '10px', margin: '0 auto' } });
@@ -480,7 +480,7 @@
     const drop = el('div', { class: 'drop' }, [
       el('i', { 'data-lucide': 'camera' }),
       el('div', { class: 't' }, 'Foto da cifra'),
-      el('div', { class: 's' }, 'Da para desenhar em cima no Estudio'),
+      el('div', { class: 's' }, 'Da para desenhar em cima no Estúdio'),
       preview,
     ]);
     drop.addEventListener('click', function () { arq.click(); });
@@ -491,12 +491,12 @@
     });
 
     const h = UI.sheet({
-      title: 'Nova musica', sub: 'Adiciona a este evento',
+      title: 'Nova música', sub: 'Adiciona a este evento',
       body: el('div', { class: 'stack gap-3' }, [
         campo('Nome *', nome), campo('Artista', artista),
         el('div', { class: 'grid-3' }, [campo('Tom', tom), campo('BPM', bpm), campo('Compasso', comp)]),
-        el('div', { class: 'grid-2' }, [campo('Categoria', cat), campo('Responsavel', resp)]),
-        campo('Observacao', obs), campo('YouTube', yt),
+        el('div', { class: 'grid-2' }, [campo('Categoria', cat), campo('Responsável', resp)]),
+        campo('Observação', obs), campo('YouTube', yt),
         drop, arq,
       ]),
       foot: [
@@ -511,7 +511,7 @@
             obs: obs.value.trim(), yt: yt.value.trim(), ytId: ytId, foto: foto,
           }));
           onChange(); h.close();
-          UI.toast('Musica adicionada', { tipo: 'ok' });
+          UI.toast('Música adicionada', { tipo: 'ok' });
         } }, 'Adicionar'),
       ],
     });
@@ -520,9 +520,9 @@
 
   function escolherDoRepertorio(escala, onChange) {
     const lista = S.cifras();
-    const busca = el('input', { class: 'input', placeholder: 'Buscar no repertorio...' });
+    const busca = el('input', { class: 'input', placeholder: 'Buscar no repertório...' });
     const box = el('div', { class: 'mt-3', style: { maxHeight: '50vh', overflowY: 'auto' } });
-    const h = UI.sheet({ title: 'Do repertorio', sub: lista.length + ' cifras salvas', body: el('div', {}, [busca, box]),
+    const h = UI.sheet({ title: 'Do repertório', sub: lista.length + ' cifras salvas', body: el('div', {}, [busca, box]),
       foot: [el('button', { class: 'btn btn-secondary btn-block', onclick: function () { h.close(); } }, 'Fechar')] });
 
     function pintar() {
@@ -532,7 +532,7 @@
       });
       U.clear(box);
       if (!itens.length) {
-        box.appendChild(UI.empty({ icon: 'library', title: 'Nada aqui', message: 'Salve cifras em Repertorio - Nova cifra.' }));
+        box.appendChild(UI.empty({ icon: 'library', title: 'Nada aqui', message: 'Salve cifras em Repertório - Nova cifra.' }));
         return;
       }
       const l = el('div', { class: 'list' });

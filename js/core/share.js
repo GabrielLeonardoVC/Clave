@@ -76,7 +76,7 @@
     const L = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Acorde//Escalas//PT-BR',
+      'PRODID:-//Clave//Escalas//PT-BR',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       'BEGIN:VEVENT',
@@ -155,7 +155,7 @@
                 + U.esc(e.obs).replace(/\n/g, '<br>') + '</p>'
               : '')
           + (corpoHtml ? '<ol style="margin:0;padding-left:20px">' + corpoHtml + '</ol>'
-                        : '<p>Nenhuma musica na escala.</p>')
+                        : '<p>Nenhuma música na escala.</p>')
           + '</div>';
 
         const assunto = e.titulo + ' - ' + U.fmtDate(e.data) + (e.hora ? ' ' + U.fmtTime(e.hora) : '');
@@ -181,7 +181,7 @@
       e.foto ? linha('image-plus', 'Enviar com a foto',
         'Abre a partilha do sistema com o texto e a imagem', function () {
         const arquivo = dataURLParaArquivo(e.foto);
-        if (!arquivo) { UI.toast('Nao deu para preparar a foto', { tipo: 'err' }); return; }
+        if (!arquivo) { UI.toast('Não deu para preparar a foto', { tipo: 'err' }); return; }
         const conteudo = texto(e, { comLinks: true });
         if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
           navigator.share({
@@ -198,7 +198,7 @@
           return;
         }
         U.copy(conteudo).then(function () {
-          UI.toast('Copiado! Este navegador nao anexa arquivos.', { tipo: 'ok', dur: 4500 });
+          UI.toast('Copiado! Este navegador não anexa arquivos.', { tipo: 'ok', dur: 4500 });
         });
       }) : null,
       linha('copy', 'Copiar texto', 'Só a lista, sem links', function () {
@@ -272,7 +272,7 @@
      COMPARTILHAR REPERTORIO
      ======================= */
   function repertorio(cifras) {
-    const L = ['*Repertório — Acorde*', ''];
+    const L = ['*Repertório — Clave*', ''];
     cifras.forEach((c, i) => {
       const bits = [];
       if (c.tom) bits.push(c.tom);

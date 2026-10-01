@@ -196,7 +196,30 @@
 
 /* =======================================================
    ACENTOS ALTERNATIVOS (personalização)
+
+   As CORES PRINCIPAIS vêm primeiro, de propósito. Quem abre a lista procurando
+   "a cor principal" está procurando vermelho, amarelo e azul — e nenhum dos
+   três estava na paleta, que saltava do laranja para o verde. Fica no topo
+   porque é por ali que a pessoa começa.
+
+   Um aviso honesto sobre o amarelo: amarelo puro (#FFFF00) é ilegível. Sobre
+   fundo claro ele some, e sobre fundo escuro ele cega — o contraste dá quase
+   1:1 nos dois casos, e nenhum ajuste de valor resolve. O amarelo daqui é o
+   mais perto que dá para chegar sendo uma cor de interface: um ouro
+   saturado, que ainda se lê como "amarelo" e ainda serve de texto.
    ======================================================= */
+[data-accent="carmim"] {
+  --brand-400: #DE5A5C; --brand-500: #C62F35; --brand-600: #9C2026;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="amarelo"] {
+  --brand-400: #EFC24A; --brand-500: #C08A1A; --brand-600: #7E6111;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
 [data-accent="ember"] {
   --brand-400: #F0803C; --brand-500: #E05A18; --brand-600: #B8410A;
   /* O tom nasce da base do tema: claro no claro, escuro no escuro. */

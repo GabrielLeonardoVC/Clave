@@ -35,7 +35,7 @@
     const v = vistas[id];
     if (v && typeof v.render === 'function') {
       try { v.render(page, params || {}); }
-      catch (e) { console.error('[Acorde] erro ao renderizar ' + id + ':', e); }
+      catch (e) { console.error(global.Identidade.prefixo('erro ao renderizar ' + id), e); }
     }
     global.scrollTo(0, 0);
     try { history.replaceState(null, '', '#' + id); } catch (e) { /* ignora */ }
@@ -75,7 +75,7 @@
    */
   function abrirAfinador() {
     if (!vistas.afinador || typeof vistas.afinador.abrir !== 'function') {
-      UI.toast('Afinador indisponivel', { tipo: 'err' });
+      UI.toast('Afinador indisponível', { tipo: 'err' });
       return;
     }
     vistas.afinador.abrir();
@@ -104,7 +104,7 @@
       [el('i', { 'data-lucide': 'timer' }), el('span', { class: 'grow' }, 'Metrônomo')]));
     painel.appendChild(el('h4', {}, 'Ajuda'));
     painel.appendChild(el('button', { class: 'drawer-item', onclick: function () { fechar(); sobre(); } },
-      [el('i', { 'data-lucide': 'info' }), el('span', { class: 'grow' }, 'Sobre o Acorde')]));
+      [el('i', { 'data-lucide': 'info' }), el('span', { class: 'grow' }, 'Sobre o ' + global.Identidade.NOME)]));
     painel.appendChild(el('button', { class: 'drawer-item', onclick: function () { fechar(); atalhos(); } },
       [el('i', { 'data-lucide': 'keyboard' }), el('span', { class: 'grow' }, 'Atalhos')]));
     drawer.appendChild(painel);
@@ -133,7 +133,7 @@
     if (btn) {
       U.clear(btn);
       btn.appendChild(el('i', { 'data-lucide': tema === 'dark' ? 'moon' : tema === 'light' ? 'sun' : 'sun-moon' }));
-      btn.title = 'Tema: ' + (tema === 'auto' ? 'automatico' : tema === 'dark' ? 'escuro' : 'claro');
+      btn.title = 'Tema: ' + (tema === 'auto' ? 'automático' : tema === 'dark' ? 'escuro' : 'claro');
     }
     UI.icons(btn);
 
@@ -152,13 +152,13 @@
     const novo = UI.cycleTheme(S.ajuste('tema', 'auto'));
     S.setAjuste('tema', novo);
     aplicarTema();
-    UI.toast('Tema: ' + (novo === 'auto' ? 'automatico' : novo === 'dark' ? 'escuro' : 'claro'), { tipo: 'ok' });
+    UI.toast('Tema: ' + (novo === 'auto' ? 'automático' : novo === 'dark' ? 'escuro' : 'claro'), { tipo: 'ok' });
   }
   /* =======================
      BUSCA GLOBAL
      ======================= */
   function busca() {
-    const input = el('input', { class: 'input', placeholder: 'Buscar musica, artista, evento ou tag...', autocomplete: 'off' });
+    const input = el('input', { class: 'input', placeholder: 'Buscar música, artista, evento ou tag...', autocomplete: 'off' });
     const res = el('div', { class: 'mt-3' });
 
     function montar() {
@@ -205,10 +205,10 @@
       }), 5).map(function (r) { return r._ref; });
 
       if (cifras.length) secao('Cifras', cifras.map(function (c) {
-        return linha('file-music', c.titulo, c.artista || c.tom, function () { h.close(); ir('repertorio', { id: c.id }); });
+        return linha('file-music', c.titulo, c.artista || c.tom, function () { h.close(); ir('repertório', { id: c.id }); });
       }));
       if (prontas.length) secao('Repertório pronto', prontas.map(function (h) {
-        return linha('book-open', h.titulo, h.artista, function () { h.close(); ir('repertorio', { aba: 'base', importar: h.id }); });
+        return linha('book-open', h.titulo, h.artista, function () { h.close(); ir('repertório', { aba: 'base', importar: h.id }); });
       }));
       if (musicas.length) secao('Músicas em escalas', musicas.slice(0, 7).map(function (x) {
         return linha('music', x.m.nome, U.fmtDate(x.e.data) + ' - ' + x.e.titulo, function () { h.close(); ir('agenda', { data: x.e.data, abrir: x.e.id }); });
@@ -252,16 +252,16 @@
       body: el('div', { class: 'stack gap-3' }, [
         el('div', { class: 'row gap-3' }, [
           el('img', { src: 'assets/logo.svg', width: '46', height: '46', alt: '' }),
-          el('p', { class: 'fs-sm c-2' }, 'A mesa de trabalho de quem toca: monte a escala, decore a cifra no estudio e chegue no ensaio com o time junto.'),
+          el('p', { class: 'fs-sm c-2' }, 'A mesa de trabalho de quem toca: monte a escala, decore a cifra no estúdio e chegue no ensaio com o time junto.'),
         ]),
         el('div', { class: 'hr-label' }, 'O que ele faz'),
         feature([
           ['calendar-days', 'Agenda com ensaios, missas e shows, varios no mesmo dia'],
-          ['library', 'Repertorio central: cadastre uma vez, use em qualquer escala'],
-          ['play-circle', 'Estudio: video do YouTube + foto da cifra lado a lado'],
+          ['library', 'Repertório central: cadastre uma vez, use em qualquer escala'],
+          ['play-circle', 'Estúdio: vídeo do YouTube + foto da cifra lado a lado'],
           ['pen-tool', 'Desenhe por cima da foto (marca, seta, apaga)'],
-          ['timer', 'Metronomo independente - continua com o video rodando'],
-          ['shuffle', 'Transposicao de tom e de cifra inteira'],
+          ['timer', 'Metrônomo independente - continua com o vídeo rodando'],
+          ['shuffle', 'Transposição de tom e de cifra inteira'],
           ['link', 'Busca correta no Cifra Club, Letras.mus.br e YouTube'],
           ['share-2', 'Manda no WhatsApp, exporta .ics, imprime'],
           ['bell', 'Lembrete antes de cada ensaio e missa'],
@@ -285,11 +285,11 @@
 
   function atalhos() {
     const lista = [
-      ['1 - 5', 'Hoje, Agenda, Repertorio, Teoria, Ajustes'],
+      ['1 - 5', 'Hoje, Agenda, Repertório, Teoria, Ajustes'],
       ['/', 'Buscar em tudo'],
       ['N', 'Novo evento'],
       ['M', 'Nova cifra'],
-      ['E', 'Abrir o estudio da ultima escala'],
+      ['E', 'Abrir o estúdio da última escala'],
       ['T', 'Alternar tema'],
       ['Esc', 'Fechar janelas'],
       ['?', 'Esta ajuda'],
@@ -321,7 +321,7 @@
       ev.preventDefault();
       const ult = S.ultimas(1)[0];
       if (ult && ult.musicas.length) global.Studio.abrir(ult.musicas[0], ult);
-      else UI.toast('Abra uma escala com musicas primeiro', { tipo: 'err' });
+      else UI.toast('Abra uma escala com músicas primeiro', { tipo: 'err' });
     }
   }
 

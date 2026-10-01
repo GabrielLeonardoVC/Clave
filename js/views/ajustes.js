@@ -29,13 +29,25 @@
    * confere os dois sentidos.
    */
   const FAMILIAS = [
+  /* As principais primeiro, na ordem quente para fria.
+
+     Sao as tres que a pessoa procura quando abre a lista sem saber o nome de
+     nenhuma outra. O vermelho e o amarelo simplesmente nao existiam: a paleta
+     saltava do laranja para o verde, e quem queria a cor basica nao
+     encontrava. O azul ja existia e sobe para aqui em vez de ganhar um
+     primo quase igual — duas cores quase iguais so confundem. */
+  { familia: 'Principais', nota: 'as três básicas', cores: [
+    { id: 'carmim', nome: 'Vermelho' },
+    { id: 'amarelo', nome: 'Amarelo' },
+    { id: 'azul', nome: 'Azul' }
+  ] },
   { familia: 'Brasa', nota: 'vermelhos e laranjas', cores: [
     { id: 'ember', nome: 'Brasa' },
     { id: 'coral', nome: 'Coral' },
     { id: 'terracota', nome: 'Terracota' }
   ] },
-  { familia: 'Ambar', nota: 'dourados e areias', cores: [
-    { id: 'ambar', nome: 'Ambar' },
+  { familia: 'Âmbar', nota: 'dourados e areias', cores: [
+    { id: 'ambar', nome: 'Âmbar' },
     { id: 'ouro', nome: 'Ouro' },
     { id: 'areia', nome: 'Areia' }
   ] },
@@ -49,13 +61,12 @@
   { familia: 'Agua', nota: 'azuis e cianos', cores: [
     { id: 'ocean', nome: 'Mar' },
     { id: 'turquesa', nome: 'Turquesa' },
-    { id: 'azul', nome: 'Azul' },
     { id: 'cobalto', nome: 'Cobalto' }
   ] },
   { familia: 'Violeta', nota: 'roxos frios', cores: [
     { id: 'indigo', nome: 'Indigo' },
     { id: 'violet', nome: 'Violeta' },
-    { id: 'lilas', nome: 'Lilas' }
+    { id: 'lilas', nome: 'Lilás' }
   ] },
   { familia: 'Rosa', nota: 'rosas e magentas', cores: [
     { id: 'magenta', nome: 'Magenta' },
@@ -156,7 +167,7 @@ function amostra(a) {
     ap.appendChild(el('label', { class: 'label' }, 'Tema'));
     const tema = S.ajuste('tema', 'auto');
     ap.appendChild(el('div', { class: 'row gap-2 mb-3' }, [
-      { v: 'auto', n: 'Automatico', i: 'sun-moon' }, { v: 'light', n: 'Claro', i: 'sun' }, { v: 'dark', n: 'Escuro', i: 'moon' },
+      { v: 'auto', n: 'Automático', i: 'sun-moon' }, { v: 'light', n: 'Claro', i: 'sun' }, { v: 'dark', n: 'Escuro', i: 'moon' },
     ].map(function (o) {
       return el('button', {
         class: 'btn ' + (tema === o.v ? 'btn-primary' : 'btn-secondary') + ' grow',
@@ -197,7 +208,7 @@ const TAMANHOS = [
       onclick: function () { S.setAjuste('fontsize', o.v); global.App.aplicarTema(); recarregar(); },
     }, 'A');
   })));
-  ap.appendChild(el('p', { class: 'fs-xs muted' }, 'O app inteiro acompanha, nao so o texto das cifras.'));
+  ap.appendChild(el('p', { class: 'fs-xs muted' }, 'O app inteiro acompanha, não só o texto das cifras.'));
 
     ap.appendChild(linhaChave('Reduzir animacoes', 'Para quem se incomoda com movimento',
       S.ajuste('motion', 'on') === 'off', function (v) { S.setAjuste('motion', v ? 'off' : 'on'); global.App.aplicarTema(); }));
@@ -289,7 +300,7 @@ const TAMANHOS = [
         onclick: function () { S.setAjuste('usarAmoles', o.v); recarregar(); } }, o.n);
     })));
     ag.appendChild(el('p', { class: 'fs-xs muted' }, 'Automatica usa bemois em tons como F, Bb e Eb.'));
-    ag.appendChild(linhaChave('Link automatico', 'Preenche Cifra Club e Letras ao criar musicas',
+    ag.appendChild(linhaChave('Link automático', 'Preenche Cifra Club e Letras ao criar músicas',
       !!S.ajuste('autoLink', true), function (v) { S.setAjuste('autoLink', v); }));
     root.appendChild(ag);
 
@@ -329,9 +340,9 @@ const TAMANHOS = [
         el('span', { class: 'badge badge-brand' }, m.cifras + ' / ' + LIMITE + ' cifras'),
       ]),
       el('div', { class: 'progress' + (uso > 85 ? ' warn' : '') }, el('i', { style: { width: uso + '%' } })),
-      el('p', { class: 'fs-xs muted mt-2' }, 'Ensaios, musicas, fotos e o estudio nao tem limite.'),
+      el('p', { class: 'fs-xs muted mt-2' }, 'Ensaios, músicas, fotos e o estúdio não tem limite.'),
       el('button', { class: 'btn btn-soft btn-block mt-3', onclick: function () {
-        UI.toast('Planos pagos chegam na proxima versao', { tipo: 'info', dur: 3500 });
+        UI.toast('Planos pagos chegam na próxima versão', { tipo: 'info', dur: 3500 });
       } }, [el('i', { 'data-lucide': 'sparkles' }), 'Conhecer planos']),
     ]));
 
@@ -350,7 +361,7 @@ const TAMANHOS = [
         el('button', { class: 'btn btn-secondary btn-sm', onclick: function () { global.App.atalhos(); } },
           [el('i', { 'data-lucide': 'keyboard' }), 'Atalhos']),
         el('button', { class: 'btn btn-secondary btn-sm', onclick: function () { global.App.sobre(); } },
-          [el('i', { 'data-lucide': 'info' }), 'Sobre o Acorde']),
+          [el('i', { 'data-lucide': 'info' }), 'Sobre o ' + global.Identidade.NOME]),
       ]),
     ]));
 
@@ -400,7 +411,7 @@ const TAMANHOS = [
         UI.toast('Restaurado: ' + r.escalas + ' eventos e ' + r.cifras + ' cifras', { tipo: 'ok', dur: 4000 });
         recarregar();
       } catch (e) {
-        UI.toast(e.message || 'Arquivo invalido', { tipo: 'err', dur: 5000 });
+        UI.toast(e.message || 'Arquivo inválido', { tipo: 'err', dur: 5000 });
       }
     });
     file.click();
@@ -409,7 +420,7 @@ const TAMANHOS = [
   function apagar() {
     UI.confirmar({
       title: 'Apagar tudo', danger: true, okText: 'Apagar tudo',
-      message: 'Isso apaga TODOS os seus eventos, cifras e preferencias deste aparelho. Nao da para desfazer.',
+      message: 'Isso apaga TODOS os seus eventos, cifras e preferências deste aparelho. Não da para desfazer.',
     }).then(function (ok) {
       if (!ok) return;
       S.apagar();

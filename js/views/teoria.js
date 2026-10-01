@@ -15,8 +15,8 @@
   const V = global.Views || (global.Views = {});
 
   let aba = 'acordes';
-  let estAcorde = { root: 0, quality: '', inst: 'violao' };
-  let estEscala = { root: 0, scale: 'major', inst: 'violao' };
+  let estAcorde = { root: 0, quality: '', inst: 'violão' };
+  let estEscala = { root: 0, scale: 'major', inst: 'violão' };
   let estCifra = { texto: '', semis: 0 };
 
   const QUALIDADES = [
@@ -90,7 +90,7 @@
     placa.addEventListener('click', function () {
       const A = global.Audio;
       if (!A || typeof A.tocarAcorde !== 'function') {
-        UI.toast('Audio indisponivel neste navegador', { tipo: 'err' });
+        UI.toast('Áudio indisponível neste navegador', { tipo: 'err' });
         return;
       }
       const Tuner = global.Tuner;
@@ -253,7 +253,7 @@
     // onde resolver.
     wrap.appendChild(el('div', { class: 'row gap-2 wrap mb-4' }, [
       R.botaoTom(estEscala.root, 'major',
-        'tonica: ' + M.noteName(estEscala.root, flat), { oitava: 3 }),
+        'tônica: ' + M.noteName(estEscala.root, flat), { oitava: 3 }),
       R.botaoTom(M.mod12(estEscala.root + 7), 'major',
         'dominante: ' + M.noteName(M.mod12(estEscala.root + 7), flat), { oitava: 3 }),
     ]));
@@ -431,7 +431,7 @@
       } }, [el('i', { 'data-lucide': 'copy' }), 'Copiar resultado']),
       el('button', { class: 'btn btn-secondary btn-sm', onclick: function () {
         V.repertorio.editar(null, { cifra: M.transposeCifra(ta.value, estCifra.semis, flatPara(M.mod12(estCifra.semis))) });
-      } }, [el('i', { 'data-lucide': 'save' }), 'Salvar no repertorio']),
+      } }, [el('i', { 'data-lucide': 'save' }), 'Salvar no repertório']),
       el('button', { class: 'btn btn-ghost btn-sm', onclick: function () { ta.value = ''; estCifra.texto = ''; estCifra.semis = 0; render(); } },
         [el('i', { 'data-lucide': 'x' }), 'Limpar']),
     ]));
@@ -499,7 +499,7 @@
     };
 
     const h = UI.sheet({
-      title: 'Metrônomo', sub: 'continua tocando com o video rodando',
+      title: 'Metrônomo', sub: 'continua tocando com o vídeo rodando',
       body: el('div', { class: 'stack gap-3' }, [
         el('div', { class: 'st-metro' }, [
           dots,
@@ -515,7 +515,7 @@
         ]),
         el('div', { class: 'grid-2' }, [
           el('div', { class: 'field' }, [el('label', { class: 'label' }, 'Som'), selSom]),
-          el('div', { class: 'field' }, [el('label', { class: 'label' }, 'Divisao'), selSub]),
+          el('div', { class: 'field' }, [el('label', { class: 'label' }, 'Divisão'), selSub]),
         ]),
         el('div', { class: 'field' }, [el('label', { class: 'label' }, 'Compasso'),
           el('div', { class: 'chips' }, Metro.COMPASSOS.map(function (c) {
