@@ -40,6 +40,16 @@ const MODULOS = [
   { arquivo: 'js/core/studio.js', global: 'Studio' },
   { arquivo: 'js/core/notify.js', global: 'Notify' },
   { arquivo: 'js/core/share.js', global: 'Share' },
+  // O 3D. `gfx` e `cena` entram antes de `violao3d` porque dependem um do
+  // outro pela ordem de carga — e e a ordem que o `index.html` usa.
+  { arquivo: 'js/core/gfx.js', global: 'Gfx' },
+  { arquivo: 'js/core/cena.js', global: 'Cena' },
+  // Os dois modulos 3D publicam em `Views`, nao direto na raiz. A tela chama
+  // `global.Views.traste3d.mostrar(...)`, e sem o `chave` o elo do meio
+  // (`traste3d`) nao entraria no mapa: o par conferido seria
+  // `Views.traste3d` — que existe — e o `mostrar` ficaria sem conferencia.
+  { arquivo: 'js/views/violao3d.js', global: 'Violao3D', chave: 'violao3d' },
+  { arquivo: 'js/views/traste3d.js', global: 'Traste3D', chave: 'traste3d' },
 ];
 
 /** Propriedades que vem do proprio JavaScript, e nao da API do modulo. */
@@ -47,6 +57,20 @@ const DO_JS = new Set([
   'length', 'name', 'call', 'apply', 'bind', 'prototype', 'constructor',
   'toString', 'valueOf', 'hasOwnProperty',
 ]);
+
+/**
+ * Nome de arquivo, e nao membro de API.
+ *
+ * `'./js/views/violao3d.js'` vira a cadeia `js` -> `views` -> `violao3d` -> `js`,
+ * e `violao3d` e tambem a chave de um modulo dentro de `Views`. O par final
+ * (`violao3d.js`) era acusando tres vezes: no `index.html`, no `sw.js` e no
+ * cabecalho do proprio arquivo. Ruido em arquivo que muda sozinho e que
+ * treina o olho a ignorar o verificador.
+ *
+ * O teste e sobre o elo inteiro (`dono.js`), e nao sobre o membro: no membro
+ * sobra so `js`, e a extensao esta no dono.
+ */
+const EXTENSAO = /\.(js|mjs|css|json|html|htm|txt|md|png|jpe?g|gif|svg|webp|avif|mp3|mp4|webm|webmanifest|ico|woff2?|xml)$/i;
 
 /** Carrega cada modulo e anota o que ele de fato exporta. */
 function carregar() {
@@ -81,14 +105,32 @@ function carregar() {
  * acesso a API de Music. Sem resolver isso, todo apelido pareceria um global
  * desconhecido.
  *
- * O padrao exige que a parte direita seja o global sozinho. Sem o
- * lookahead, `const h = global.UI.sheet({...})` contava como apelido do
- * modulo inteiro, e `h.body` — que existe no valor devolvido por sheet —
- * virava "acesso quebrado" junto com um punhado de falsos positivos.
+ * O padrao exige que a parte direita seja o global SOZINHO: nada de ponto nem
+ * de operador depois. Duas consequencias, e ambas necesarias.
+ *
+ * 1. `const h = global.UI.sheet({...})` nao conta como apelido do modulo
+ *    inteiro — `h.body`, que existe no valor devolvido por sheet, viraria
+ *    "acesso quebrado" junto com um punhado de falsos positivos.
+ *
+ * 2. `const three = global.Gfx && global.Gfx.three;` nao conta como apelido
+ *    de Gfx. `three` ali e o namespace do three.js, nao o carregador: todo
+ *    `three.Mesh`, `three.Scene` e `three.Raycaster` do violao 3D viraria
+ *    acesso quebrado — 34 falsos positivos que esconderiam o resto.
  */
 function apelidos(texto) {
   const mapa = new Map();
-  const re = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*global(?:This)?\.([A-Za-z_$][\w$]*)(?![.\w$])/g;
+  // Todo nome de modulo e um apelido de si mesmo, em qualquer arquivo.
+  //
+  // Sem esta linha, `global.Gfx.criarRenderer(...)` nunca era conferido: o mapa
+  // so recebia um nome de modulo quando o arquivo tinha `const X = global.G;`,
+  // e `traste3d.js` nao tem. O verificador ficava mudo justamente nos modulos
+  // que chamam a API pelo nome inteiro — foi assim que `Violao3d` (d minusculo)
+  // e `Gfx.criarRender` (sem o "er") passariam limpos.
+  for (const mod of MODULOS) {
+    mapa.set(mod.global, mod.global);
+    if (mod.chave) mapa.set(mod.chave, mod.global);
+  }
+  const re = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*global(?:This)?\.([A-Za-z_$][\w$]*)(?![.\w$])(?=\s*[;,)])/g;
   let m;
   while ((m = re.exec(texto)) !== null) {
     mapa.set(m[1], m[2]);
@@ -116,24 +158,43 @@ for (const arquivo of fontes) {
   const mapa = apelidos(texto);
   if (mapa.size === 0) continue;
 
-  // Varre "Apelido.metodo" e "Global.metodo".
-  const re = /\b([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)/g;
+  /* A cadeia inteira, elo por elo.
+   *
+   * O padrao antigo era `(\w+)\.(\w+)` e conferia SO o primeiro par. Numa
+   * cadeia como `global.Gfx.criarRenderer` ele casava `global` + `Gfx`, comia
+   * o nome do modulo e nunca chegava no metodo — o `Gfx` ficava engolido como
+   * membro do match anterior, e o `exec` seguinte so conseguia casar dentro de
+   * `criarRenderer`, onde nao ha fronteira de palavra.
+   *
+   * O efeito era maior do que parece: TODO acesso escrito por nome inteiro
+   * (`global.Music.algo`) ficava sem conferido. So os apelidos longos
+   * (`const M = global.Music`) eram vistos, e so no primeiro par. Era por isso
+   * que `Gfx.criarRenderer` renomeado nao acusava nada.
+   *
+   * Aqui a cadeia e lida como uma sequencia e cada par vizinho e conferido:
+   * em `a.b.c` verificam-se `a.b` e `b.c`. E o que "acesso a API" quer dizer. */
+  const CADEIA = /\b([A-Za-z_$][\w$]*)((?:\.[A-Za-z_$][\w$]*)+)/g;
   let m;
   const linhas = texto.split('\n');
-  while ((m = re.exec(texto)) !== null) {
-    const [, apelido, membro] = m;
-    const destino = mapa.get(apelido);
-    if (!destino) continue; // nao e um dos nossos modulos
-    if (!api.has(destino)) continue;
-    if (DO_JS.has(membro)) continue;
+  while ((m = CADEIA.exec(texto)) !== null) {
+    const elos = [m[1]].concat(m[2].slice(1).split('.'));
+    for (let i = 0; i + 1 < elos.length; i++) {
+      const apelido = elos[i];
+      const membro = elos[i + 1];
+      const destino = mapa.get(apelido);
+      if (!destino) continue; // nao e um dos nossos modulos
+      if (!api.has(destino)) continue;
+      if (DO_JS.has(membro)) continue;
+      if (EXTENSAO.test(apelido + '.' + membro)) continue;   // e um caminho de arquivo
 
-    acessos++;
-    if (!api.get(destino).has(membro)) {
-      const linha = texto.slice(0, m.index).split('\n').length;
-      const trecho = (linhas[linha - 1] || '').trim().slice(0, 76);
-      ruins.push(arquivo.replace(RAIZ + path.sep, '') + ':' + linha +
-        '  ' + apelido + '.' + membro + ' nao existe em ' + destino +
-        '  ->  ' + trecho);
+      acessos++;
+      if (!api.get(destino).has(membro)) {
+        const linha = texto.slice(0, m.index).split('\n').length;
+        const trecho = (linhas[linha - 1] || '').trim().slice(0, 76);
+        ruins.push(arquivo.replace(RAIZ + path.sep, '') + ':' + linha +
+          '  ' + apelido + '.' + membro + ' nao existe em ' + destino +
+          '  ->  ' + trecho);
+      }
     }
   }
 }

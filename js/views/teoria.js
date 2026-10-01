@@ -213,6 +213,38 @@
         ]));
       });
       wrap.appendChild(g);
+
+      /* O desenho principal, no violao de verdade.
+       *
+       * Os cartoes acima mostram a forma de cima, que e como o papel mostra.
+       * Este mostra a forma no braco, do angulo de quem esta com o violao na
+       * coxa — e cada anel marca o traste de um dedo, na corda em que ele vai.
+       *
+       * A diferenca nao e de visual. Os cartoes dizem "qui esta o desenho"; este
+       * diz "e aqui, nesta corda, neste traste", que e a informacao que a mao
+       * usa. E tocar cada nota e o jeito mais rapido de descobrir se o dedo
+       * foi para a casa certa. */
+      wrap.appendChild(el('div', { class: 'section-title mt-5' }, [
+        el('i', { 'data-lucide': 'move-3d' }), 'No braço, do seu ângulo',
+      ]));
+      wrap.appendChild(global.Views.traste3d.mostrar({
+        pcs: [],
+        rootPc: estAcorde.root,
+        flat: M.useFlatsFor(estAcorde.root),
+        frets: 12,
+        inst: estAcorde.inst,
+        // So a primeira forma: os aneis de seis desenhos ao mesmo tempo
+        // transformam o braco num xadrez, e a pessoa nao sabe qual é o
+        // principal. A escolha fica nos cartoes acima.
+        acordes: [{ pc: estAcorde.root, quality: estAcorde.quality }],
+        aoTocar: function (pc, dur) {
+          if (!global.Nota) return;
+          // A frequencia pode vir nula (sem `Tuner`, sem audio): tocar `null`
+          // levanta erro dentro do `Nota` e derruba o som inteiro.
+          const hz = global.Views.traste3d.frequenciaDe(pc);
+          if (hz) global.Nota.tocarNota(hz, dur);
+        },
+      }));
     } else {
       wrap.appendChild(el('div', { class: 'card mt-4' },
         el('p', { class: 'fs-sm muted' },
@@ -318,8 +350,28 @@
     });
     wrap.appendChild(grade);
 
+    /* O traste.
+
+     Este era um `scaleFretboard` — o desenho 2D, de vista de cima. Continua
+     aqui, como reserva e como versao para quem esta olhando o papel: a tela
+     abaixo monta os dois e deixa o 3D ocupar o lugar quando ele carrega.
+
+     O que muda e o que a pessoa pode fazer: girar para o angulo em que esta
+     segurando o violao, e tocar a nota em vez de so ve-la. Ver o desenho de
+     cima ensina o desenho; ver do lado do proprio braço ensina onde o dedo
+     vai. */
     wrap.appendChild(el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': 'guitar' }), 'No violão']));
-    wrap.appendChild(R.scaleFretboard(notas, { rootPc: estEscala.root, flat: flat, frets: 12, showAll: true, inst: estEscala.inst }));
+    wrap.appendChild(global.Views.traste3d.mostrar({
+      pcs: notas,
+      rootPc: estEscala.root,
+      flat: flat,
+      frets: 12,
+      showAll: true,
+      inst: estEscala.inst,
+      // A escala nao e um desenho: nao ha dedos a marcar. Os aneis aparecem
+      // na aba de acordes, onde ha um desenho a ensinar.
+      acordes: [],
+    }));
 
     wrap.appendChild(el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': 'piano' }), 'No piano']));
     wrap.appendChild(R.scaleKeyboard(notas, { rootPc: estEscala.root, flat: flat, octaves: 2 }));

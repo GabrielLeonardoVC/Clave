@@ -1483,3 +1483,81 @@
   object-fit: contain;
   background: var(--surface-2);
 }
+
+/* =======================================================
+   O TRASTE EM 3D
+
+   O 2D entra sempre, primeiro. O 3D substitui quando carrega — e quando nao
+   carrega, o 2D continua ali sem ninguem perceber que o 3D foi tentado. Por isso
+   o plano come espaco mesmo escondido: e ele que garante que a tela nunca
+   fique vazia.
+   ======================================================= */
+.traste3d { position: relative; }
+
+/* O plano 2D. Escondido quando o 3D entra, e e o que fica se ele nao entrar.
+   Regra propria porque o 2D nao deve herdar nada do 3D — sao duas coisas
+   independentes que por acaso ocupam o mesmo lugar. */
+.traste3d-plano { display: block; }
+
+/* Com o 3D montado, o plano some de vez: duas versoes vivas ao mesmo tempo
+   custariam desenho dobrado e IDs de foco duplicados. */
+.traste3d.tem-3d .traste3d-plano { display: none; }
+
+.traste3d-caixa {
+  position: relative;
+  border-radius: var(--r-4);
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 0%, #2a2118 0%, #17120d 70%);
+  border: 1px solid var(--line);
+}
+
+/* O canvas nao define tamanho: quem define e a caixa, e `Cena.ajustar` le o
+   tamanho dela. Um canvas com altura propria competing com o ajuste faz a
+   caixa crescer a cada quadro. */
+.traste3d-canvas { display: block; width: 100%; height: 280px; }
+
+@media (min-width: 720px) {
+  .traste3d-canvas { height: 340px; }
+}
+
+.traste3d-vistas {
+  position: absolute;
+  left: 10px; top: 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.traste3d-vistas .btn {
+  /* Fica sobre o canvas escuro: precisa de fundo proprio para o texto
+     aparecer, e nao sumir no gradiente. */
+  background: rgba(12, 9, 6, 0.66);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--ink);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.traste3d-vistas .btn:hover { border-color: var(--primary); }
+
+.traste3d-dica {
+  position: absolute;
+  right: 10px; bottom: 10px;
+  font-size: 0.6875rem;
+  color: rgba(245, 240, 230, 0.62);
+  background: rgba(12, 9, 6, 0.5);
+  padding: 4px 9px;
+  border-radius: var(--r-1);
+  pointer-events: none;
+  max-width: 62%;
+  text-align: right;
+}
+
+/* O aviso de "o 3D nao veio". Silencioso por padrao: quem nao le ve o traste
+   2D funcionando, e nao precisa de uma faixa explicando algo que nao o
+   atrapalhou. */
+.traste3d-aviso {
+  display: none;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  padding: 8px 10px;
+  margin-top: 8px;
+  border-left: 2px solid var(--line-2);
+}
+.traste3d-aviso.visivel { display: block; }
