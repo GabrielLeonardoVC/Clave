@@ -41,6 +41,12 @@
       </div>
     </div>
     <div class="actions">
+      <!-- O botao de emergencia fica entre a lupa e o tema, de proposito: e
+           o lugar que o dedo ja procura quando algo esta errado no palco. Um
+           conversor de tom escondido no menu "Mais" so ajuda quem o abrir. -->
+      <button class="btn-icon btn-emergencia" id="btn-emergencia" aria-label="Emergencia: tom, busca e afinador" title="Emergencia">
+        <i data-lucide="audio-lines"></i>
+      </button>
       <button class="btn-icon" id="btn-search" aria-label="Buscar"><i data-lucide="search"></i></button>
       <button class="btn-icon" id="btn-theme" aria-label="Alternar tema"></button>
     </div>
@@ -75,6 +81,7 @@
 <script src="js/core/links.js"></script>
 <script src="js/core/search.js"></script>
 <script src="js/core/tuner.js"></script>
+<script src="js/core/audio.js"></script>
 <script src="js/core/metronome.js"></script>
 <script src="js/core/studio.js"></script>
 <script src="js/core/notify.js"></script>
@@ -90,6 +97,8 @@
 <script src="js/views/teoria.js"></script>
 <script src="js/views/ajustes.js"></script>
 <script src="js/views/afinador.js"></script>
+<script src="js/views/emergencia.js"></script>
+<script src="js/views/cancao.js"></script>
 
 <!-- app -->
 <script src="js/app.js"></script>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Probe de CSS</title>
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="../css/components.css">
+<link rel="stylesheet" href="../css/features.css">
+</head>
+<body>
+<pre id="css-probe">pendente</pre>
+<script>
+/* Compara as regras que o TEXTO do CSS declara com as que o CSSOM tem.
+
+   O defeito que isto pega: um token invalido no meio da folha — um fechamento
+   de comentario a mais, uma fileira de `=` solta — faz o parser pular ate o
+   proximo `;` ou `}`, e a regra seguinte desaparece. A regra continua no
+   arquivo, por isso todo verificador que le o arquivo passa, mas ela nao
+   existe para o navegador.
+
+   Nao ha como responder isso sem perguntar ao navegador.
+
+   O parser do texto e consciente de bloco, porque um parser ingenuo erra nos
+   dois sentidos: confunde `from` e `to` (que sao passos de animacao) com
+   seletores, e perde as regras que estao dentro de `@media`. Errar para o lado
+   do "nao achei" e pior que errar para o lado do "achem algo a mais": o
+   primeiro faz o verificador ignorar, o segundo faz a pessoa desatentar.
+*/
+(function () {
+  const FOLHAS = ['base.css', 'components.css', 'features.css'];
+  const ABRE = String.fromCharCode(47, 42);
+  const FECHA = String.fromCharCode(42, 47);
+
+  const resultado = { ok: false, erro: null, folhas: [], totalRegras: 0 };
+
+  /* Remove os comentarios, preservando as quebras de linha.
+
+     A primeira versao mantinha o texto do comentario. Alem de o comentario
+     entrar no preludio e virar "seletor" na saida, um comentario que contenha
+     uma chave abre ou fecha um bloco que nao existe, e a contagem de
+     profundidade sai de ponto. */
+  function semComentarios(texto) {
+    let saida = '';
+    let i = 0;
+    while (i < texto.length) {
+      if (texto.startsWith(ABRE, i)) {
+        const f = texto.indexOf(FECHA, i + 2);
+        if (f < 0) { saida += texto.slice(i); break; }
+        for (let k = i; k < f + 2; k++) saida += (texto[k] === '\n') ? '\n' : ' ';
+        i = f + 2;
+        continue;
+      }
+      saida += texto[i];
+      i++;
+    }
+    return saida;
+  }
+
+  /* Os seletores de regra, andando de bloco em bloco.
+
+     `prof` e a profundidade de chaves. `passo` marca que estamos dentro dos
+     blocos de uma animacao:
+
+       0 — fora de @keyframes
+       1 — no preludio do @keyframes, no primeiro nivel dentro dele: `from`,
+           `to`, `NN%`. Nao sao seletores.
+       2 — dentro do bloco de um passo da animacao. As chaves de 0% e 100% nao
+           sao seletores. */
+  function seletoresDoTexto(css) {
+    const limpo = semComentarios(css);
+    const achados = [];
+    let prof = 0;
+    let passo = 0;
+    let inicio = 0;
+
+    for (let i = 0; i < limpo.length; i++) {
+      const c = limpo[i];
+
+      if (c === '{') {
+        const preludio = limpo.slice(inicio, i).trim();
+        const ehAtRule = preludio.charAt(0) === '@';
+
+        if (prof === 0) {
+          if (ehAtRule) {
+            passo = /@keyframes/i.test(preludio) ? 1 : 0;
+          } else if (preludio) {
+            achados.push(preludio);
+          }
+        } else if (passo === 1) {
+          // Primeiro nivel dentro de @keyframes: e um passo da animacao.
+          passo = 2;
+        } else if (passo === 0 && !ehAtRule && preludio) {
+          // Regra dentro de @media ou @supports: e seletor de verdade.
+          achados.push(preludio);
+        }
+
+        prof++;
+        inicio = i + 1;
+        continue;
+      }
+
+      if (c === '}') {
+        prof--;
+        if (prof <= 0) { prof = 0; passo = 0; }
+        inicio = i + 1;
+        continue;
+      }
+    }
+
+    return achados;
+  }
+
+  function seletoresDoCssom(sheet) {
+    const achados = [];
+    function anda(lista) {
+      for (const r of lista) {
+        if (r.cssRules && !r.selectorText) { anda(r.cssRules); continue; }
+        if (!r.selectorText) continue;
+        const s = r.selectorText.trim();
+        if (/^(from|to|[0-9]+%)$/.test(s)) continue;   // passo de animacao
+        achados.push(s);
+      }
+    }
+    try { anda(sheet.cssRules); } catch (e) { /* folha cruzada */ }
+    return achados;
+  }
+
+  /* Normaliza como o CSSOM reorganiza espacos e virgulas.
+
+     O `*` antes de um pseudo-elemento e removido dos dois lados. O Chrome
+     serializa `*,::before,::after` de um jeito e o texto-fonte costuma estar
+     de outro, e a comparacao acusaria sete seletores ausentes que existem. Sao
+     seletores universais com pseudo-elemento — um tipo exacto de regra, que
+     nunca some sozinha. */
+  function chave(sel) {
+    return sel
+      .replace(/\s+/g, ' ')
+      .replace(/\s*,\s*/g, ',')
+      .replace(/;\s*$/, '')
+      .replace(/\*\s*(::[a-z-]+)/g, '$1')
+      .trim();
+  }
+
+  /* Por conjunto de seletores, e nao por regra. O CSSOM funde regras vizinhas
+     de declaracao identica (`.a:hover` e `.a:active` viram uma) e quebra uma
+     regra de varios seletores em varias; o que importa e que cada seletor
+     declarado exista em algum lugar. */
+  FOLHAS.forEach(function (nome) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '../css/' + nome, false);
+    xhr.send();
+    if (xhr.status !== 0 && xhr.status !== 200) {
+      resultado.erro = 'nao consegui ler ' + nome;
+      return;
+    }
+
+    const noTexto = new Set();
+    seletoresDoTexto(xhr.responseText).forEach(function (s) {
+      chave(s).split(',').forEach(function (p) {
+        const t = p.trim();
+        if (t) noTexto.add(t);
+      });
+    });
+
+    const link = document.querySelector('link[href*="' + nome + '"]');
+    const sheet = link && link.sheet;
+    if (!sheet) { resultado.erro = 'a folha ' + nome + ' nao carregou'; return; }
+
+    const noCssom = new Set();
+    seletoresDoCssom(sheet).forEach(function (s) {
+      chave(s).split(',').forEach(function (p) {
+        const t = p.trim();
+        if (t) noCssom.add(t);
+      });
+    });
+
+    const ausentes = [];
+    noTexto.forEach(function (s) { if (!noCssom.has(s)) ausentes.push(s); });
+
+    resultado.totalRegras += noCssom.size;
+    resultado.folhas.push({
+      nome: nome, total: noCssom.size, noTexto: noTexto.size, ausentes: ausentes,
+    });
+  });
+
+  resultado.ok = !resultado.erro && resultado.folhas.length === FOLHAS.length;
+  document.getElementById('css-probe').textContent = JSON.stringify(resultado);
+})();
+</script>
+</body>
+</html>

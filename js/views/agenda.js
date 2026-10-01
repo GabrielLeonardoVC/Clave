@@ -273,6 +273,41 @@
      ======================= */
   function campo(label, control) { return el('div', { class: 'field' }, [el('label', { class: 'label' }, label), control]); }
 
+  /**
+   * Escolhe a foto do evento.
+   *
+   * A encolhe para 1400px antes de guardar. A foto do celular tem tres mil
+   * pixels de lado e quase quatro megabytes de base64 — guardada assim, dez
+   * eventos estouram a cota do armazenamento e o app deixa de salvar sem
+   * avisar. O mesmo caminho que a foto de cada musica usa.
+   */
+  function escolherFotoDoEvento(alvo) {
+    const entrada = el('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
+    document.body.appendChild(entrada);
+    entrada.addEventListener('change', function () {
+      const arq = entrada.files[0];
+      document.body.removeChild(entrada);
+      if (!arq) return;
+      U.readFile(arq, true)
+        .then(function (d) { return U.shrinkImage(d, 1400, 0.8); })
+        .then(function (p) {
+          if (!p) { UI.toast('Nao deu para ler a imagem', { tipo: 'err' }); return; }
+          alvo.foto = p;
+          UI.toast('Foto anexada ao evento', { tipo: 'ok' });
+          // A escala e re-renderizada para a foto aparecer na hora, em vez
+          // de so quando a pessoa sair e voltar.
+          if (typeof renderLista === 'function') renderLista();
+          const p2 = document.querySelector('.foto-ev');
+          if (p2) {
+            p2.innerHTML = '';
+            p2.appendChild(el('img', { class: 'foto-evia', src: p, alt: 'Foto do evento' }));
+          }
+        })
+        .catch(function () { UI.toast('Nao deu para ler a imagem', { tipo: 'err' }); });
+    });
+    entrada.click();
+  }
+
   function abrirEditor(existente, isNew) {
     const base = existente ? JSON.parse(JSON.stringify(existente)) : S.normEscala({ data: sel, hora: '19:00', tipo: 'missa' });
     const form = el('div', { class: 'stack gap-3' });
@@ -289,6 +324,41 @@
     form.appendChild(el('div', { class: 'grid-2' }, [campo('Data', fData), campo('Horario', fHora)]));
     form.appendChild(el('div', { class: 'grid-2' }, [campo('Local', fLocal), campo('Tipo', fTipo)]));
     form.appendChild(campo('Observacoes', fObs));
+
+    // ---- a foto do evento ----
+    //
+    // Cada musica tem a sua foto; o evento nao tinha nenhuma. E a do evento
+    // que e a que as pessoas mandam no grupo antes de todo mundo confirmar:
+    // o aviso, a partitura do grupo, o mapa de quem fica onde.
+    const fFoto = el('div', { class: 'foto-ev' });
+
+    function pintarFoto() {
+      U.clear(fFoto);
+      if (!base.foto) {
+        fFoto.appendChild(el('button', {
+          class: 'btn btn-soft btn-sm', type: 'button',
+          onclick: function () { escolherFotoDoEvento(base); },
+        }, [el('i', { 'data-lucide': 'image' }), 'Anexar foto do evento']));
+        fFoto.appendChild(el('div', { class: 'fs-xs muted mt-1' },
+          'O aviso, a partitura do grupo, o mapa. Aparece ao enviar.'));
+        return;
+      }
+      fFoto.appendChild(el('div', { class: 'row gap-2 wrap' }, [
+        el('img', { class: 'foto-evia', src: base.foto, alt: 'Foto do evento' }),
+        el('button', {
+          class: 'btn-icon sm danger', type: 'button', 'aria-label': 'Trocar a foto',
+          onclick: function () { escolherFotoDoEvento(base); },
+        }, el('i', { 'data-lucide': 'refresh-cw' })),
+        el('button', {
+          class: 'btn-icon sm danger', type: 'button', 'aria-label': 'Remover a foto',
+          onclick: function () { base.foto = ''; pintarFoto(); },
+        }, el('i', { 'data-lucide': 'trash-2' })),
+      ]));
+    }
+    pintarFoto();
+
+    form.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'image' }), 'Foto do evento']));
+    form.appendChild(fFoto);
 
     const listaBox = el('div', {});
     form.appendChild(el('div', { class: 'hr-label' }, 'Musicas'));
@@ -308,7 +378,19 @@
             const t = base.musicas[i]; base.musicas[i] = base.musicas[j]; base.musicas[j] = t;
             renderLista();
           };
-          box.appendChild(el('div', { class: 'row gap-2', style: { padding: '9px 0', borderBottom: i < base.musicas.length - 1 ? '1px solid var(--line)' : 'none' } }, [
+          // A linha inteira e clicavel e abre a pagina da musica. Antes so havia o
+          // botao do Estudio, e as anotacoes que aparecem aqui — "obs", "foto",
+          // o icone do YouTube — nao tinham para onde levar. A badge "obs" era
+          // um aviso de que existia uma anotacao em lugar nenhum.
+          box.appendChild(el('div', {
+            class: 'row gap-2', style: { padding: '9px 0', borderBottom: i < base.musicas.length - 1 ? '1px solid var(--line)' : 'none' },
+            role: 'button', tabindex: '0',
+            title: 'Abrir ' + m.nome,
+            onclick: function () { if (V.cancao) V.cancao.abrir(m, base); },
+            onkeydown: function (ev) {
+              if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (V.cancao) V.cancao.abrir(m, base); }
+            },
+          }, [
             el('span', { class: 'mono fs-xs muted', style: { width: '18px', flex: 'none' } }, String(i + 1)),
             el('div', { class: 'grow', style: { minWidth: '0' } }, [
               el('div', { class: 'fs-md fw-7 ellipsis' }, m.nome),
@@ -316,13 +398,15 @@
                 m.tom ? el('span', { class: 'badge badge-key' }, m.tom) : null,
                 m.bpm ? el('span', { class: 'badge' }, m.bpm + ' bpm') : null,
                 m.categoria ? el('span', { class: 'badge' }, m.categoria) : null,
-                m.ytId ? el('span', { class: 'badge badge-yt' }, [el('i', { 'data-lucide': 'youtube' })]) : null,
+                (m.yt || m.ytId) ? el('span', { class: 'badge badge-yt' }, [el('i', { 'data-lucide': 'youtube' })]) : null,
                 m.foto ? el('span', { class: 'badge badge-info' }, 'foto') : null,
                 m.obs ? el('span', { class: 'badge badge-warn' }, 'obs') : null,
               ]),
             ]),
-            el('button', { class: 'btn-icon sm', 'aria-label': 'Abrir no estudio', onclick: function () { global.Studio.abrir(m, base); } },
-              el('i', { 'data-lucide': 'play-circle' })),
+            el('button', {
+              class: 'btn-icon sm', 'aria-label': 'Abrir no estudio', type: 'button',
+              onclick: function (ev) { ev.stopPropagation(); global.Studio.abrir(m, base); },
+            }, el('i', { 'data-lucide': 'play-circle' })),
             el('button', { class: 'btn-icon sm', 'aria-label': 'Subir', disabled: i === 0, onclick: function () { mover(-1); } },
               el('i', { 'data-lucide': 'chevron-up' })),
             el('button', { class: 'btn-icon sm danger', 'aria-label': 'Remover', onclick: function () { base.musicas.splice(i, 1); renderLista(); } },
@@ -348,6 +432,9 @@
       base.local = fLocal.value.trim();
       base.tipo = fTipo.value;
       base.obs = fObs.value;
+      // A foto ja esta em `base`: o seletor mexe no objeto. Sem linha de
+      // gravacao aqui de proposito — uma copia que so existisse no formulario
+      // sumiria ao trocar de aba sem salvar, que e como a foto sumia.
     }
 
     const h = UI.sheet({

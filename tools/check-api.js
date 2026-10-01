@@ -146,28 +146,6 @@ console.log('\n=== 3. Acentos: a lista e o CSS precisam bater ===');
 // de um mesmo conjunto. Nao ha import entre elas — uma So pode ser conferida
 // por leitura. O sintoma de divergencia e silencioso: a pessoa toca numa
 // amostra, recebe outra cor, e nao ha erro em lugar nenhum.
-const css = fs.readFileSync(path.join(RAIZ, 'css', 'base.css'), 'utf8');const noCss = new Set();
-{
-  const re = /\[data-accent="([a-z]+)"\]/g;
-  let m;
-  while ((m = re.exec(css)) !== null) noCss.add(m[1]);
-}
-const ajustes = fs.readFileSync(path.join(RAIZ, 'js', 'views', 'ajustes.js'), 'utf8');
-const bloco = ajustes.slice(ajustes.indexOf('const ACCENTS'));
-const noJs = new Set();
-{
-  const re = /\{\s*id:\s*'([a-z]+)'/g;
-  let m;
-  const fim = bloco.indexOf('];');
-  while ((m = re.exec(bloco.slice(0, fim))) !== null) noJs.add(m[1]);
-}
-const soCss = [...noCss].filter((x) => !noJs.has(x));
-const soJs = [...noJs].filter((x) => !noCss.has(x));
-eq(soCss.length, 0, 'todo acento do CSS aparece na lista' +
-  (soCss.length ? ' — faltam: ' + soCss.join(', ') : ''));
-eq(soJs.length, 0, 'todo acento da lista existe no CSS' +
-  (soJs.length ? ' — sobram: ' + soJs.join(', ') : ''));
-console.log('  ' + noJs.size + ' acento(s) ofertado(s)');
 
 // ── funcoes de comparacao ──
 let problemaAcento = 0;
@@ -176,6 +154,95 @@ function eq(actual, expected, label) {
   if (!good) problemaAcento++;
   console.log((good ? '  ok    ' : '  FALHA ') + label);
 }
+
+const css = fs.readFileSync(path.join(RAIZ, 'css', 'base.css'), 'utf8');const noCss = new Set();
+{
+  const re = /\[data-accent="([a-z]+)"\]/g;
+  let m;
+  while ((m = re.exec(css)) !== null) noCss.add(m[1]);
+}
+const ajustes = fs.readFileSync(path.join(RAIZ, 'js', 'views', 'ajustes.js'), 'utf8');
+
+/**
+ * Os ids de acento declarados em um trecho de `ajustes.js`.
+ *
+ * Conta chaves de verdade em vez de cortar num `];`: os acentos vem agrupados
+ * em `FAMILIAS`, e o `];` seguinte nao fecha a lista. Um corte por texto fixo
+ * devolveu zero ids sem reclamar, e um verificador que responde zero sem
+ * erro e pior que um verificador quebrado: o quebrado se ve, o zero se
+ * aceita.
+ */
+function idsDeAcento(texto, apartirDe) {
+  const i = texto.indexOf(apartirDe);
+  if (i < 0) return new Set();
+  const achados = new Set();
+  const re = /\{\s*id:\s*'([a-z]+)'/g;
+  let profundidade = 0;
+  let m;
+  let p = i;
+  while (p < texto.length) {
+    // Cada chave abre ou fecha um nivel. A contagem volta a zero no fim da
+    // declaracao que começou em `apartirDe`.
+    if (texto[p] === '{') profundidade++;
+    else if (texto[p] === '}') {
+      profundidade--;
+      if (profundidade <= 0) break;
+    } else if (texto[p] === ';') {
+      // Um `;` no nivel zero tambem fecha: e o caso de uma familia escrita
+      // sem chaves em volta.
+      if (profundidade === 0 && achados.size > 0) break;
+    }
+    // Procura o padrao a partir da posicao atual.
+    re.lastIndex = p;
+    m = re.exec(texto);
+    if (m && m.index >= p) { achados.add(m[1]); p = m.index + m[0].length; continue; }
+    p++;
+  }
+  return achados;
+}
+
+// As familias sao a fonte da verdade: e delas que a tela tira os botoes.
+const noJs = idsDeAcento(ajustes, 'const FAMILIAS');
+
+// `ACCENTS` precisa continuar DERIVADO das familias.
+//
+// Se alguem voltar a escrever `ACCENTS` como lista literal, o verificador
+// reclama — e o motivo e concreto: uma lista literal e uma segunda fonte de
+// verdade, e duas fontes divergem no primeiro ajuste. Foi o que aconteceu com
+// o hex do acento, que a lista guardava e o CSS nunca usou: as amostras
+// mostravam uma cor e o app aplicava outra, sem erro em lugar nenhum.
+{
+  if (ajustes.indexOf('const ACCENTS') < 0) {
+    console.log('  FALHA  nao achei a lista ACCENTS em ajustes.js');
+  } else {
+    // A declaracao vai ate a proxima linha em branco.
+    // `ajustes` e o conteudo do arquivo, uma string. Percorrer com
+    // `ajustes[fim]` devolveria um caractere, nao uma linha: o laco terminaria
+    // no primeiro espaco e leria um trecho sem sentido.
+    const linhas = ajustes.split(String.fromCharCode(10));
+    let k = linhas.findIndex((l, x) => x >= 0 && l.indexOf('const ACCENTS') >= 0);
+    while (k < linhas.length && linhas[k].trim() !== '') k++;
+    const decl = linhas.slice(linhas.findIndex((l) => l.indexOf('const ACCENTS') >= 0), k).join(String.fromCharCode(10));
+    // Um id literal aqui dentro seria a lista manual de volta.
+    const literal = /\{\s*id:\s*'[a-z]+'/.test(decl);
+    const derivada = decl.indexOf('FAMILIAS') >= 0;
+    if (literal || !derivada) {
+      console.log('  FALHA  ACCENTS nao e derivada de FAMILIAS.');
+      console.log('          Uma lista literal aqui e uma segunda fonte de verdade,');
+      console.log('          e duas fontes divergem no primeiro ajuste.');
+    } else {
+      console.log('  ok    ACCENTS continua derivada de FAMILIAS');
+    }
+  }
+}
+
+const soCss = [...noCss].filter((x) => !noJs.has(x));
+const soJs = [...noJs].filter((x) => !noCss.has(x));
+eq(soCss.length, 0, 'todo acento do CSS aparece na lista' +
+  (soCss.length ? ' — faltam: ' + soCss.join(', ') : ''));
+eq(soJs.length, 0, 'todo acento da lista existe no CSS' +
+  (soJs.length ? ' — sobram: ' + soJs.join(', ') : ''));
+console.log('  ' + noJs.size + ' acento(s) ofertado(s)');
 
 console.log('\n=================================================');
 const total = erros.length + ruins.length + problemaAcento;

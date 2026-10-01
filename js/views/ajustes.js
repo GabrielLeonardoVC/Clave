@@ -12,49 +12,73 @@
   const V = global.Views || (global.Views = {});
 
   /**
-   * Acentos disponiveis.
+   * Os acentos, agrupados por familia.
    *
-   * Nao ha hex aqui: a amostra do botao mede o CSS de verdade, em
-   * corRealDoAcento. Guardar a cor nesta lista e o que fazia a amostra
-   * divergir do que o app realmente aplica. Esta lista precisa cobrir todo
-   * acento que o CSS declara — um que exista no CSS e nao aqui nunca seria
-   * oferecido a pessoa.
+   * Nao ha cor nenhuma aqui. A amostra da tela recebe o `data-accent` e quem
+   * pinta e o CSS. Guardar hex nesta lista foi o que ja fez a amostra divergir
+   * do que o app aplica — e, por um tempo, o que fez todas as amostras
+   * aparecerem da mesma cor.
+   *
+   * As familias nao sao decoracao: com vinte e duas cores, uma fileira unica
+   * vira uma parede, e ninguem acha o azul no meio dos amareados. A ordem vai
+   * do mais quente ao mais frio, com o neutro no fim, porque e assim que as
+   * cores se parecem entre si.
+   *
+   * Esta lista precisa cobrir todo acento que o CSS declara: um que exista no
+   * CSS e nao aqui nunca seria oferecido a pessoa, e `tools/check-api.js`
+   * confere os dois sentidos.
    */
-  const ACCENTS = [
+  const FAMILIAS = [
+  { familia: 'Brasa', nota: 'vermelhos e laranjas', cores: [
     { id: 'ember', nome: 'Brasa' },
-    { id: 'ambar', nome: 'Ambar' },
     { id: 'coral', nome: 'Coral' },
-    { id: 'lima', nome: 'Lima' },
+    { id: 'terracota', nome: 'Terracota' }
+  ] },
+  { familia: 'Ambar', nota: 'dourados e areias', cores: [
+    { id: 'ambar', nome: 'Ambar' },
+    { id: 'ouro', nome: 'Ouro' },
+    { id: 'areia', nome: 'Areia' }
+  ] },
+  { familia: 'Verde', nota: 'verdes', cores: [
     { id: 'floresta', nome: 'Floresta' },
     { id: 'jade', nome: 'Jade' },
-    { id: 'turquesa', nome: 'Turquesa' },
+    { id: 'lima', nome: 'Lima' },
+    { id: 'oliva', nome: 'Oliva' },
+    { id: 'musgo', nome: 'Musgo' }
+  ] },
+  { familia: 'Agua', nota: 'azuis e cianos', cores: [
     { id: 'ocean', nome: 'Mar' },
+    { id: 'turquesa', nome: 'Turquesa' },
     { id: 'azul', nome: 'Azul' },
+    { id: 'cobalto', nome: 'Cobalto' }
+  ] },
+  { familia: 'Violeta', nota: 'roxos frios', cores: [
     { id: 'indigo', nome: 'Indigo' },
     { id: 'violet', nome: 'Violeta' },
-    { id: 'lilas', nome: 'Lilas' },
+    { id: 'lilas', nome: 'Lilas' }
+  ] },
+  { familia: 'Rosa', nota: 'rosas e magentas', cores: [
     { id: 'magenta', nome: 'Magenta' },
     { id: 'rose', nome: 'Rosa' },
+    { id: 'ameixa', nome: 'Ameixa' }
+  ] },
+  { familia: 'Neutro', nota: 'sem cor', cores: [
+    { id: 'grafite', nome: 'Grafite' }
+  ] }
   ];
 
   /**
-   * A cor que o app realmente aplica para um acento.
+   * Todos os acentos, na ordem das familias.
    *
-   * A amostra do botao e medida no proprio CSS, e nao escrita aqui. A lista
-   * guardava o hex do `--brand-500`, mas o que a tela usa e o `--primary`, que
-   * e o `--brand-400` — outra cor. As cinco amostras mostravam algo diferente
-   * do que a pessoa recebia, e no "Brasa", que e o padrao, nem batia com a
-   * definicao do tema. Medindo, a amostra nao tem como divergir: se o CSS
-   * mudar, o botao acompanha.
+   * Sao as mesmas entradas, so que reunidas por familia. A lista plana
+   * continua existindo porque o verificador de acentos (check-api.js) a le
+   * para conferir que todo acento do CSS e oferecido aqui — e ele precisa de
+   * uma lista simples para percorrer.
    */
-  function corRealDoAcento(id) {
-    const sonda = el('span', { 'data-accent': id });
-    sonda.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden';
-    document.body.appendChild(sonda);
-    const cor = getComputedStyle(sonda).getPropertyValue('--primary').trim();
-    sonda.remove();
-    return cor;
-  }
+
+  const ACCENTS = FAMILIAS.reduce(function (todos, f) {
+    return todos.concat(f.cores);
+  }, []);
 
   function render(root) {
     U.clear(root);
@@ -68,25 +92,66 @@
     const ap = el('div', { class: 'card' });
 
     ap.appendChild(el('label', { class: 'label' }, 'Cor do app'));
-    const cores = el('div', { class: 'row gap-2 wrap mb-3' });
+
+    // O acento ligado agora. Cada amostra se compara com ele, e nao com a
+    // posicao na lista — que e o que quebrava assim que os acentos passaram
+    // a vir agrupados por familia.
     const atual = S.ajuste('accent', 'ember');
-    ACCENTS.forEach(function (a) {
-      const b = el('button', {
-        class: 'st-cor' + (a.id === atual ? ' on' : ''), style: { background: corRealDoAcento(a.id), width: '32px', height: '32px' },
-        'aria-label': a.nome, title: a.nome, 'aria-pressed': a.id === atual ? 'true' : 'false',
+
+    // Um botao de amostra.
+    //
+    // O botao sabe o proprio id. Antes o "ligado" era decidido pela posicao na
+    // lista (ACCENTS[i]), o que so funciona numa fileira unica: agrupando por
+    // familia, a posicao passa a ser a do grupo, e o circulo marcado vira o de
+    // cima. Nada quebra, e e por isso que passa.
+function amostra(a) {
+      // A amostra NAO recebe a cor por JavaScript: recebe o `data-accent` e
+      // deixa o proprio CSS pintar.
+      //
+      // A versao anterior media a cor com uma sonda e punha o resultado no
+      // `background`. A sonda pegava o `--brand-400` e o `--brand-600` certos de
+      // cada acento, mas lia o `--primary`, que e declarado no `:root` como
+      // `var(--brand-400)`. A substituicao de `var()` acontece onde a
+      // propriedade e DECLARADA, nao onde e lida — entao a sonda herdava sempre
+      // o valor ja resolvido do acento ATIVO, e as 22 amostras saiam da mesma
+      // cor. O seletor de cores mostrava 22 copias do mesmo circulo, que e
+      // pior do que nao ter seletor: parece que o app oferece escolha e nao
+      // oferece.
+      //
+      // Entregar o `data-accent` ao CSS elimina a medicao. A amostra nao tem
+      // como divergir da cor que a pessoa vai receber, porque e a mesma regra
+      // que pinta o resto do app.
+      return el('button', {
+        class: 'st-cor' + (a.id === atual ? ' on' : ''),
+        'data-accent': a.id,
+        'aria-label': a.nome, title: a.nome,
+        'aria-pressed': a.id === atual ? 'true' : 'false',
         onclick: function () {
           S.setAjuste('accent', a.id);
           global.App.aplicarTema();
-          U.$$('.st-cor', cores).forEach(function (x, i) {
-            const ligado = ACCENTS[i].id === a.id;
+          // Marca pelo id, nao pela posicao na lista.
+          U.$$('.st-cor', ap).forEach(function (x) {
+            const ligado = x.getAttribute('data-cor') === a.id;
             x.classList.toggle('on', ligado);
             x.setAttribute('aria-pressed', ligado ? 'true' : 'false');
           });
         },
       });
-      cores.appendChild(b);
+    }
+
+    FAMILIAS.forEach(function (f) {
+      ap.appendChild(el('div', { class: 'label st-cor-familia' }, [
+        el('span', { class: 'f-nome' }, f.familia),
+        el('span', { class: 'f-nota' }, f.nota),
+      ]));
+      const linha = el('div', { class: 'row gap-2 wrap mb-3' });
+      f.cores.forEach(function (a) {
+        const b = amostra(a);
+        b.setAttribute('data-cor', a.id);
+        linha.appendChild(b);
+      });
+      ap.appendChild(linha);
     });
-    ap.appendChild(cores);
 
     ap.appendChild(el('label', { class: 'label' }, 'Tema'));
     const tema = S.ajuste('tema', 'auto');
@@ -107,13 +172,32 @@
         onclick: function () { S.setAjuste('densidade', o.v); global.App.aplicarTema(); recarregar(); } }, o.n);
     })));
 
-    ap.appendChild(el('label', { class: 'label' }, 'Tamanho do texto'));
-    ap.appendChild(el('div', { class: 'chips mb-3' }, [
-      { v: 'small', n: 'Pequeno' }, { v: 'normal', n: 'Normal' }, { v: 'large', n: 'Grande' },
-    ].map(function (o) {
-      return el('button', { class: 'chip', 'aria-pressed': String(S.ajuste('fontsize', 'normal') === o.v),
-        onclick: function () { S.setAjuste('fontsize', o.v); global.App.aplicarTema(); recarregar(); } }, o.n);
-    })));
+    // Tamanho do texto. Seis degraus, de 14 a 22 px.
+//
+// Antes eram tres ("small"/"large") e nao faziam nada: todos os 108 tamanhos
+// de texto do app estavam em px, entao mudar a fonte da raiz nao alterava nada
+// visivel. Tudo agora esta em rem, e a raiz e que muda.
+//
+// As chaves sao ASCII de proposito. Este projeto ja foi mordido por
+// normalizacao unicode duas vezes, e um valor de ajuste nao e lugar para
+// arriscar.
+const TAMANHOS = [
+    { v: 'xs', n: 'A', px: 14 }, { v: 'sm', n: 'A', px: 15 }, { v: 'md', n: 'A', px: 16 },
+    { v: 'lg', n: 'A', px: 18 }, { v: 'xl', n: 'A', px: 20 }, { v: 'xxl', n: 'A', px: 22 },
+  ];
+  ap.appendChild(el('label', { class: 'label' }, 'Tamanho do texto'));
+  ap.appendChild(el('div', { class: 'chips mb-2' }, TAMANHOS.map(function (o) {
+    return el('button', {
+      class: 'chip', 'aria-pressed': String(S.ajuste('fontsize', 'md') === o.v),
+      // Cada "A" e desenhado no tamanho que seria escolhido. Um seletor de
+      // tamanho em que todas as opcoes sao visualmente iguais e um seletor
+      // que obriga a decorar — o rotulo vira a unica informacao disponivel.
+      style: { fontSize: (o.px / 16) + 'rem' },
+      title: o.px + ' px',
+      onclick: function () { S.setAjuste('fontsize', o.v); global.App.aplicarTema(); recarregar(); },
+    }, 'A');
+  })));
+  ap.appendChild(el('p', { class: 'fs-xs muted' }, 'O app inteiro acompanha, nao so o texto das cifras.'));
 
     ap.appendChild(linhaChave('Reduzir animacoes', 'Para quem se incomoda com movimento',
       S.ajuste('motion', 'on') === 'off', function (v) { S.setAjuste('motion', v ? 'off' : 'on'); global.App.aplicarTema(); }));

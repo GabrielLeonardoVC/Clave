@@ -14,11 +14,15 @@
   /* =======================================================
      Chips de tom
      ======================================================= */
+  // A ordem e por quinta, nao alfabetica: C G D A E B F. Para quem toca, e
+  // a ordem que importa — cada tonalidade e um traste acima na mesma corda.
+  // A alfabetica (C D E F G A B) obriga a contar de traste na cabeca, que e
+  // exatamente o trabalho que a teoria deveria estar fazendo.
   const TONS_MAIORES = [
-    { pc: 0, n: 'C' }, { pc: 2, n: 'D' }, { pc: 4, n: 'E' }, { pc: 5, n: 'F' },
-    { pc: 7, n: 'G' }, { pc: 9, n: 'A' }, { pc: 11, n: 'B' },
-    { pc: 10, n: 'Bb' }, { pc: 3, n: 'Eb' }, { pc: 8, n: 'Ab' },
-    { pc: 6, n: 'F#' }, { pc: 1, n: 'Db' },
+    { pc: 0, n: 'C' }, { pc: 7, n: 'G' }, { pc: 2, n: 'D' }, { pc: 9, n: 'A' },
+    { pc: 4, n: 'E' }, { pc: 11, n: 'B' }, { pc: 5, n: 'F' },
+    { pc: 6, n: 'F#' }, { pc: 10, n: 'Bb' }, { pc: 3, n: 'Eb' },
+    { pc: 8, n: 'Ab' }, { pc: 1, n: 'Db' },
   ];
 
   function tomOptionsPc(maior) {
@@ -87,7 +91,7 @@
     thead.appendChild(el('td', { style: { width: '14px' } }));
     for (let i = 0; i <= 4; i++) {
       thead.appendChild(el('td', {
-        style: { fontSize: '9px', color: 'var(--text-faint)', textAlign: 'center', paddingBottom: '2px' },
+        style: { fontSize: '0.5625rem', color: 'var(--text-faint)', textAlign: 'center', paddingBottom: '2px' },
       }, String(start + i)));
     }
     table.appendChild(thead);
@@ -95,7 +99,7 @@
     for (let s = 0; s < nC; s++) {
       const tr = el('tr');
       tr.appendChild(el('td', {
-        style: { fontSize: '10px', color: 'var(--text-faint)', textAlign: 'right', paddingRight: '4px', fontFamily: 'var(--font-mono)' },
+        style: { fontSize: '0.625rem', color: 'var(--text-faint)', textAlign: 'right', paddingRight: '4px', fontFamily: 'var(--font-mono)' },
       }, rotulos[s] || ''));
       for (let i = 0; i <= 4; i++) {
         const f = frets[s];
@@ -114,7 +118,7 @@
             background: f < 0 ? 'transparent' : 'var(--primary)',
             color: '#fff', borderRadius: f < 0 ? '2px' : '50%',
             width: f < 0 ? '8px' : '18px', height: f < 0 ? '8px' : '18px', margin: 'auto',
-            fontSize: '9px', fontWeight: '800', top: '3px',
+            fontSize: '0.5625rem', fontWeight: '800', top: '3px',
           },
         }, f < 0 ? '' : (f - capoAt)) : ''));
       }
@@ -127,7 +131,7 @@
         borderRadius: 'var(--r-1)', padding: '6px 8px 4px', minWidth: '120px',
       },
     }, [
-      el('div', { style: { fontSize: '11px', fontWeight: '800', textAlign: 'center', marginBottom: '2px', color: 'var(--text-2)' } },
+      el('div', { style: { fontSize: '0.6875rem', fontWeight: '800', textAlign: 'center', marginBottom: '2px', color: 'var(--text-2)' } },
         opts.title || ''),
       table,
     ]);
@@ -160,7 +164,7 @@
       if (start === 0) {
         nutRow.appendChild(el('div', { style: { width: '16px', height: '3px', background: 'var(--text-2)', borderRadius: '2px' } }));
       } else {
-        nutRow.appendChild(el('div', { style: { fontSize: '8px', color: 'var(--text-faint)' } }, String(start)));
+        nutRow.appendChild(el('div', { style: { fontSize: '0.5rem', color: 'var(--text-faint)' } }, String(start)));
       }
       col.appendChild(nutRow);
       for (let i = 0; i < nFrets; i++) {
@@ -175,7 +179,7 @@
           },
         });
         if (isHit) cell.appendChild(el('div', {
-          style: { width: '13px', height: '13px', borderRadius: '50%', background: 'var(--primary)', color: '#fff', fontSize: '8px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+          style: { width: '13px', height: '13px', borderRadius: '50%', background: 'var(--primary)', color: '#fff', fontSize: '0.5rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center' },
         }, String(f)));
         else if (isMute) cell.appendChild(el('div', {
           style: { width: '7px', height: '3px', background: 'var(--text-faint)', borderRadius: '2px' },
@@ -183,7 +187,7 @@
         col.appendChild(cell);
       }
       body.appendChild(col);
-      head.appendChild(el('div', { style: { width: '18px', textAlign: 'center', fontSize: '8px', color: 'var(--text-faint)', fontWeight: '700' } },
+      head.appendChild(el('div', { style: { width: '18px', textAlign: 'center', fontSize: '0.5rem', color: 'var(--text-faint)', fontWeight: '700' } },
         rotulos[s] || ''));
     }
     wrap.appendChild(head);
@@ -299,7 +303,7 @@
 
     wrap.appendChild(el('div', { class: 'scale-legend mt-3' }, [
       el('span', {}, [el('span', { class: 'sw', style: { background: 'var(--primary)' } }), 'Tônica']),
-      el('span', {}, [el('span', { class: 'sw', style: { background: 'color-mix(in srgb, var(--gold-500) 45%, transparent)' } }), 'Nota da escala']),
+      el('span', {}, [el('span', { class: 'sw', style: { background: 'color-mix(in srgb, var(--warn-500) 45%, transparent)' } }), 'Nota da escala']),
       el('span', {}, [el('span', { class: 'sw', style: { background: 'var(--surface-3)', border: '1px solid var(--border)' } }), 'Fora da escala']),
     ]));
 
@@ -383,7 +387,7 @@
       const g2 = document.createElementNS(svgNS, 'g');
       const minArc = document.createElementNS(svgNS, 'path');
       minArc.setAttribute('d', arcPath(cx, cy, rInner - 26, rInner - 2, ang2 - 0.14, ang2 + 0.14));
-      minArc.setAttribute('fill', M.useFlatsFor(M.relativeMinor(pc)) ? 'color-mix(in srgb, var(--gold-500) 12%, var(--surface))' : 'var(--surface-2)');
+      minArc.setAttribute('fill', M.useFlatsFor(M.relativeMinor(pc)) ? 'color-mix(in srgb, var(--warn-500) 12%, var(--surface))' : 'var(--surface-2)');
       minArc.setAttribute('stroke', 'var(--border)');
       g2.appendChild(minArc);
       const minT = document.createElementNS(svgNS, 'text');
@@ -391,7 +395,7 @@
       minT.setAttribute('y', String((b1.y + b2.y) / 2));
       minT.setAttribute('text-anchor', 'middle'); minT.setAttribute('dominant-baseline', 'middle');
       minT.setAttribute('font-size', '10');
-      minT.setAttribute('fill', 'var(--text-soft)');
+      minT.setAttribute('fill', 'var(--text-light)');
       minT.setAttribute('font-weight', '700');
       minT.textContent = M.noteName(M.relativeMinor(pc), flat) + 'm';
       g2.appendChild(minT);
@@ -452,7 +456,7 @@
       const ln = lines[i];
       if (!ln.trim()) { out.push(el('div', { style: { height: '10px' } })); i++; continue; }
       if (M.isSectionLine(ln) && !M.isChordLine(ln)) {
-        out.push(el('div', { class: 'sec', style: { fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--gold-500)', fontWeight: '700', margin: '8px 0 4px' } },
+        out.push(el('div', { class: 'sec', style: { fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--warn-500)', fontWeight: '700', margin: '8px 0 4px' } },
           ln.trim()));
         i++; continue;
       }
@@ -947,12 +951,271 @@ function painelRolagem(cifra, opts) {
     return 'letra';
   }
 
+  /**
+   * O botao que OUVE um tom.
+   *
+   * E a peca que responde "por que eu toco isso?". Uma cifra diz o tom; ela nao
+   * faz o ouvido aceitar. Quem esta com a corda na mao precisa ouvir o alvo ao
+   * lado do que a corda esta dando, e um quarto de tom de diferenca nao se
+   * resolve lendo, so ouvindo.
+   *
+   * Toca a tonica E a sua quinta. A quinta da corpo: so a tonica e fina demais
+   * para servir de referencia, e faz a corda parecer errada quando o que esta
+   * errado e o timbre. E o oposto do que se faz ao ensinar a forma de um
+   * acorde, onde a quinta distrai.
+   *
+   * `mini` e so o icone, para encostar num texto que ja diz o tom.
+   */
+  function botaoTom(pc, modo, rotulo, opts) {
+    opts = opts || {};
+    const p = M.mod12(pc);
+    const nome = rotulo || (M.noteName(p, M.useFlatsFor(p)) + (modo === 'minor' ? ' menor' : ' maior'));
+    const mini = !!opts.mini;
+    const botao = el('button', {
+      class: 'tom-btn' + (mini ? ' mini' : ''), type: 'button',
+      'aria-label': 'Ouvir o tom ' + nome,
+      title: 'Ouvir ' + nome,
+    });
+
+    if (!mini) botao.appendChild(el('span', { class: 'tom-btn-nome' }, nome));
+    botao.appendChild(el('i', { 'data-lucide': 'volume-2' }));
+
+    let relogio = null;
+    botao.addEventListener('click', function () {
+      const A = global.Audio;
+      if (!A || typeof A.tocarAcorde !== 'function') {
+        if (global.UI && global.UI.toast) global.UI.toast('Audio indisponivel neste navegador', { tipo: 'err' });
+        return;
+      }
+      // Cortar o que ainda estava soando: dois tons juntos nao ajudam ninguem a
+      // decidir, e o que fica tocando depois e o que a pessoa vai lembrar.
+      if (relogio) global.clearTimeout(relogio);
+      A.parar();
+
+      const Tuner = global.Tuner;
+      if (!Tuner || typeof Tuner.notaParaHz !== 'function') {
+        if (global.UI && global.UI.toast) global.UI.toast('Sintese indisponivel', { tipo: 'err' });
+        return;
+      }
+      const oitava = opts.oitava || 3;
+      const hzTonica = Tuner.notaParaHz(p, oitava);
+      const hzQuinta = Tuner.notaParaHz(M.mod12(p + 7), oitava);
+      if (!hzTonica) return;
+
+      const notas = opts.quinta === false ? [hzTonica] : [hzTonica, hzQuinta];
+      A.tocarAcorde(notas, { duracao: opts.duracao || 2.2, volume: 0.2, espalhar: 0.02 });
+
+      botao.classList.add('tocando');
+      relogio = global.setTimeout(function () { botao.classList.remove('tocando'); }, 2300);
+    });
+
+    return botao;
+  }
+
+  /**
+   * Uma linha "Tom: Am" com o botao de som ao lado.
+   *
+   * E o formato que cabe onde ja existe um texto com o tom: a cifra aberta, o
+   * cabecalho da teoria. Nao e uma segunda informacao — e a mesma informacao
+   * com uma forma de conferir em vez de apenas ler.
+   */
+  function linhaComTom(pc, modo, prefixo, opts) {
+    opts = opts || {};
+    const p = M.mod12(pc);
+    const nome = M.noteName(p, M.useFlatsFor(p)) + (modo === 'minor' ? ' menor' : ' maior');
+    return el('div', { class: 'tom-com-ouvir' }, [
+      el('span', {}, (prefixo || 'Tom: ') + nome),
+      botaoTom(p, modo, null, Object.assign({ mini: true }, opts)),
+    ]);
+  }
+
+/* =======================================================
+     O SELETOR DE TONALIDADES
+     =======================================================
+
+     Vive aqui, e nao em cada tela, porque a Acordes e a Escalas precisam do
+     mesmo seletor. Uma copia por tela comeca a divergir no primeiro ajuste — e a
+     divergencia aparece como "o seletor e diferente nesta tela", que e o tipo
+     de defeito que faz a pessoa desconfiar do app inteiro.
+
+     Sao DOIS estados, e nao um:
+
+       - as sete tonalidades sem accidental, sempre a vista;
+       - as cinco com accidental, so quando o acorde escolhido precisa delas.
+
+     Doze botoes para sete notas e ruido, e o ultimo caia sozinho numa segunda
+     linha, o que parece defeito de layout. Porem, esconder as accidentais e
+     perigoso: se o acorde escolhido tem accidental e elas nao aparecem, a
+     pessoa nao ve o que esta selecionado. Por isso a segunda fileira aparece
+     justamente quando e necessaria.
+   ======================================================= */
+
+/** As cinco com accidental, por valor de semitons. */
+const TONS_COM_ACCIDENTE = [6, 10, 3, 8, 1];   // F#, Bb, Eb, Ab, Db
+
+/**
+ * O seletor.
+ *
+ * `pc` e a tonalidade escolhida. `aoEscolher` recebe o novo valor. `rotulo`
+ * opcional, para quando o seletor precisa de um texto em cima.
+ */
+function seletorDeTons(opts) {
+  opts = opts || {};
+  const pc = M.mod12(opts.pc || 0);
+  const aoEscolher = opts.aoEscolher || function () {};
+  const box = el('div', { class: 'seletor-tons' });
+
+  function fileira(lista) {
+    const linha = el('div', { class: 'key-picker mb-2' });
+    lista.forEach(function (t) {
+      linha.appendChild(el('button', {
+        class: 'key-cell', type: 'button',
+        'aria-pressed': String(pc === t.pc),
+        onclick: function () { aoEscolher(t.pc); },
+      }, M.noteName(t.pc, M.useFlatsFor(t.pc))));
+    });
+    return linha;
+  }
+
+  const principais = TONS_MAIORES.filter(function (t) {
+    return TONS_COM_ACCIDENTE.indexOf(t.pc) < 0;
+  });
+  const acidentais = TONS_MAIORES.filter(function (t) {
+    return TONS_COM_ACCIDENTE.indexOf(t.pc) >= 0;
+  });
+
+  box.appendChild(fileira(principais));
+
+  // A fileira extra so quando a escolhida precisa dela. Sem isto, quem escolhe
+  // um tom com bemol deixa de ver a propria selecao.
+  if (TONS_COM_ACCIDENTE.indexOf(pc) >= 0) {
+    box.appendChild(el('div', { class: 'label st-acc-titulo' }, 'Com accidental'));
+    box.appendChild(fileira(acidentais));
+  }
+
+  return box;
+}
+
+/* =======================================================
+     OUVIR A ESCALA INTEIRA
+
+     O botao de tom toca a tonica e a dominante. Isso responde "qual e a
+     tonica", que nao e a mesma pergunta que "como e essa escala".
+
+     Faltava tocar a escala. E o que faz uma escala parecer escala nao e o
+     conjunto das notas: e o intervalo entre elas. Oito notas ao mesmo tempo sao
+     um acorde grande, nao uma escala.
+   ======================================================= */
+
+/**
+ * O botao que toca a escala ascendente.
+ *
+ * `notas` e a lista de semitons da escala (a saida de `scaleNotes`, com
+ * octaves ja separadas).
+ */
+/* =======================================================
+     OUVIR A ESCALA INTEIRA
+
+     O botao de tom toca a tonica e a dominante. Isso responde "qual e a
+     tonica", que nao e a mesma pergunta que "como e essa escala".
+
+     O que faz uma escala parecer escala nao e o conjunto das notas: e o
+     intervalo entre elas. Oito notas ao mesmo tempo sao um acorde grande, e nao
+     uma escala.
+
+     Clicar de novo interrompe. E o botao volta ao normal na hora, e nao quando
+     o relogio do fim da sequencia passa — senao fica escrito "Parar" com o
+     som ja cortado.
+     ======================================================= */
+  function botaoEscala(notas, rotulo, opts) {
+    opts = opts || {};
+    const Tuner = global.Tuner;
+    const A = global.Audio;
+    const textoParado = rotulo || 'Ouvir a escala';
+
+    const botao = el('button', {
+      class: 'botao-escala', type: 'button',
+      'aria-label': 'Ouvir a escala',
+    });
+
+    let relogio = null;
+    let tocando = false;
+
+    /* Pinta o botao no estado em que ele esta.
+       Fatorado porque o texto aparecia em tres lugares e ja tinha divergido
+       uma vez: o clique de interromper deixava "Parar" na tela depois do som
+       cortado. */
+    function marcar(ligado) {
+      U.clear(botao);
+      botao.appendChild(el('i', { 'data-lucide': ligado ? 'square' : 'play' }));
+      botao.appendChild(el('span', {}, ligado ? 'Parar' : textoParado));
+      botao.classList.toggle('tocando', ligado);
+      tocando = ligado;
+    }
+
+    marcar(false);
+
+    botao.addEventListener('click', function () {
+      if (!A || typeof A.tocarSequencia !== 'function') {
+        if (global.UI && global.UI.toast) global.UI.toast('Audio indisponivel', { tipo: 'err' });
+        return;
+      }
+
+      if (tocando) {
+        // `A.parar()` e nao `parar()`: `parar` e uma funcao de audio.js e nao
+        // esta no escopo deste arquivo. Escrever `parar()` produzia um
+        // ReferenceError no segundo clique — a escala tocava e nao havia como
+        // interromper sem trocar de aba.
+        A.parar();
+        if (relogio) clearTimeout(relogio);
+        marcar(false);
+        return;
+      }
+
+      if (!Tuner || typeof Tuner.notaParaHz !== 'function') return;
+
+      const oitava = opts.oitava == null ? 3 : opts.oitava;
+      const hz = [];
+      for (let i = 0; i < notas.length; i++) {
+        // A lista pode vir como semitons simples (0..11) ou ja com a oitava
+        // somada. Um valor acima de 11 indica que o laço passou da oitava.
+        const bruto = notas[i];
+        const oct = Math.floor(bruto / 12);
+        const h = Tuner.notaParaHz(M.mod12(bruto), oitava + oct);
+        if (h) hz.push(h);
+      }
+      if (!hz.length) return;
+
+      const passo = opts.passo || 0.3;
+      A.parar();
+      A.tocarSequencia(hz, {
+        passo: passo,
+        duracao: opts.duracao || 0.42,
+        volume: opts.volume == null ? 0.19 : opts.volume,
+      });
+
+      marcar(true);
+
+      // O relogio cobre a sequencia inteira mais um respiro. Nada mais confiavel
+      // do que a propria duracao calculada.
+      if (relogio) clearTimeout(relogio);
+      relogio = setTimeout(function () {
+        tocando = false;
+        marcar(false);
+      }, hz.length * passo * 1000 + 700);
+    });
+
+    return botao;
+  }
+
+
   global.Render = {
     TONS_MAIORES, tomOptionsPc, selectTon,
     chordGrid, chordDiagram, chordDiagramVertical,
     scaleFretboard, scaleKeyboard, circleOfFifths,
     cifraBox, cifraAligned, chordAnalysis, statCard,
-    transposeBar, numeroBr,
+    transposeBar, numeroBr, botaoTom, linhaComTom,
+    seletorDeTons, botaoEscala, TONS_COM_ACCIDENTE,
     cifraScroller, painelRolagem, tipoClasse,
   };
 

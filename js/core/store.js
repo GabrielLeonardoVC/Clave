@@ -27,7 +27,7 @@
         tema: 'auto',
         accent: 'ember',
         densidade: 'normal',
-        fontsize: 'normal',
+        fontsize: 'md',
         motion: 'on',
         notificacoes: true,
         antecedenciaNotif: 120,
@@ -121,6 +121,12 @@
       local: String(e.local || '').slice(0, 160),
       tipo: TIPOS.indexOf(tipoLido) >= 0 ? tipoLido : 'missa',
       obs: String(e.obs || ''),
+      // A foto do evento: o aviso do ensaio, a partitura do grupo, a foto do
+      // local. Cada musica tem a sua; o evento tinha nenhuma, e e a que as
+      // pessoas costumam mandar no grupo antes de todo mundo confirmar.
+      // Uma string (data-URL) e um limite do armazenamento — e o mesmo limite
+      // que ja valia para a foto de cada musica, entao nao traz novidade.
+      foto: String(e.foto || '').slice(0, 3000000),
       status: ['rascunho', 'confirmada', 'tocada'].indexOf(e.status) >= 0 ? e.status : 'rascunho',
       musicas: (Array.isArray(e.musicas) ? e.musicas : []).map(normMusica),
       criadoEm: e.criadoEm || Date.now(),

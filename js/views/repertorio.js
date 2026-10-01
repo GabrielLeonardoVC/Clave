@@ -248,9 +248,12 @@
       const k = M.detectKey(v.cifra);
       if (!k) return;
       infoTom.appendChild(el('div', { class: 'card card-flat', style: { background: 'var(--brand-tint)', borderColor: 'transparent' } }, [
-        el('div', { class: 'row gap-2' }, [
-          el('i', { 'data-lucide': 'key-round', style: { width: '16px', height: '16px', color: 'var(--primary)', flex: 'none' } }),
-          el('span', { class: 'fs-sm' }, 'Tom detectado: ' + M.noteName(k.pc, M.useFlatsFor(k.pc)) + (k.mode === 'minor' ? ' menor' : ' maior')),
+        el('div', { class: 'row gap-2 wrap' }, [
+          el('span', { class: 'fs-sm grow' }, 'Tom detectado: ' + M.noteName(k.pc, M.useFlatsFor(k.pc)) + (k.mode === 'minor' ? ' menor' : ' maior')),
+          // Ouvir o tom detectado. Uma cifra diz o tom; ela nao faz o
+          // ouvido aceitar. E e aqui que a duvida aparece: "esta musica e
+          // em La menor mesmo?" so se responde ouvindo.
+          R.botaoTom(k.pc, k.mode, null, { mini: true, oitava: 3 }),
         ]),
       ]));
     }

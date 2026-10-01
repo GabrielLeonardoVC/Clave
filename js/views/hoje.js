@@ -107,13 +107,13 @@
         placaDeTom(tomDoEvento(p)),
         el('div', { class: 'cta' }, el('div', { class: 'btn' }, [
           el('i', { 'data-lucide': p.musicas.length ? 'play' : 'arrow-right' }),
-          p.musicas.length ? 'Abrir o ensaio' : 'Abrir escala',
+          'Abrir o evento',
         ])),
       ]));
     } else {
       root.appendChild(el('div', { class: 'capa plain' }, [
         el('div', { class: 'k' }, 'BEM-VINDO AO ACORDE'),
-        el('div', { class: 't' }, 'Monte seu primeiro ensaio'),
+        el('div', { class: 't' }, 'Monte seu primeiro evento'),
         el('div', { class: 'm' }, 'Escolha a data, arraste as músicas e mande pro time.'),
         el('div', { class: 'cta' }, el('button', { class: 'btn', onclick: function () { global.App.ir('agenda', { nova: true }); } },
           [el('i', { 'data-lucide': 'plus' }), 'Criar escala'])),
@@ -122,7 +122,7 @@
 
     /* ---- a régua ---- */
     root.appendChild(el('div', { class: 'regua mt-5' }, [
-      rapido('calendar-plus', 'Novo ensaio', 'gold', function () { global.App.ir('agenda', { nova: true }); }),
+      rapido('calendar-plus', 'Novo evento', 'gold', function () { global.App.ir('agenda', { nova: true }); }),
       rapido('music-4', 'Nova cifra', 'green', function () { V.repertorio && V.repertorio.novo(); }),
       rapido('audio-lines', 'Afinador', 'blue', function () { V.afinador && V.afinador.abrir(); }),
       rapido('clipboard-paste', 'Colar', '', function () { V.repertorio && V.repertorio.colar(); }),

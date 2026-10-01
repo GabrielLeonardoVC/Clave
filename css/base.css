@@ -19,6 +19,10 @@
   --brand-700: #8A3D06;
   --brand-tint: #FDF0DC;
   --brand-tint-2: #FAE2C0;
+  /* De onde o tom do acento e misturado. Claro, porque o tema e claro: e o que
+     faz o fundo de um chipBrasa nascer creme e nao quase preto. Ver a nota
+     da secao de acentos, mais abaixo. */
+  --tint-base: #FFFBF2;
 
   --signal-400: #2DD4BF;
   --signal-600: #0F766E;
@@ -45,7 +49,16 @@
   --ink-2: #4A423A;
   --ink-3: #7D7266;
   --ink-4: #A79C8E;
-  --on-brand: #1B1714;
+  /* O texto que vai SOBRE a cor do acento.
+     */
+  /* Este era #1B1714, quase preto, e --primary no claro e a variante ESCURA
+     da rampa: texto quase preto sobre cor escura, 3.55:1. Abaixo dos 4.5 que
+     a WCAG exige, e em dezessete regras ao mesmo tempo — todo chip
+     selecionado, toda tecla de tom, o botao principal, a nota fundamental
+     no braco. No escuro o valor escuro continua certo: la --primary e a
+     variante clara, e da 10.18:1. Sao os dois lados de uma moeda, e por isso
+     os dois sao conferidos em tools/check-contraste.js. */
+  --on-brand: #FFFCF6;
   --on-dark: #F6F1E7;
 
   /* linhas */
@@ -91,6 +104,9 @@
   --brand-700: #A85B0D;
   --brand-tint: #2A1E10;
   --brand-tint-2: #3A2813;
+  /* Na base escura o tom nasce de uma superficie, nao do preto do fundo: uma
+     mistura com o fundo daria um bloco sem separacao da tela. */
+  --tint-base: #241C15;
 
   --signal-400: #2DD4BF;
   --signal-600: #14B8A6;
@@ -141,7 +157,7 @@
     color-scheme: dark;
     --brand-300: #FFD79B; --brand-400: #F5B45C; --brand-500: #E8912B;
     --brand-600: #D97B16; --brand-700: #A85B0D;
-    --brand-tint: #2A1E10; --brand-tint-2: #3A2813;
+    --brand-tint: #2A1E10; --brand-tint-2: #3A2813; --tint-base: #241C15;
     --signal-400: #2DD4BF; --signal-600: #14B8A6; --signal-tint: #0E2A28;
     --danger-400: #F5795F; --danger-500: #E04A2C; --danger-tint: #2E1512;
     --warn-500: #E8912B; --warn-tint: #2A1E10;
@@ -181,25 +197,138 @@
 /* =======================================================
    ACENTOS ALTERNATIVOS (personalização)
    ======================================================= */
-[data-accent="ember"]  { --brand-400: #F0803C; --brand-500: #E05A18; --brand-600: #B8410A; --brand-tint: #2B1708; --primary: var(--brand-400); }
-[data-accent="jade"]   { --brand-400: #4ECB9E; --brand-500: #22A87A; --brand-600: #15795A; --brand-tint: #0D2A21; --primary: var(--brand-400); }
-[data-accent="ocean"]  { --brand-400: #5AB3E8; --brand-500: #2E8FC9; --brand-600: #1B6191; --brand-tint: #0C2230; --primary: var(--brand-400); }
-[data-accent="violet"] { --brand-400: #A98BF5; --brand-500: #7C5AE0; --brand-600: #5B3BB5; --brand-tint: #1E1636; --primary: var(--brand-400); }
-[data-accent="rose"]   { --brand-400: #F1789E; --brand-500: #DB4A76; --brand-600: #A62F55; --brand-tint: #2E1119; --primary: var(--brand-400); }
-
-/* ── Acentos extras ──
-   Cada um declara so o que muda. O padrao nao precisa vir aqui: o bloco
-   acima ja traz todos os tokens, e um acento novo que falte um deles herda o
-   do padrao em vez de ficar sem cor. */
-[data-accent="coral"]   { --brand-400: #FF8A65; --brand-500: #E8573C; --brand-600: #B33A24; --brand-tint: #2E150F; --primary: var(--brand-400); }
-[data-accent="ambar"]   { --brand-400: #FFC94D; --brand-500: #E0A310; --brand-600: #A8790A; --brand-tint: #2A2109; --primary: var(--brand-400); }
-[data-accent="lima"]    { --brand-400: #B4DC4A; --brand-500: #86B123; --brand-600: #5D7E13; --brand-tint: #1B2209; --primary: var(--brand-400); }
-[data-accent="floresta"]{ --brand-400: #6FCF5C; --brand-500: #3FA83A; --brand-600: #2A7A26; --brand-tint: #12230F; --primary: var(--brand-400); }
-[data-accent="turquesa"]{ --brand-400: #45CFC4; --brand-500: #17A79C; --brand-600: #0E7A72; --brand-tint: #0A2422; --primary: var(--brand-400); }
-[data-accent="azul"]    { --brand-400: #6E9BF5; --brand-500: #4070DC; --brand-600: #2A4E9E; --brand-tint: #111B33; --primary: var(--brand-400); }
-[data-accent="indigo"]  { --brand-400: #8E9BF0; --brand-500: #5B68D4; --brand-600: #3C46A0; --brand-tint: #151833; --primary: var(--brand-400); }
-[data-accent="lilas"]   { --brand-400: #B79BF0; --brand-500: #8F6BDC; --brand-600: #6647AC; --brand-tint: #1D1630; --primary: var(--brand-400); }
-[data-accent="magenta"] { --brand-400: #E879C8; --brand-500: #C74EAA; --brand-600: #94347D; --brand-tint: #2A1128; --primary: var(--brand-400); }
+[data-accent="ember"] {
+  --brand-400: #F0803C; --brand-500: #E05A18; --brand-600: #B8410A;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="jade"] {
+  --brand-400: #4ECB9E; --brand-500: #22A87A; --brand-600: #15795A;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="ocean"] {
+  --brand-400: #5AB3E8; --brand-500: #2E8FC9; --brand-600: #1B6191;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="violet"] {
+  --brand-400: #A98BF5; --brand-500: #7C5AE0; --brand-600: #5B3BB5;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="rose"] {
+  --brand-400: #F1789E; --brand-500: #DB4A76; --brand-600: #A62F55;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="coral"] {
+  --brand-400: #FF8A65; --brand-500: #E8573C; --brand-600: #B33A24;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="ambar"] {
+  --brand-400: #FFC94D; --brand-500: #E0A310; --brand-600: #8C6508;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="lima"] {
+  --brand-400: #B4DC4A; --brand-500: #86B123; --brand-600: #577612;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="floresta"] {
+  --brand-400: #6FCF5C; --brand-500: #3FA83A; --brand-600: #2A7A26;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="turquesa"] {
+  --brand-400: #45CFC4; --brand-500: #17A79C; --brand-600: #0E7971;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="azul"] {
+  --brand-400: #6E9BF5; --brand-500: #4070DC; --brand-600: #2A4E9E;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="indigo"] {
+  --brand-400: #8E9BF0; --brand-500: #5B68D4; --brand-600: #3C46A0;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="lilas"] {
+  --brand-400: #B79BF0; --brand-500: #8F6BDC; --brand-600: #6647AC;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="magenta"] {
+  --brand-400: #E879C8; --brand-500: #C74EAA; --brand-600: #94347D;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="terracota"] {
+  --brand-400: #D9946A; --brand-500: #B8724A; --brand-600: #8A4E2E;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="ouro"] {
+  --brand-400: #E8C15A; --brand-500: #C9A227; --brand-600: #846813;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="areia"] {
+  --brand-400: #D8C4A0; --brand-500: #B99B69; --brand-600: #7F6840;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="oliva"] {
+  --brand-400: #A8B85C; --brand-500: #8A9A3E; --brand-600: #5F6B26;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="musgo"] {
+  --brand-400: #8FB56B; --brand-500: #6E9550; --brand-600: #486833;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="cobalto"] {
+  --brand-400: #7AA5F0; --brand-500: #4A7FE0; --brand-600: #2A55A8;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="ameixa"] {
+  --brand-400: #B98AC4; --brand-500: #9A5FAB; --brand-600: #6B3B7A;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
+[data-accent="grafite"] {
+  --brand-400: #9AA3AB; --brand-500: #6E7880; --brand-600: #414B54;
+  /* O tom nasce da base do tema: claro no claro, escuro no escuro. */
+  --brand-tint: color-mix(in srgb, var(--brand-500) 14%, var(--tint-base));
+  --brand-tint-2: color-mix(in srgb, var(--brand-500) 26%, var(--tint-base));
+}
 
 /* =======================================================
    RESET
@@ -216,7 +345,7 @@ body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--ink);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.5;
   min-height: 100dvh;
   overflow-x: hidden;
@@ -232,9 +361,23 @@ body {
 [data-density="compact"] { --sp-4: 12px; --sp-5: 16px; --sp-6: 22px; }
 [data-density="roomy"]   { --sp-4: 20px; --sp-5: 28px; --sp-6: 40px; }
 
-/* tamanho de texto global */
-[data-fontsize="small"] { font-size: 15px; }
-[data-fontsize="large"] { font-size: 17.5px; }
+/* tamanho de texto global
+   -------------------------------------------------
+   Isto so funciona porque TODO o texto do app esta em rem. Com tudo em px
+   (como estava), mexer na fonte da raiz nao alterava nada visivel e a opcao
+   das configuracoes nao fazia absolutamente nada.
+
+   Estas regras NAO podem estar em rem. A fonte do <html> em rem seria calculada
+   contra ela mesma — um laco que nunca para de crescer encolher.
+   O layout continua em px de proposito: quem pede letra maior quer ler melhor,
+   nao um app com o dobro do tamanho. E o que acessibilidade espera. */
+html { font-size: 16px; }
+[data-fontsize="xs"]  { font-size: 14px; }
+[data-fontsize="sm"]  { font-size: 15px; }
+[data-fontsize="md"]  { font-size: 16px; }
+[data-fontsize="lg"]  { font-size: 18px; }
+[data-fontsize="xl"]  { font-size: 20px; }
+[data-fontsize="xxl"] { font-size: 22px; }
 
 img, svg, video, canvas { display: block; max-width: 100%; }
 img { height: auto; }
@@ -273,7 +416,7 @@ hr { border: none; border-top: 1px solid var(--line); margin: var(--sp-4) 0; }
    ======================================================= */
 .display   { font-family: var(--font-d); font-weight: 800; letter-spacing: -.04em; line-height: 1; }
 .eyebrow {
-  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+  font-size: 0.6563rem; font-weight: 800; text-transform: uppercase;
   letter-spacing: .14em; color: var(--ink-3);
 }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

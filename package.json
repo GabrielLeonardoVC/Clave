@@ -4,13 +4,18 @@
   "private": true,
   "description": "A mesa de trabalho de quem toca. Cifras, escalas e teoria musical para musicos ao vivo.",
   "scripts": {
-    "test": "node tools/test-music.js && node tools/test-links.js && node tools/test-search.js && node tools/test-tuner.js && node tools/test-estudo.js",
+    "test": "node tools/test-music.js && node tools/test-links.js && node tools/test-search.js && node tools/test-tuner.js && node tools/test-estudo.js && node tools/test-emergencia.js",
     "test:motor": "node tools/test-music.js",
     "test:links": "node tools/test-links.js",
     "test:busca": "node tools/test-search.js",
     "test:afinador": "node tools/test-tuner.js",
     "test:estudo": "node tools/test-estudo.js",
-    "verificar": "npm test && node tools/check-syntax.js && node tools/check-utf8.js && node tools/scan.js && node tools/check-api.js && node tools/termos.js",
+    "test:emergencia": "node tools/test-emergencia.js",
+    "check:escopo": "node tools/check-escopo.js",
+    "check:css": "node tools/check-css.js",
+    "probe:css": "node tools/probe-css.js",
+    "check:contraste": "node tools/check-contraste.js",
+    "verificar": "npm test && node tools/check-syntax.js && node tools/check-utf8.js && node tools/scan.js && node tools/check-api.js && node tools/check-variaveis.js && node tools/check-texto.js && node tools/check-escopo.js && node tools/check-css.js && node tools/check-contraste.js && node tools/termos.js",
     "servir": "node tools/serve.js"
   },
   "keywords": [

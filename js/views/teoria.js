@@ -57,35 +57,134 @@
   /* =======================
      ACORDES
      ======================= */
+
+/* =======================================================
+     A PLACA DO ACORDE
+     Nome, notas e som, no topo da pagina.
+
+     A placa e clicavel e toca o acorde inteiro. Tocar as tres notas e a acao
+     mais util de quem esta aprendendo a forma: da para ouvir se o que voce
+     Dedilha e o que voce ouve, e comparar. Antes so existia ouvir a
+     fundamental e a sua relativa menor, o que responde outra pergunta.
+     ======================================================= */
+  function placaDoAcorde(nome, info, flat) {
+    const placa = el('button', {
+      class: 'acorde-placa', type: 'button',
+      'aria-label': 'Ouvir o acorde ' + nome,
+      title: 'Ouvir ' + nome,
+    });
+
+    placa.appendChild(el('div', { class: 'ap-nome' }, nome));
+    placa.appendChild(el('div', { class: 'ap-sub' }, info.full));
+
+    const pills = el('div', { class: 'ap-notas' });
+    info.notes.forEach(function (pc, k) {
+      pills.appendChild(el('span', { class: 'ap-nota' + (k === 0 ? ' raiz' : '') },
+        M.noteName(pc, flat)));
+    });
+    placa.appendChild(pills);
+
+    placa.appendChild(el('span', { class: 'ap-ouvir' },
+      [el('i', { 'data-lucide': 'volume-2' })]));
+
+    placa.addEventListener('click', function () {
+      const A = global.Audio;
+      if (!A || typeof A.tocarAcorde !== 'function') {
+        UI.toast('Audio indisponivel neste navegador', { tipo: 'err' });
+        return;
+      }
+      const Tuner = global.Tuner;
+      if (!Tuner || typeof Tuner.notaParaHz !== 'function') return;
+
+      // A fundamental na oitava 3 e as demais na 4. Todas na mesma oitava
+      // formam um aglomerado abafado; a fundamental na 3 e as outras na 4 dao
+      // a abertura que se ouve num violao.
+      const hz = info.notes.map(function (pc, k) {
+        return Tuner.notaParaHz(pc, k === 0 ? 3 : 4);
+      }).filter(Boolean);
+      if (!hz.length) return;
+
+      A.tocarAcorde(hz, { duracao: 2.4, volume: 0.16, espalhar: 0.02 });
+      placa.classList.add('tocando');
+      global.setTimeout(function () { placa.classList.remove('tocando'); }, 2500);
+    });
+
+    return placa;
+  }
+
+  /* =======================================================
+     O DEDILHADO, EM DUAS LINHAS ALINHADAS
+
+     A linha solta "E A D G B E  x 3 2 0 1 0" e pequena demais e esmaecida
+     demais para quem esta aprendendo. Em duas linhas, os traste ficam embaixo
+     das cordas correspondentes — que e como se le um dedilhado escrito.
+     ======================================================= */
+  function dedilhado(frets, labels) {
+    const box = el('div', { class: 'dedilhado' });
+    box.appendChild(el('div', { class: 'ded-linha' },
+      labels.map(function (l) { return el('span', {}, l); })));
+    box.appendChild(el('div', { class: 'ded-linha ded-nums' },
+      frets.map(function (f) {
+        return el('span', { class: f < 0 ? 'mudo' : '' }, f < 0 ? 'x' : String(f));
+      })));
+    return box;
+  }
+
   function painelAcordes() {
     const wrap = el('div', {});
-    wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'key-round' }), 'Fundamental']));
-    const fund = el('div', { class: 'key-picker mb-4' });
-    R.TONS_MAIORES.forEach(function (t) {
-      fund.appendChild(el('button', {
-        class: 'key-cell', 'aria-pressed': String(estAcorde.root === t.pc),
-        onclick: function () { estAcorde.root = t.pc; recarregar(); },
-      }, M.noteName(t.pc, M.useFlatsFor(t.pc))));
-    });
-    wrap.appendChild(fund);
+    const flat = M.useFlatsFor(estAcorde.root);
+    const nome = M.formatChord(estAcorde.root, estAcorde.quality, null, flat);
+    const info = M.chordInfo(estAcorde.root, estAcorde.quality, flat);
+    const I = M.instrumento(estAcorde.inst);
 
-    wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'layers' }), 'Qualidade']));
+    /* ---- a placa, no topo ---- */
+    // As notas do acorde ficavam no FIM, depois de cinco diagramas — a 1700px
+    // de rolagem. E a primeira duvida de quem esta aprendendo.
+    wrap.appendChild(placaDoAcorde(nome, info, flat));
+
+    /* ---- a fundamental ---- */
+    wrap.appendChild(el('div', { class: 'section-title mt-4' },
+      [el('i', { 'data-lucide': 'key-round' }), 'Fundamental']));
+
+    // O seletor e o de Render, o mesmo que a Escalas usa. Uma copia por tela
+    // comeca a divergir no primeiro ajuste, e a divergencia aparece como
+    // "o seletor e diferente nesta tela" — o tipo de defeito que faz a pessoa
+    // desconfiar do app inteiro.
+    wrap.appendChild(R.seletorDeTons({
+      pc: estAcorde.root,
+      aoEscolher: function (pc) { estAcorde.root = pc; recarregar(); },
+    }));
+
+    /* ---- ouvir a fundamental e a relativa menor ---- */
+    // Escolher um tom no seletor e so um numero; ouvir e saber qual e. E o que
+    // responde "este acorde e maior ou menor", que e a duvida de quem esta
+    // aprendendo. A placa ja toca o acorde inteiro; estes dois respondem a
+    // outra pergunta — qual e a tonica, e qual e a sua menor.
+    wrap.appendChild(el('div', { class: 'row gap-2 wrap mb-4' }, [
+      R.botaoTom(estAcorde.root, 'major',
+        M.noteName(estAcorde.root, flat) + ' maior', { oitava: 3 }),
+      R.botaoTom(M.relativeMinor(estAcorde.root), 'minor',
+        'menor: ' + M.noteName(M.relativeMinor(estAcorde.root), flat), { oitava: 3 }),
+    ]));
+
+    /* ---- a qualidade ---- */
+    wrap.appendChild(el('div', { class: 'section-title' },
+      [el('i', { 'data-lucide': 'layers' }), 'Qualidade']));
     const qual = el('div', { class: 'chips mb-4' });
     QUALIDADES.forEach(function (q) {
-      qual.appendChild(el('button', { class: 'chip', 'aria-pressed': String(estAcorde.quality === q.q),
-        onclick: function () { estAcorde.quality = q.q; recarregar(); } }, q.nome));
+      qual.appendChild(el('button', {
+        class: 'chip', 'aria-pressed': String(estAcorde.quality === q.q),
+        onclick: function () { estAcorde.quality = q.q; recarregar(); },
+      }, q.nome));
     });
     wrap.appendChild(qual);
 
-    const nome = M.formatChord(estAcorde.root, estAcorde.quality, null, M.useFlatsFor(estAcorde.root));
-    const info = M.chordInfo(estAcorde.root, estAcorde.quality, M.useFlatsFor(estAcorde.root));
-
-    // ── o instrumento ──
-    // Fica acima do acorde, e nao escondido em ajustes: o desenho so faz
-    // sentido junto com o numero de cordas. Trocar para ukulele e ver as
-    // formas sumirem para 4 e o app explicando o por que.
-    const I = M.instrumento(estAcorde.inst);
-    wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'guitar' }), 'Instrumento']));
+    /* ---- o instrumento ---- */
+    // Fica acima dos desenhos, e nao escondido em ajustes: o desenho so faz
+    // sentido junto com o numero de cordas. Trocar para ukulele e ver as formas
+    // sumirem para quatro e o app explicando o por que.
+    wrap.appendChild(el('div', { class: 'section-title' },
+      [el('i', { 'data-lucide': 'guitar' }), 'Instrumento']));
     const insts = el('div', { class: 'chips mb-4' });
     M.INSTRUMENTOS.forEach(function (it) {
       insts.appendChild(el('button', {
@@ -95,39 +194,41 @@
     });
     wrap.appendChild(insts);
 
+    /* ---- as formas ---- */
     const formas = M.instrumentShapes(estAcorde.inst, estAcorde.root, estAcorde.quality, { limit: 6 });
-
-    wrap.appendChild(el('div', { class: 'theory-card' }, [
-      el('div', { class: 'big-key' }, nome),
-      el('div', { class: 'big-scale' }, info.full + '  -  ' + info.labels.join(' - ')),
-    ]));
 
     if (formas.length) {
       wrap.appendChild(el('div', { class: 'section-title mt-5' }, [
         el('i', { 'data-lucide': 'guitar' }), 'Formas no ' + I.nome.toLowerCase(),
       ]));
       const g = el('div', { class: 'row gap-3 wrap' });
-      formas.forEach(function (f, i) {
-        g.appendChild(el('div', { class: 'stack gap-1', style: { alignItems: 'center' } }, [
-          R.chordDiagram(f, { title: i === 0 ? 'Principal' : 'Alt ' + i, labels: I.labels }),
-          // A linha de traste embaixo do desenho, com o nome da corda: e o que
-          // permite ler o desenho sem saber qual instrumento e.
-          el('div', { class: 'fs-xs muted mono' }, I.labels.join(' ') + '  ' + f.map(function (x) { return x < 0 ? 'x' : x; }).join(' ')),
+      formas.forEach(function (f, k) {
+        g.appendChild(el('div', { class: 'forma' }, [
+          el('div', { class: 'forma-titulo' }, k === 0 ? 'Principal' : 'Alt ' + k),
+          // Sem `title`: o proprio desenho ja desenha um titulo dentro do
+          // quadro, e o do cartao logo acima. Os dois juntos davam "PRINCIPAL"
+          // duas vezes seguidas, uma em cima da outra — e parece defeito.
+          R.chordDiagram(f, { labels: I.labels }),
+          dedilhado(f, I.labels),
         ]));
       });
       wrap.appendChild(g);
     } else {
       wrap.appendChild(el('div', { class: 'card mt-4' },
-        el('p', { class: 'fs-sm muted' }, 'Nenhuma forma encontrada para este acorde neste instrumento.')));
+        el('p', { class: 'fs-sm muted' },
+          'Nenhuma forma encontrada para este acorde neste instrumento.')));
     }
 
-    wrap.appendChild(el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': 'music' }), 'Notas']));
+    /* ---- as notas ---- */
+    wrap.appendChild(el('div', { class: 'section-title mt-5' },
+      [el('i', { 'data-lucide': 'music' }), 'Notas']));
     const pills = el('div', { class: 'note-ring' });
-    info.notes.forEach(function (pc, i) {
-      pills.appendChild(el('span', { class: 'note-pill' + (i === 0 ? ' root' : '') },
-        M.noteName(pc, M.useFlatsFor(estAcorde.root)) + (i === 0 ? ' (1a)' : '')));
+    info.notes.forEach(function (pc, k) {
+      pills.appendChild(el('span', { class: 'note-pill' + (k === 0 ? ' root' : '') },
+        M.noteName(pc, flat) + (k === 0 ? ' (1a)' : '')));
     });
     wrap.appendChild(pills);
+
     return wrap;
   }
 
@@ -141,12 +242,34 @@
     const sc = M.SCALES[estEscala.scale];
 
     wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'key-round' }), 'Tônica']));
-    const fund = el('div', { class: 'key-picker mb-4' });
-    R.TONS_MAIORES.forEach(function (t) {
-      fund.appendChild(el('button', { class: 'key-cell', 'aria-pressed': String(estEscala.root === t.pc),
-        onclick: function () { estEscala.root = t.pc; recarregar(); } }, M.noteName(t.pc, M.useFlatsFor(t.pc))));
-    });
-    wrap.appendChild(fund);
+    wrap.appendChild(R.seletorDeTons({
+      pc: estEscala.root,
+      aoEscolher: function (pc) { estEscala.root = pc; recarregar(); },
+    }));
+
+    // Aqui a tonica e o que se vai ouvir ao longo da escala, entao o botao
+    // toca a tonica e a dominante: sao as duas que definem o campo harmonico.
+    // So a tonica faz a escala maior soar como uma sequencia solta, sem para
+    // onde resolver.
+    wrap.appendChild(el('div', { class: 'row gap-2 wrap mb-4' }, [
+      R.botaoTom(estEscala.root, 'major',
+        'tonica: ' + M.noteName(estEscala.root, flat), { oitava: 3 }),
+      R.botaoTom(M.mod12(estEscala.root + 7), 'major',
+        'dominante: ' + M.noteName(M.mod12(estEscala.root + 7), flat), { oitava: 3 }),
+    ]));
+
+    // Ouvir a escala inteira. O botao de tom responde "qual e a tonica";
+    // este responde "como e essa escala", que e outra pergunta.
+    //
+    // O intervalo entre as notas e o que faz uma escala parecer escala. Oito
+    // notas ao mesmo tempo seriam um acorde grande, nao uma escala.
+    wrap.appendChild(el('div', { class: 'row gap-2 wrap mb-4' }, [
+      // O rotulo e "Ouvir a escala", e nao o nome do modo: o nome do modo ja
+      // esta no chip selecionado logo acima. Um botao escrito "Maior" nao diz
+      // o que ele faz nem que e clicavel — e era a duvida que ele existe para
+      // responder.
+      R.botaoEscala(notas, 'Ouvir a escala', { oitava: 3, passo: 0.3 }),
+    ]));
 
     wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'waves' }), 'Escala / modo']));
     const chips = el('div', { class: 'chips mb-4' });
@@ -214,16 +337,21 @@
       wrap.appendChild(R.circleOfFifths({ selected: selPc, onClick: function (pc) { selPc = pc; estEscala.root = pc; montar(); UI.icons(wrap); } }));
       const flat = M.useFlatsFor(selPc);
       const relM = M.relativeMinor(selPc);
-      const nA = M.sharpsCount(selPc);
-      const nB = M.sharpsCount(relM);
+      // As alteracoes sao NOMEADAS, nao so contadas.
+      //
+      // A coluna maior mostrava sempre o sinal de susteno, inclusive em Fa e
+      // Sib, que pedem bemol. E "2 alteracoes" nao serve para nada: o que a
+      // pessoa precisa antes de pegar o instrumento e quais notas.
+      const armA = M.armadura(selPc, 'major');
+      const armB = M.armadura(relM, 'minor');
       wrap.appendChild(el('div', { class: 'card' }, el('div', { class: 'row gap-3 between wrap' }, [
         el('div', { style: { textAlign: 'center', flex: '1 1 110px' } }, [
           el('div', { class: 'fs-lg fw-8 mono', style: { color: 'var(--primary)' } }, M.noteName(selPc, flat)),
-          el('div', { class: 'fs-xs muted' }, nA === 0 ? 'sem alteracoes' : nA + (nA === 1 ? ' alteracao' : ' alteracoes') + ' (♯)'),
+          el('div', { class: 'fs-xs muted' }, armA.texto),
         ]),
         el('div', { style: { textAlign: 'center', flex: '1 1 110px' } }, [
           el('div', { class: 'fs-lg fw-8 mono', style: { color: 'var(--brand-500)' } }, M.noteName(relM, flat) + 'm'),
-          el('div', { class: 'fs-xs muted' }, nB === 0 ? 'sem alteracoes' : nB + (nB === 1 ? ' alteracao' : ' alteracoes') + (M.useFlatsFor(relM) ? ' (♭)' : ' (♯)')),
+          el('div', { class: 'fs-xs muted' }, armB.texto),
         ]),
         el('div', { style: { flex: '1 1 200px' } }, [
           el('div', { class: 'fs-xs muted mb-1' }, 'Escala maior'),
@@ -232,6 +360,11 @@
           el('div', { class: 'fs-sm mono' }, M.scaleNames(relM, 'minor', M.useFlatsFor(relM)).join(' ')),
         ]),
       ])));
+      // Ouvir o par escolhido. A roda e um mapa; o som e a confirmacao.
+      wrap.appendChild(el('div', { class: 'row gap-2 wrap mb-3' }, [
+        R.botaoTom(selPc, 'major', M.noteName(selPc, flat) + ' maior', { oitava: 3 }),
+        R.botaoTom(relM, 'minor', M.noteName(relM, flat) + ' menor', { oitava: 3 }),
+      ]));
       wrap.appendChild(el('div', { class: 'card mt-3' }, [
         el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'music-2' }), 'Acordes de ' + M.noteName(relM, M.useFlatsFor(relM)) + 'm']),
         el('div', { class: 'row gap-2 wrap' }, M.scaleChords(relM, 'minor', M.useFlatsFor(relM)).map(function (c) {

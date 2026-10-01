@@ -51,10 +51,10 @@
 .st-play svg { width: 20px; height: 20px; }
 
 .st-bpm {
-  font-family: var(--font-d); font-size: 30px; font-weight: 800;
+  font-family: var(--font-d); font-size: 1.875rem; font-weight: 800;
   line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums;
 }
-.st-sub { font-size: 11px; color: var(--ink-3); font-weight: 700; }
+.st-sub { font-size: 0.6875rem; color: var(--ink-3); font-weight: 700; }
 
 .st-metro-side { display: flex; gap: 6px; align-items: center; }
 .st-mini {
@@ -62,13 +62,13 @@
   background: var(--surface-2); border: 1px solid var(--line);
   color: var(--ink-2);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 800; letter-spacing: .04em;
+  font-size: 0.6875rem; font-weight: 800; letter-spacing: .04em;
   transition: background .16s, transform .12s var(--ease);
 }
 .st-mini:active { transform: scale(.9); }
 .st-mini:hover { background: var(--surface-3); }
 .st-mini svg { width: 15px; height: 15px; }
-.st-tap { font-size: 10px; }
+.st-tap { font-size: 0.625rem; }
 
 .st-divider { height: 1px; background: var(--line); margin: 4px 0; }
 
@@ -108,13 +108,50 @@
 .st-tool:active { transform: scale(.9); }
 .st-tool.on { background: var(--primary); color: var(--on-brand); border-color: transparent; }
 
+/* A amostra e pintada pelo proprio CSS, a partir do `data-accent` do botao.
+
+   Antes a cor chegava por JavaScript, medida numa sonda — e a sonda lia o
+   `--primary`, que e declarado no `:root` como `var(--brand-400)`. A
+   substituicao de `var()` acontece onde a propriedade e declarada, nao onde e
+   lida, entao toda sonda herdava o acento ATIVO: as vinte e duas amostras
+   apareciam da mesma cor. Entregar o `data-accent` ao CSS elimina a medicao, e
+   a amostra deixa de ter como divergir da cor que a pessoa vai receber.
+
+   A amostra mostra a variante ESCURA no tema claro e a CLARA no escuro — as
+   mesmas que o `--primary` usa. E o que a pessoa precisa ver: o que vai
+   encontrar se escolher. */
 .st-cor {
-  width: 26px; height: 26px; border-radius: 50%;
+  width: 32px; height: 32px; border-radius: 50%;
   border: 2px solid transparent;
+  background: var(--brand-600);
   box-shadow: 0 0 0 1px var(--line-2);
   transition: transform .14s var(--ease);
 }
+[data-theme="dark"] .st-cor { background: var(--brand-400); }
 .st-cor.on { transform: scale(1.18); border-color: var(--ink); }
+
+/* A familia de acentos.
+   O nome diz o que a cor e, e nao so um nome proprio: "Grafite" e um nome,
+   "Neutro / sem cor" diz o que a pessoa vai encontrar. E o cabecalho e o que
+   torna 22 cores navegaveis — sem ele, um circulo de 32px numa tela de 360px da
+   nove por linha, e ninguem acha o azul no meio dos amareados. */
+.st-cor-familia {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 16px 0 8px;
+}
+.st-cor-familia:first-of-type { margin-top: 6px; }
+
+.st-cor-familia .f-nome {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem; font-weight: 800;
+  letter-spacing: .09em; text-transform: uppercase;
+  color: var(--primary-ink);
+}
+.st-cor-familia .f-nota {
+  font-family: var(--font-mono);
+  font-size: 0.625rem; font-weight: 500;
+  color: var(--ink-4);
+}
 
 .st-largura { width: 88px; accent-color: var(--primary); }
 
@@ -127,15 +164,372 @@
   display: inline-flex; align-items: center; gap: 5px;
   padding: 6px 10px; border-radius: var(--r-1);
   background: var(--surface-2); border: 1px solid var(--line);
-  font-size: 12px; font-weight: 700; color: var(--ink-2);
+  font-size: 0.75rem; font-weight: 700; color: var(--ink-2);
   transition: all .14s var(--ease);
 }
 .st-link svg { width: 14px; height: 14px; color: var(--c, var(--ink-3)); }
-.st-link:hover { border-color: var(--c); color: var(--ink); }
+/* O fallback tambem no hover. `--c` vem do proprio botao (`style`), e uma cor
+   vazia deixaria a declaracao inteira invalida: a borda ficaria sem cor
+   nenhuma no estado que o olho acompanha por mais um segundo. */
+.st-link:hover { border-color: var(--c, var(--primary)); color: var(--ink); }
 .st-link:active { transform: scale(.94); }
 
 /* =======================================================
-   NAVEGAÇÃO / SHELL
+   EMERGENCIA — conversor de tom e busca
+   ======================================================= */
+
+/* O botao da barra superior. A cor de alerta nao e enfeite: e a unica coisa
+   da barra que precisa ser reconhecida sem ler. Fica ao lado da lupa e do
+   tema, que e onde o dedo ja vai quando algo deu errado. */
+.btn-emergencia {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 34%, transparent);
+}
+.btn-emergencia:hover,
+.btn-emergencia:active {
+  background: var(--brand-tint);
+  color: var(--primary-ink);
+}
+
+.emg-bloco { display: flex; flex-direction: column; }
+
+.emg-saida { min-height: 12px; margin-top: var(--sp-3); }
+
+.emg-resultado {
+  padding: 12px 14px;
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--primary);
+}
+.emg-resultado.igual { border-left-color: var(--signal-600); }
+
+.emg-grande {
+  font-family: var(--font-d);
+  font-size: 1.55rem; font-weight: 800; letter-spacing: -.03em;
+  line-height: 1.1; color: var(--ink);
+}
+.emg-sub {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem; color: var(--primary-ink);
+  margin-top: 3px; letter-spacing: .02em;
+}
+
+/* ---- os destinos da busca ---- */
+.emg-fontes { display: flex; flex-direction: column; }
+.emg-fonte {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: 11px 2px 11px 10px;
+  border-top: 1px solid var(--line);
+  text-decoration: none; color: inherit;
+  border-left: 2px solid transparent;
+  transition: background .14s ease, border-color .14s ease;
+}
+.emg-fonte:hover { background: var(--surface); border-left-color: var(--primary); text-decoration: none; }
+.emg-fonte > svg:first-child { width: 18px; height: 18px; color: var(--primary); flex: none; }
+.emg-fonte > svg:last-child { width: 15px; height: 15px; color: var(--ink-4); flex: none; }
+.emg-fonte .n { font-size: 0.875rem; font-weight: 700; color: var(--ink); }
+.emg-fonte .a {
+  font-family: var(--font-mono); font-size: 0.6875rem; color: var(--ink-3); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* ---- a placa do acorde ----
+   E um botao, e e o elemento mais importante da pagina: mostra o nome, as
+   notas e toca o acorde inteiro. Antes o nome ocupava uma placa no meio da
+   tela e as notas apareciam depois de cinco diagramas, a 1700px de rolagem.
+   Clicavel porque ouvir o que voce dedilhou e o que fecha o ciclo de
+   aprendizado — sem isso a pessoa so tem o desenho. */
+.acorde-placa {
+  display: block; width: 100%; text-align: left;
+  padding: 16px 18px; border-radius: var(--r-3);
+  background: var(--brand-tint);
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
+  color: inherit; cursor: pointer;
+  position: relative;
+  transition: transform .14s var(--ease), border-color .14s var(--ease);
+}
+.acorde-placa:hover { border-color: var(--primary); }
+.acorde-placa:active { transform: scale(.99); }
+.acorde-placa.tocando { border-color: var(--primary); }
+
+/* O nome e o que se procura. Grande, e nao decorativo. */
+.acorde-placa .ap-nome {
+  font-family: var(--font-d);
+  font-size: 2.25rem; font-weight: 800; letter-spacing: -.04em;
+  line-height: 1; color: var(--ink);
+}
+.acorde-placa .ap-sub {
+  font-family: var(--font-mono);
+  font-size: 0.75rem; color: var(--ink-3); margin-top: 5px;
+}
+
+/* As notas, junto do nome. Era o que estava no fim da pagina. */
+.acorde-placa .ap-notas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.acorde-placa .ap-nota {
+  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700;
+  padding: 3px 9px; border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.acorde-placa .ap-nota.raiz {
+  background: var(--primary); color: var(--on-brand); border-color: transparent;
+}
+
+.acorde-placa .ap-ouvir {
+  position: absolute; top: 16px; right: 18px;
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--primary-ink);
+  border: 1px solid var(--line);
+}
+.acorde-placa .ap-ouvir svg { width: 16px; height: 16px; }
+.acorde-placa.tocando .ap-ouvir { background: var(--primary); color: var(--on-brand); }
+
+.st-acc-titulo { margin: 12px 0 6px; color: var(--ink-4); }
+
+/* ---- cada forma, em um cartao ----
+   O desenho e o dedilhado andam juntos. Soltos, o dedilhado virava uma linha
+   de texto minusculo logo abaixo do desenho, e nao se sabia a qual desenho
+   pertencia. */
+.forma {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 12px 10px;
+  border-radius: var(--r-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.forma-titulo {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem; font-weight: 800;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/* ---- o dedilhado, em duas linhas alinhadas ----
+   Cordas em cima, traste embaixo, coluna a coluna. Era uma linha so, esmaecida,
+   do tamanho de 11px — illegivel para quem esta aprendendo. */
+.dedilhado {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 9px; border-radius: var(--r-1);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.ded-linha {
+  display: flex; gap: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem; font-weight: 700;
+}
+.ded-linha span {
+  width: 15px; text-align: center; color: var(--ink-3);
+}
+.ded-nums span { color: var(--ink); font-weight: 800; }
+/* Corda muda e a unica informacao que nao se perde sem ver: o X precisa
+   existir visualmente, senao o "0" ao lado parece a unica nota. */
+.ded-nums span.mudo { color: var(--ink-4); font-weight: 700; }
+
+/* ---- o botao de ouvir a escala ----
+   Wider que um botao comum: e uma acao que demora a acontecer — oito notas
+   em sequencia — e um botao estreito suggeste que vai terminar na hora. */
+.botao-escala {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 15px; border-radius: var(--r-2);
+  background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--line-2);
+  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 800;
+  cursor: pointer;
+  transition: all .14s var(--ease);
+}
+.botao-escala:hover { border-color: var(--primary); color: var(--primary-ink); }
+.botao-escala:active { transform: scale(.98); }
+.botao-escala svg { width: 15px; height: 15px; }
+.botao-escala.tocando {
+  background: var(--primary); color: var(--on-brand); border-color: transparent;
+}
+
+/* =======================================================
+   A PAGINA DA MUSICA
+   ======================================================= */
+.song-page { gap: var(--sp-4); }
+
+.song-head {
+  display: flex; align-items: flex-start; gap: var(--sp-3); flex-wrap: wrap;
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--line);
+}
+.song-head .sh-t {
+  font-family: var(--font-d);
+  font-size: 1.375rem; font-weight: 800; letter-spacing: -.03em;
+  line-height: 1.15; color: var(--ink);
+}
+.song-head .sh-a {
+  font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-3); margin-top: 2px;
+}
+
+/* ---- o video ---- */
+.vid-card {
+  border: 1px solid var(--line); border-radius: var(--r-3);
+  overflow: hidden; background: var(--surface);
+}
+.vid-frame {
+  display: block; width: 100%; aspect-ratio: 16 / 9;
+  border: 0; background: #000;
+}
+.vid-pe {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-top: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 0.6875rem; color: var(--ink-3);
+}
+.vid-abrir { color: var(--ink-4); display: flex; }
+.vid-abrir svg { width: 15px; height: 15px; }
+.vid-abrir:hover { color: var(--primary); }
+
+.vid-vazio {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  padding: 22px 16px; text-align: center; color: var(--ink-4);
+}
+.vid-vazio svg { color: var(--ink-4); }
+
+/* ---- o compasso ---- */
+.mbpm {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  padding: 9px 11px; border: 1px solid var(--line);
+  border-radius: var(--r-2); background: var(--surface);
+}
+.mbpm-btn {
+  width: 34px; height: 34px; flex: none;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--primary); color: var(--on-brand);
+  cursor: pointer; border: none;
+}
+.mbpm-btn svg { width: 15px; height: 15px; }
+.mbpm-btn.ligado { background: var(--signal-600); }
+.mbpm-ajuste { display: flex; align-items: center; gap: 2px; }
+.mbpm-ajuste button {
+  width: 26px; height: 26px; border-radius: var(--r-1);
+  background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--ink-2); font-weight: 800; cursor: pointer;
+}
+.mbpm-ajuste button:active { background: var(--surface-3); }
+.mbpm-num {
+  min-width: 38px; text-align: center;
+  font-family: var(--font-mono); font-size: 0.9375rem; font-weight: 800;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.mbpm-compasso { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-3); }
+
+/* ---- as anotacoes ---- */
+.obs-bloco {
+  padding: 11px 13px;
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warn-500);
+}
+.obs-texto {
+  font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.6;
+  color: var(--ink); white-space: pre-wrap; margin: 0;
+}
+
+.foto-cheia {
+  width: 100%; border-radius: var(--r-2);
+  border: 1px solid var(--line); display: block;
+}
+
+/* A celula que confere o tom. Uma letra e um simbolo, nao um numero: o que
+   importa e se concordam, e nao "quanto". */
+.numeros .v.chk {
+  font-family: var(--font-mono); font-size: 1.25rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.numeros .v.chk.ok { color: var(--signal-600); }
+.numeros .v.chk.ruim { color: var(--warn-500); }
+
+/* =======================================================
+   O BOTAO DE OUVIR O TOM
+   =======================================================
+   Varia de tamano conforme o lugar. Na pagina da musica ele e grande, com o
+   nome do tom; na teoria ele e um icone ao lado de um texto que ja diz o tom.
+   A forma muda, a funcao nao: e sempre ouvir a tonica com a quinta, porque e
+   isso que serve de referencia contra uma corda. */
+.tom-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 12px; border-radius: var(--r-2);
+  background: var(--brand-tint); color: var(--primary-ink);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 800;
+  cursor: pointer; transition: all .14s var(--ease);
+}
+.tom-btn:hover { border-color: var(--primary); }
+.tom-btn:active { transform: scale(.97); }
+.tom-btn svg { width: 15px; height: 15px; flex: none; }
+.tom-btn.tocando { background: var(--primary); color: var(--on-brand); }
+
+/* Versao compacta: so o icone, encostada num texto que ja nomeia o tom. */
+.tom-btn.mini {
+  padding: 0; width: 24px; height: 24px;
+  border-radius: 50%; background: transparent;
+  border-color: transparent; color: var(--ink-4);
+  justify-content: center;
+}
+.tom-btn.mini:hover { background: var(--brand-tint); color: var(--primary-ink); }
+.tom-btn.mini svg { width: 14px; height: 14px; }
+.tom-btn.mini.tocando { background: var(--primary); color: var(--on-brand); }
+
+.song-head .sh-tons { display: flex; gap: 7px; flex-wrap: wrap; width: 100%; }
+
+/* Uma linha que mostra um tom e tem um botao de som ao lado. */
+.tom-com-ouvir {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-2);
+}
+
+/* O botao de ouvir o tom, usado em varias telas. Fica aqui, e nao colado na
+   pagina da musica, porque uma copia por tela comeca a divergir no primeiro
+   ajuste — e a divergencia aparece como "o tom soa diferente nesta tela", que
+   e o tipo de defeito que faz a pessoa desconfiar do app inteiro. */
+.tom-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 12px; border-radius: var(--r-2);
+  background: var(--brand-tint); color: var(--primary-ink);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 800;
+  cursor: pointer; transition: all .14s var(--ease);
+}
+.tom-btn:hover { border-color: var(--primary); }
+.tom-btn:active { transform: scale(.97); }
+.tom-btn svg { width: 15px; height: 15px; flex: none; }
+.tom-btn.tocando { background: var(--primary); color: var(--on-brand); }
+
+/* Versao compacta: so o icone, encostada num texto que ja nomeia o tom. */
+.tom-btn.mini {
+  padding: 0; width: 26px; height: 26px;
+  border-radius: 50%; background: transparent;
+  border-color: transparent; color: var(--ink-4);
+  justify-content: center;
+}
+.tom-btn.mini:hover { background: var(--brand-tint); color: var(--primary-ink); }
+.tom-btn.mini svg { width: 14px; height: 14px; }
+.tom-btn.mini.tocando { background: var(--primary); color: var(--on-brand); }
+
+.tom-com-ouvir {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-2);
+}
+
+/* ---- a foto do evento ----
+   O aviso do ensaio, a partitura do grupo, o mapa. Vai no editor e entra no
+   que a pessoa envia. A miniatura e limitada: a foto inteira de um celular
+   empurraria o formulario para fora da tela, e o que interessa ali e saber
+   que ela esta anexada. */
+.foto-evia {
+  width: 128px; height: 96px; object-fit: cover;
+  border-radius: var(--r-1);
+  border: 1px solid var(--line); display: block;
+  cursor: pointer;
+}
+
+/* =======================================================
+   SHELL
    ======================================================= */
 .topbar {
   position: sticky; top: 0; z-index: 60;
@@ -153,8 +547,8 @@
 .brandmark img, .brandmark .mark {
   width: 32px; height: 32px; border-radius: 9px; flex: none;
 }
-.brandmark .t1 { font-family: var(--font-d); font-size: 17px; font-weight: 800; letter-spacing: -.04em; line-height: 1; }
-.brandmark .t2 { font-size: 9.5px; font-weight: 800; color: var(--ink-3); text-transform: uppercase; letter-spacing: .12em; line-height: 1.2; }
+.brandmark .t1 { font-family: var(--font-d); font-size: 1.0625rem; font-weight: 800; letter-spacing: -.04em; line-height: 1; }
+.brandmark .t2 { font-size: 0.5938rem; font-weight: 800; color: var(--ink-3); text-transform: uppercase; letter-spacing: .12em; line-height: 1.2; }
 .topbar .actions { display: flex; align-items: center; gap: 2px; flex: none; }
 
 .viewport {
@@ -166,8 +560,8 @@
 .page { display: none; }
 .page.active { display: block; animation: riseIn .28s var(--ease); }
 .page-head { padding: var(--sp-4) 0 var(--sp-3); }
-.page-head h1 { font-size: 28px; }
-.page-head .sub { font-size: 13.5px; color: var(--ink-3); margin-top: 2px; }
+.page-head h1 { font-size: 1.75rem; }
+.page-head .sub { font-size: 0.8438rem; color: var(--ink-3); margin-top: 2px; }
 
 .bottomnav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
@@ -182,7 +576,7 @@
 @supports not (backdrop-filter: blur(1px)) { .bottomnav { background: var(--surface); } }
 .bottomnav button {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px; color: var(--ink-4); font-size: 10.5px; font-weight: 700;
+  gap: 3px; color: var(--ink-4); font-size: 0.6563rem; font-weight: 700;
   position: relative; transition: color .2s var(--ease);
 }
 .bottomnav button svg { width: 22px; height: 22px; transition: transform .2s var(--ease); }
@@ -198,10 +592,10 @@
    CALENDÁRIO
    ======================================================= */
 .cal-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: var(--sp-3); }
-.cal-toolbar .month-label { flex: 1 1 auto; text-align: center; font-family: var(--font-d); font-size: 17px; font-weight: 800; letter-spacing: -.02em; text-transform: capitalize; }
-.cal-toolbar .month-label small { display: block; font-family: var(--font); font-size: 10.5px; font-weight: 700; color: var(--ink-3); letter-spacing: .1em; }
+.cal-toolbar .month-label { flex: 1 1 auto; text-align: center; font-family: var(--font-d); font-size: 1.0625rem; font-weight: 800; letter-spacing: -.02em; text-transform: capitalize; }
+.cal-toolbar .month-label small { display: block; font-family: var(--font); font-size: 0.6563rem; font-weight: 700; color: var(--ink-3); letter-spacing: .1em; }
 .cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; margin-bottom: 5px; }
-.cal-dow span { font-size: 10px; font-weight: 800; color: var(--ink-4); text-transform: uppercase; letter-spacing: .05em; }
+.cal-dow span { font-size: 0.625rem; font-weight: 800; color: var(--ink-4); text-transform: uppercase; letter-spacing: .05em; }
 .cal-dow span.we { color: var(--danger-400); }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .cal-cell {
@@ -209,7 +603,7 @@
   border-radius: var(--r-2);
   background: var(--surface); border: 1px solid var(--line);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px; font-size: 14px; font-weight: 700; color: var(--ink-2);
+  gap: 3px; font-size: 0.875rem; font-weight: 700; color: var(--ink-2);
   transition: transform .12s var(--ease), border-color .16s, background .16s;
   overflow: hidden;
 }
@@ -222,7 +616,7 @@
 .cal-cell .dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--brand-500); display: block; }
 .cal-cell.sel .dots i { background: var(--on-brand); }
 .cal-cell .dots i.warn { background: var(--warn-500); }
-.cal-cell .cnt { position: absolute; top: 2px; right: 3px; font-size: 9px; font-weight: 800; opacity: .7; }
+.cal-cell .cnt { position: absolute; top: 2px; right: 3px; font-size: 0.5625rem; font-weight: 800; opacity: .7; }
 
 .day-events { display: flex; flex-direction: column; gap: 8px; }
 .day-ev {
@@ -236,15 +630,15 @@
 .day-ev.t-ensaio::before { background: var(--violet-500); }
 .day-ev.t-rehearsal::before { background: var(--warn-500); }
 .day-ev.t-outro::before { background: var(--ink-4); }
-.day-ev .time { font-size: 13.5px; font-weight: 800; color: var(--primary); flex: none; min-width: 46px; font-variant-numeric: tabular-nums; }
-.day-ev .ttl { font-size: 14.5px; font-weight: 700; }
-.day-ev .sub { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
+.day-ev .time { font-size: 0.8438rem; font-weight: 800; color: var(--primary); flex: none; min-width: 46px; font-variant-numeric: tabular-nums; }
+.day-ev .ttl { font-size: 0.9063rem; font-weight: 700; }
+.day-ev .sub { font-size: 0.7813rem; color: var(--ink-3); margin-top: 1px; }
 
 /* =======================================================
    CIFRAS
    ======================================================= */
 .cifra-box { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-3); padding: var(--sp-4); overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.cifra-text { font-family: var(--font-mono); font-size: 13.5px; line-height: 1.7; white-space: pre; color: var(--ink-2); margin: 0; min-width: max-content; tab-size: 4; }
+.cifra-text { font-family: var(--font-mono); font-size: 0.8438rem; line-height: 1.7; white-space: pre; color: var(--ink-2); margin: 0; min-width: max-content; tab-size: 4; }
 .cifra-text .ch { color: var(--primary); font-weight: 700; background: color-mix(in srgb, var(--primary) 13%, transparent); border-radius: 3px; padding: 1px 2px; }
 .cifra-text .sec { color: var(--brand-500); font-weight: 700; }
 .cifra-text .lyric { color: var(--ink); }
@@ -278,7 +672,7 @@
 .song-card .tom-col {
   flex: none; width: 42px; height: 42px;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 13px; font-weight: 800;
+  font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 800;
   border-radius: var(--r-1);
   background: var(--brand-tint); color: var(--primary-ink);
   border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
@@ -299,7 +693,7 @@
 .song-card .meio { flex: 1; min-width: 0; }
 .song-card .n {
   font-family: var(--font-d);
-  font-size: 15px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25;
+  font-size: 0.9375rem; font-weight: 700; letter-spacing: -.015em; line-height: 1.25;
   color: var(--ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -308,7 +702,7 @@
   margin-top: 2px; min-width: 0;
 }
 .song-card .a {
-  font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3);
+  font-family: var(--font-mono); font-size: 0.7188rem; color: var(--ink-3);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   flex: 0 1 auto; min-width: 0;
 }
@@ -318,7 +712,7 @@
 }
 /* Os badges encolhem em vez de empurrar a linha. Uma lista alta e ruim: o
    espaco gasto com "96 bpm" e o tempo de rolagem da pagina. */
-.song-card .foot .badge { font-size: 10px; padding: 2px 6px; }
+.song-card .foot .badge { font-size: 0.625rem; padding: 2px 6px; }
 /* O chevron some de cada linha: em dez linhas, sao dez setas apontando para a
    direita dizendo a mesma coisa. O item inteiro ja e clicavel. */
 .song-card .ir { display: none; }
@@ -327,25 +721,25 @@
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 40px; padding: 5px 9px; border-radius: var(--r-1);
   background: var(--brand-tint); color: var(--primary-ink);
-  font-weight: 800; font-size: 13px; font-family: var(--font-mono);
+  font-weight: 800; font-size: 0.8125rem; font-family: var(--font-mono);
   border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
   transition: transform .12s var(--ease);
 }
 .chip-acorde:active { transform: scale(.92); }
 .chip-acorde.on { background: var(--primary); color: var(--on-brand); }
 
-.chord-table { width: 100%; font-size: 14px; }
-.chord-table th { text-align: left; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-4); padding: 7px 8px; border-bottom: 1px solid var(--line); }
+.chord-table { width: 100%; font-size: 0.875rem; }
+.chord-table th { text-align: left; font-size: 0.6563rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-4); padding: 7px 8px; border-bottom: 1px solid var(--line); }
 .chord-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .chord-table tr:last-child td { border-bottom: none; }
 .chord-table .cname { font-weight: 800; }
-.chord-table .cdeg { font-size: 12px; font-weight: 800; color: var(--primary); font-family: var(--font-mono); }
+.chord-table .cdeg { font-size: 0.75rem; font-weight: 800; color: var(--primary); font-family: var(--font-mono); }
 
 .key-picker { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
 .key-cell {
   width: 40px; height: 40px; border-radius: var(--r-2);
   background: var(--surface); border: 1px solid var(--line);
-  font-weight: 800; font-size: 14px; font-family: var(--font-mono);
+  font-weight: 800; font-size: 0.875rem; font-family: var(--font-mono);
   display: flex; align-items: center; justify-content: center; color: var(--ink-2);
   transition: all .14s var(--ease);
 }
@@ -356,7 +750,7 @@
 .semitone {
   min-width: 40px; height: 40px; padding: 0 8px; border-radius: var(--r-2);
   background: var(--surface); border: 1px solid var(--line);
-  font-size: 12.5px; font-weight: 700; color: var(--ink-2);
+  font-size: 0.7813rem; font-weight: 700; color: var(--ink-2);
   display: flex; align-items: center; justify-content: center;
   transition: all .14s var(--ease);
 }
@@ -378,13 +772,13 @@
 .tb-topo { display: flex; align-items: baseline; gap: 7px; margin-bottom: 9px; }
 .tb-valor {
   font-family: var(--font-d);
-  font-size: 30px; font-weight: 800; letter-spacing: -.04em;
+  font-size: 1.875rem; font-weight: 800; letter-spacing: -.04em;
   line-height: 1; color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 .tb-valor.zero { color: var(--ink-4); }
 .tb-un {
-  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
+  font-family: var(--font-mono); font-size: 0.6563rem; color: var(--ink-3);
   letter-spacing: .1em; text-transform: uppercase;
   /* O numero tem tracking negativo de -0,04em, e a virgula do "+0,5" fecha
      contra a palavra seguinte. O gap do flex nao bastava; e preciso separar
@@ -396,7 +790,7 @@
 
 .tb-cents {
   display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
-  font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+  font-family: var(--font-mono); font-size: 0.6875rem; color: var(--ink-3);
   margin-bottom: 10px;
 }
 .tb-cents:empty { display: none; }
@@ -436,7 +830,7 @@
 
 .cs-linha {
   font-family: var(--font-mono);
-  font-size: 13.5px;
+  font-size: 0.8438rem;
   line-height: 1.85;
   white-space: pre-wrap;
   word-break: break-word;
@@ -488,7 +882,7 @@
 
 .cs-tempo {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 0.6563rem;
   color: var(--ink-3);
   letter-spacing: .06em;
   white-space: nowrap;
@@ -497,7 +891,7 @@
 
 .cs-velocidade {
   display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
+  font-family: var(--font-mono); font-size: 0.6563rem; color: var(--ink-3);
 }
 .cs-velocidade input { flex: 1; min-width: 60px; accent-color: var(--primary); }
 
@@ -512,7 +906,7 @@
   display: inline-flex; align-items: center; gap: 5px;
   padding: 6px 11px; border-radius: var(--r-2);
   background: var(--surface); border: 1px solid var(--line);
-  font-size: 11.5px; font-weight: 700; color: var(--ink-2);
+  font-size: 0.7188rem; font-weight: 700; color: var(--ink-2);
   cursor: pointer; transition: all .14s var(--ease);
 }
 .est-toggle svg, .est-btn svg { width: 14px; height: 14px; }
@@ -524,13 +918,13 @@
 
 .est-resumo { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; margin-left: auto; }
 .est-badge {
-  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  font-family: var(--font-mono); font-size: 0.625rem; font-weight: 700;
   padding: 3px 8px; border-radius: 3px;
   background: var(--surface-2); color: var(--ink-3);
   border: 1px solid var(--line);
 }
 .est-aviso {
-  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  font-family: var(--font-mono); font-size: 0.625rem; font-weight: 700;
   padding: 3px 8px; border-radius: 3px;
   background: var(--warn-tint); color: var(--warn-500);
   border: 1px solid color-mix(in srgb, var(--warn-500) 34%, transparent);
@@ -544,14 +938,14 @@
   display: inline-flex; align-items: center; gap: 7px;
   padding: 6px 10px; border-radius: var(--r-2);
   background: var(--surface); border: 1px solid var(--line);
-  font-size: 12px; font-weight: 700; color: var(--ink);
+  font-size: 0.75rem; font-weight: 700; color: var(--ink);
   cursor: pointer; transition: all .14s var(--ease);
 }
 .est-pedaco:hover { border-color: var(--line-2); background: var(--surface-2); }
 .est-pedaco:active { transform: scale(.97); }
 .est-pedaco svg { width: 14px; height: 14px; color: var(--ink-4); flex: none; }
 .est-pedaco-qtd {
-  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  font-family: var(--font-mono); font-size: 0.5938rem; font-weight: 600;
   color: var(--ink-4); letter-spacing: .04em;
 }
 /* Trecho escondido: riscado e apagado. O olho precisa ver de relance o que
@@ -573,16 +967,16 @@
   border: 1px solid var(--line); border-radius: var(--r-4);
   padding: var(--sp-5); text-align: center; position: relative; overflow: hidden;
 }
-.theory-card .big-key { font-size: 44px; font-weight: 800; letter-spacing: -.04em; line-height: 1; font-family: var(--font-d); color: var(--primary); }
-.theory-card .big-scale { font-size: 15px; font-weight: 700; color: var(--ink-3); margin-top: 6px; }
+.theory-card .big-key { font-size: 2.75rem; font-weight: 800; letter-spacing: -.04em; line-height: 1; font-family: var(--font-d); color: var(--primary); }
+.theory-card .big-scale { font-size: 0.9375rem; font-weight: 700; color: var(--ink-3); margin-top: 6px; }
 .theory-card .note-ring { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: var(--sp-4); }
-.note-pill { min-width: 40px; padding: 5px 8px; border-radius: var(--r-1); font-family: var(--font-mono); font-size: 13px; font-weight: 800; background: var(--surface-3); color: var(--ink-2); }
+.note-pill { min-width: 40px; padding: 5px 8px; border-radius: var(--r-1); font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 800; background: var(--surface-3); color: var(--ink-2); }
 .note-pill.root { background: var(--primary); color: var(--on-brand); }
 .note-pill.sel { background: var(--brand-400); color: #2A1A08; }
 
 .intervals-row { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
-.interval-pill { padding: 4px 8px; border-radius: var(--r-1); background: var(--surface-2); border: 1px solid var(--line); font-size: 11.5px; font-weight: 700; color: var(--ink-2); font-family: var(--font-mono); }
-.scale-legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; font-size: 12px; color: var(--ink-3); }
+.interval-pill { padding: 4px 8px; border-radius: var(--r-1); background: var(--surface-2); border: 1px solid var(--line); font-size: 0.7188rem; font-weight: 700; color: var(--ink-2); font-family: var(--font-mono); }
+.scale-legend { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; font-size: 0.75rem; color: var(--ink-3); }
 .scale-legend .sw { width: 11px; height: 11px; border-radius: 3px; display: inline-block; margin-right: 4px; vertical-align: -1px; }
 
 .circle-wrap { display: flex; justify-content: center; padding: 6px 0; }
@@ -595,14 +989,14 @@
 
 /* fretboard */
 .fret-wrap { overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
-.fretboard { display: inline-block; min-width: 100%; font-size: 11px; user-select: none; }
+.fretboard { display: inline-block; min-width: 100%; font-size: 0.6875rem; user-select: none; }
 .fb-row { display: flex; }
-.fb-string-label { width: 24px; flex: none; display: flex; align-items: center; font-size: 10px; font-weight: 800; color: var(--ink-4); font-family: var(--font-mono); }
+.fb-string-label { width: 24px; flex: none; display: flex; align-items: center; font-size: 0.625rem; font-weight: 800; color: var(--ink-4); font-family: var(--font-mono); }
 .fb-frets { display: flex; flex: 1 1 auto; }
 .fb-fret { flex: 1 1 0; min-width: 30px; height: 26px; position: relative; border-right: 1px solid var(--line); display: flex; align-items: center; justify-content: center; }
 .fb-fret.first { border-left: 1px solid var(--line-2); }
-.fb-num { position: absolute; top: 1px; left: 2px; font-size: 8.5px; color: var(--ink-4); font-weight: 700; }
-.fb-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--ink-3); color: var(--surface); font-size: 8.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; z-index: 1; line-height: 1; }
+.fb-num { position: absolute; top: 1px; left: 2px; font-size: 0.5313rem; color: var(--ink-4); font-weight: 700; }
+.fb-dot { width: 15px; height: 15px; border-radius: 50%; background: var(--ink-3); color: var(--surface); font-size: 0.5313rem; font-weight: 800; display: flex; align-items: center; justify-content: center; z-index: 1; line-height: 1; }
 .fb-dot.root { background: var(--primary); color: var(--on-brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 25%, transparent); }
 .fb-dot.dim { background: var(--ink-4); }
 .fb-fret.on { background: color-mix(in srgb, var(--brand-400) 8%, transparent); }
@@ -610,7 +1004,7 @@
 /* teclado */
 .kb-wrap { overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
 .kb { position: relative; height: 108px; border-radius: var(--r-2); background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; user-select: none; }
-.kb-key { position: absolute; top: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; border: 0; transition: background .16s, color .16s, transform .1s var(--ease); }
+.kb-key { position: absolute; top: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px; font-family: var(--font-mono); font-size: 0.625rem; font-weight: 700; border: 0; transition: background .16s, color .16s, transform .1s var(--ease); }
 .kb-key.white { height: 100%; background: var(--surface); border-right: 1px solid var(--line); color: var(--ink-4); z-index: 1; }
 .kb-key.black { height: 62%; background: var(--ink); color: var(--surface); z-index: 2; transform: translateX(-50%); border-radius: 0 0 4px 4px; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
 .kb-key.white.in { background: color-mix(in srgb, var(--brand-400) 42%, var(--surface)); color: var(--ink); }
@@ -630,8 +1024,8 @@
 .drop { border: 2px dashed var(--line-2); border-radius: var(--r-3); padding: 20px; text-align: center; cursor: pointer; background: var(--surface-2); transition: border-color .18s, background .18s; color: var(--ink-3); }
 .drop:hover, .drop.over { border-color: var(--primary); background: var(--brand-tint); }
 .drop svg { width: 24px; height: 24px; margin: 0 auto 8px; color: var(--ink-4); }
-.drop .t { font-size: 13px; font-weight: 700; color: var(--ink-2); }
-.drop .s { font-size: 11.5px; margin-top: 2px; }
+.drop .t { font-size: 0.8125rem; font-weight: 700; color: var(--ink-2); }
+.drop .s { font-size: 0.7188rem; margin-top: 2px; }
 .drop .thumb { max-width: 100%; max-height: 120px; border-radius: var(--r-2); margin: 0 auto; object-fit: cover; }
 
 /* =======================================================
@@ -640,22 +1034,30 @@
 .print-sheet { display: none; }
 @media print {
   @page { margin: 14mm; size: A4; }
+
+  /* A impressao NAO acompanha a preferencia de tamanho de texto da tela.
+     Quem escolheu letra de 22px para ler no celular nao quer a cifra impressa
+     estourando a margem da folha. E o rem, em midia paginada, resolve pela
+     caixa de pagina em vez da raiz — entao fixar a raiz aqui deixa a folha
+     com as mesmas medidas, com ou sem preferencia. */
+  html, [data-fontsize] { font-size: 16px !important; }
+
   body { background: #fff !important; color: #000 !important; }
   #app, .topbar, .bottomnav, .sidenav, .drawer, .scrim, .fab, #toast-host, .st-controls { display: none !important; }
   .print-sheet { display: block !important; color: #000; font-family: var(--font); }
   .print-sheet * { color: #000 !important; }
   .ps-head { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; }
-  .ps-head h1 { font-size: 20px; }
-  .ps-head .meta { font-size: 12px; margin-top: 3px; }
+  .ps-head h1 { font-size: 1.25rem; }
+  .ps-head .meta { font-size: 0.75rem; margin-top: 3px; }
   .ps-sec { margin-bottom: 14px; break-inside: avoid; }
-  .ps-sec h2 { font-size: 14px; border-bottom: 1px solid #999; padding-bottom: 3px; margin-bottom: 6px; }
-  .ps-song { margin-bottom: 8px; break-inside: avoid; font-size: 13px; }
+  .ps-sec h2 { font-size: 0.875rem; border-bottom: 1px solid #999; padding-bottom: 3px; margin-bottom: 6px; }
+  .ps-song { margin-bottom: 8px; break-inside: avoid; font-size: 0.8125rem; }
   .ps-song .t { font-weight: 700; }
-  .ps-cifra { font-family: var(--font-mono); font-size: 11px; white-space: pre; line-height: 1.5; margin-top: 3px; }
-  .ps-table { font-size: 12px; }
+  .ps-cifra { font-family: var(--font-mono); font-size: 0.6875rem; white-space: pre; line-height: 1.5; margin-top: 3px; }
+  .ps-table { font-size: 0.75rem; }
   .ps-table th, .ps-table td { border: 1px solid #999; padding: 5px 7px; text-align: left; }
   .ps-table th { background: #eee; font-weight: 700; }
-  .ps-foot { margin-top: 20px; padding-top: 8px; border-top: 1px solid #999; font-size: 10.5px; display: flex; justify-content: space-between; }
+  .ps-foot { margin-top: 20px; padding-top: 8px; border-top: 1px solid #999; font-size: 0.6563rem; display: flex; justify-content: space-between; }
 }
 
 /* =======================================================
@@ -681,14 +1083,14 @@
 }
 @keyframes drawerIn { from { transform: translateX(100%); } to { transform: none; } }
 .drawer-panel h4 {
-  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+  font-size: 0.6563rem; font-weight: 800; text-transform: uppercase;
   letter-spacing: .1em; color: var(--ink-4); margin: 16px 0 6px 10px;
   font-family: var(--font);
 }
 .drawer-item {
   display: flex; align-items: center; gap: 13px;
   padding: 12px 11px; border-radius: var(--r-2);
-  color: var(--ink-2); font-size: 14.5px; font-weight: 600;
+  color: var(--ink-2); font-size: 0.9063rem; font-weight: 600;
   text-align: left; width: 100%;
   transition: background .16s;
 }
@@ -726,7 +1128,7 @@
 
 .af-nota {
   font-family: var(--font-d);
-  font-size: 76px;
+  font-size: 4.75rem;
   font-weight: 800;
   line-height: 1;
   letter-spacing: -3px;
@@ -737,7 +1139,7 @@
 
 .af-cents {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ink-3);
   min-height: 18px;
@@ -774,11 +1176,11 @@
   transition: transform .09s linear, background .18s ease;
 }
 
-.af-hz { font-family: var(--font-mono); font-size: 12px; color: var(--ink-4); }
+.af-hz { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-4); }
 
 .af-acao { margin-top: 16px; }
 
-.af-estado { margin-top: 12px; font-size: 12px; color: var(--ink-3); text-align: center; }
+.af-estado { margin-top: 12px; font-size: 0.75rem; color: var(--ink-3); text-align: center; }
 
 .af-guia { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .af-guia-nota {
@@ -794,5 +1196,5 @@
   transition: border-color .15s ease, transform .1s ease;
 }
 .af-guia-nota:active { transform: scale(.95); }
-.af-guia-nome { font-weight: 700; font-size: 14px; color: var(--ink); }
-.af-guia-hz { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); }
+.af-guia-nome { font-weight: 700; font-size: 0.875rem; color: var(--ink); }
+.af-guia-hz { font-family: var(--font-mono); font-size: 0.625rem; color: var(--ink-4); }

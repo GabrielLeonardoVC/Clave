@@ -59,9 +59,26 @@
       bn.appendChild(el('button', { 'data-rota': r.id, 'aria-label': r.titulo, onclick: function () { ir(r.id); } },
         [el('i', { 'data-lucide': r.icon }), el('span', {}, r.titulo)]));
     });
+    bn.appendChild(el('button', { 'aria-label': 'Afinador', 'data-rota': 'afinador', onclick: function () { abrirAfinador(); } },
+      [el('i', { 'data-lucide': 'audio-lines' }), el('span', {}, 'Afinador')]));
     bn.appendChild(el('button', { 'aria-label': 'Mais', onclick: abrirDrawer },
       [el('i', { 'data-lucide': 'ellipsis' }), el('span', {}, 'Mais')]));
     UI.icons(bn);
+  }
+
+  /**
+   * O afinador abre por cima, e nao vira uma rota.
+   *
+   * Ele nao tem "pagina": e uma folha sobre a tela de onde voce chamou. Se
+   * fosse uma rota, sair do afinador devolveria a pagina errada, e quem abriu
+   * no meio de uma lista teria de achar o caminho de volta.
+   */
+  function abrirAfinador() {
+    if (!vistas.afinador || typeof vistas.afinador.abrir !== 'function') {
+      UI.toast('Afinador indisponivel', { tipo: 'err' });
+      return;
+    }
+    vistas.afinador.abrir();
   }
 
   function abrirDrawer() {
@@ -104,7 +121,7 @@
     document.documentElement.setAttribute('data-theme', tema);
     document.documentElement.setAttribute('data-accent', S.ajuste('accent', 'ember'));
     document.documentElement.setAttribute('data-density', S.ajuste('densidade', 'normal'));
-    document.documentElement.setAttribute('data-fontsize', S.ajuste('fontsize', 'normal'));
+    document.documentElement.setAttribute('data-fontsize', S.ajuste('fontsize', 'md'));
     document.documentElement.setAttribute('data-motion', S.ajuste('motion', 'on'));
 
     const escuro = tema === 'dark' || (tema === 'auto' && global.matchMedia
@@ -328,6 +345,14 @@
 
     $('#btn-search').addEventListener('click', busca);
     $('#btn-theme').addEventListener('click', cicloTema);
+    // O atalho de teclado e o caminho mais rapido para quem ja sabe os atalhos:
+    // "e" abre a emergencia, sem chegar perto do mouse.
+    const btnEmergencia = $('#btn-emergencia');
+    if (btnEmergencia) {
+      btnEmergencia.addEventListener('click', function () {
+        if (vistas.emergencia && typeof vistas.emergencia.abrir === 'function') vistas.emergencia.abrir();
+      });
+    }
     document.addEventListener('keydown', aoTeclar);
 
     S.assinar(function (tipo) {

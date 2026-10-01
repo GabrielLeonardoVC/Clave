@@ -12,6 +12,11 @@
   const M = global.Music;
   const Lk = global.Links;
   const P = global.Print;
+  // O `el` faltava aqui. O arquivo inteiro chamava `el(...)` — nove vezes —
+  // sem nunca trazê-lo para o escopo, e por isso o menu de compartilhar
+  // devolvia `el is not defined` na primeira vez que alguém tocava nele.
+  // WhatsApp, e-mail e .ics: nada disso nunca funcionou.
+  const { el } = U;
 
   /* =======================
      TEXTO PARA WHATSAPP
@@ -123,6 +128,79 @@
             });
           }
         }),
+      linha('mail', 'Enviar por e-mail', 'Abre o seu programa de e-mail com o texto pronto', function () {
+        // O corpo vai em HTML de proposito: e-mail nao formata asterisco nem
+        // sublinhado como o WhatsApp. Mandando o mesmo texto dos dois jeitos,
+        // o e-mail chega com os asteriscos aparecendo e parece defeito.
+        const corpoHtml = e.musicas.map(function (m, idx) {
+          const bits = [];
+          if (m.tom) bits.push(m.tom);
+          if (m.bpm) bits.push(m.bpm + ' bpm');
+          return '<li><b>' + (idx + 1) + '. ' + U.esc(m.nome) + '</b>'
+            + (bits.length ? ' &mdash; ' + U.esc(bits.join(' / ')) : '')
+            + (m.responsavel ? ' <i>(' + U.esc(m.responsavel) + ')</i>' : '')
+            + (m.obs ? '<br><small>' + U.esc(m.obs) + '</small>' : '') + '</li>';
+        }).join('');
+
+        const html =
+          '<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5">'
+          + '<h2 style="margin:0 0 2px">' + U.esc(e.titulo) + '</h2>'
+          + '<div style="color:#555;margin-bottom:12px">'
+          + U.esc(U.capitalize(U.DIAS[U.fromKey(e.data).getDay()]) + ', ' + U.fmtDate(e.data))
+          + (e.hora ? ' as ' + U.esc(U.fmtTime(e.hora)) : '')
+          + (e.local ? '<br>' + U.esc(e.local) : '')
+          + '</div>'
+          + (e.obs
+              ? '<p style="background:#f6f3ec;padding:10px;border-left:3px solid #B45309;margin:0 0 14px">'
+                + U.esc(e.obs).replace(/\n/g, '<br>') + '</p>'
+              : '')
+          + (corpoHtml ? '<ol style="margin:0;padding-left:20px">' + corpoHtml + '</ol>'
+                        : '<p>Nenhuma musica na escala.</p>')
+          + '</div>';
+
+        const assunto = e.titulo + ' - ' + U.fmtDate(e.data) + (e.hora ? ' ' + U.fmtTime(e.hora) : '');
+        // mailto nao aceita tudo o que um link normal aceita. O limite e do
+        // protocolo, nao do navegador:browsers costumam cortar o assunto e
+        // o corpo em poucos milhares de caracteres. Por isso o texto vai curto
+        // e a escala grande continua indo pelo WhatsApp.
+        const link = 'mailto:?subject=' + encodeURIComponent(assunto)
+          + '&body=' + encodeURIComponent(html);
+        if (!U.openLink(link)) {
+          U.copy(texto(e, { comLinks: true }))
+            .then(function () { UI.toast('Copiado! Cole no seu e-mail.', { tipo: 'ok', dur: 4500 }); });
+        }
+      }),
+
+      // A foto do evento vai anexada, e nao colada no texto.
+      //
+      // Um data-URL dentro do corpo de um WhatsApp nao vira imagem: vira uma
+      // linha de texto do tamanho da foto. E um `mailto:` nao anexa nada, so
+      // abre o programa de e-mail com o texto — entao a foto vai pela
+      // participacao nativa do sistema, que e o unico jeito de anexar de
+      // verdade num celular.
+      e.foto ? linha('image-plus', 'Enviar com a foto',
+        'Abre a partilha do sistema com o texto e a imagem', function () {
+        const arquivo = dataURLParaArquivo(e.foto);
+        if (!arquivo) { UI.toast('Nao deu para preparar a foto', { tipo: 'err' }); return; }
+        const conteudo = texto(e, { comLinks: true });
+        if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+          navigator.share({
+            title: e.titulo,
+            text: conteudo,
+            files: [arquivo],
+          }).catch(function () { /* cancelado */ });
+          return;
+        }
+        // O navegador nao aceita arquivo na partilha: cai para o texto, que
+        // pelo menos chega com a escala.
+        if (navigator.share) {
+          navigator.share({ title: e.titulo, text: conteudo }).catch(function () {});
+          return;
+        }
+        U.copy(conteudo).then(function () {
+          UI.toast('Copiado! Este navegador nao anexa arquivos.', { tipo: 'ok', dur: 4500 });
+        });
+      }) : null,
       linha('copy', 'Copiar texto', 'Só a lista, sem links', function () {
         U.copy(texto(e, { comLinks: false }))
           .then(function () { UI.toast('Copiado!', { tipo: 'ok' }); })
@@ -147,7 +225,38 @@
       body: corpo,
       foot: [el('button', { class: 'btn btn-secondary btn-block', onclick: function () { UI.closeAllSheets(); } }, 'Fechar')],
     });
-    function linha(ic, titulo, sub, onclick) {
+    /**
+   * Data-URL para um arquivo que a partilha do sistema aceita.
+   *
+   * O armazenamento guarda a foto como data-URL — e a unica forma de ela
+   * sobreviver a um F5 sem servidor. Mas `navigator.share` so anexa um
+   * `File` de verdade, entao a base64 precisa virar bytes.
+   *
+   * Devolve null quando nao da: entao quem chama cai no texto, em vez de
+   * falhar calado e a pessoa nao entender por que a foto nao foi.
+   */
+  function dataURLParaArquivo(dataUrl, nome) {
+    if (!dataUrl || typeof dataUrl !== 'string') return null;
+    const i = dataUrl.indexOf(',');
+    if (i < 0) return null;
+    const cabecalho = dataUrl.slice(0, i);
+    const base64 = dataUrl.slice(i + 1);
+    const tipo = /data:([^;]+)/.exec(cabecalho);
+    if (!tipo) return null;
+    let bin;
+    try { bin = atob(base64); } catch (e) { return null; }
+    const bytes = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+    const extensao = tipo[1].indexOf('png') >= 0 ? 'png' : 'jpg';
+    try {
+      return new File([bytes], (nome || 'evento') + '.' + extensao, { type: tipo[1] });
+    } catch (e) {
+      // Navegador antigo sem o construtor de File.
+      return null;
+    }
+  }
+
+  function linha(ic, titulo, sub, onclick) {
       return el('button', { class: 'list-item tap', style: { width: '100%', textAlign: 'left' }, onclick: onclick }, [
         el('div', { class: 'avatar' }, el('i', { 'data-lucide': ic, style: { width: '17px', height: '17px' } })),
         el('div', { class: 'grow', style: { minWidth: '0' } }, [
