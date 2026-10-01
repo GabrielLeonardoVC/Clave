@@ -917,7 +917,7 @@ function esperarPromessa() {
 /* Fecha a suite depois da ultima secao assincrona. */
 function fechar() {
   console.log('\n=================================================');
-  console.log('  ' + passou + ' asercao(oes) passou(aram), ' + falhou + ' falhou(aram)');
+console.log('  ' + passou + ' passaram, ' + falhou + ' falharam');
   if (falhou) {
     console.log('');
     falhas.forEach(function (f) { console.log('  FALHA  ' + f); });

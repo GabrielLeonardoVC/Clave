@@ -514,7 +514,7 @@ async function principal() {
      'encontradas: ' + prometeram2d);
 
   console.log('\n=================================================');
-  console.log('  ' + passou + ' asercao(oes) passou(aram), ' + falhou + ' falhou(aram)');
+console.log('  ' + passou + ' passaram, ' + falhou + ' falharam');
   console.log('=================================================\n');
   process.exit(falhou ? 1 : 0);
 }

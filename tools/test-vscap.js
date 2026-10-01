@@ -296,6 +296,6 @@ secao('9. Regravar nao herda o indice antigo');
 }
 
 console.log('\n=================================================');
-console.log('  ' + passou + ' asercao(oes) passou(aram), ' + falhou + ' falhou(aram)');
+console.log('  ' + passou + ' passaram, ' + falhou + ' falharam');
 console.log('=================================================\n');
 process.exit(falhou ? 1 : 0);

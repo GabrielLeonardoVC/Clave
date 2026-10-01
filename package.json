@@ -38,6 +38,7 @@
     "test:vscap": "node tools/test-vscap.js",
     "test:icones": "node tools/test-icones.js",
     "check:icones": "node tools/check-icones.js",
+    "check:conta": "node tools/conta-teste.js",
     "icones": "node tools/fazer-icones.js",
     "test:vida": "node tools/test-vida.js",
     "test:armazenamento": "node tools/test-armazenamento.js",
@@ -47,7 +48,7 @@
     "check:concordancia": "node tools/check-concordancia.js",
     "check:vida": "node tools/check-vida.js",
     "check:seguranca": "node tools/check-seguranca.js",
-    "verificar": "npm test && node tools/check-syntax.js && node tools/check-utf8.js && node tools/scan.js && node tools/check-api.js && node tools/check-variaveis.js && node tools/check-texto.js && node tools/check-escopo.js && node tools/check-proto.js && node tools/check-conteudo.js && node tools/check-identidade.js && node tools/diag-aspas.js && node tools/check-ortografia.js && node tools/check-concordancia.js && node tools/check-css.js && node tools/check-classes-usadas.js && node tools/check-sw.js && node tools/check-rotas.js && node tools/check-botoes.js && node tools/check-tags.js && node tools/check-globais.js && node tools/check-icones.js && node tools/check-vida.js && node tools/check-seguranca.js && node tools/check-contraste.js && node tools/termos.js",
+    "verificar": "npm test && node tools/check-syntax.js && node tools/check-utf8.js && node tools/scan.js && node tools/check-api.js && node tools/check-variaveis.js && node tools/check-texto.js && node tools/check-escopo.js && node tools/check-proto.js && node tools/check-conteudo.js && node tools/check-identidade.js && node tools/diag-aspas.js && node tools/check-ortografia.js && node tools/check-concordancia.js && node tools/check-css.js && node tools/check-classes-usadas.js && node tools/check-sw.js && node tools/check-rotas.js && node tools/check-botoes.js && node tools/check-tags.js && node tools/check-globais.js && node tools/check-icones.js && node tools/conta-teste.js && node tools/check-vida.js && node tools/check-seguranca.js && node tools/check-contraste.js && node tools/termos.js",
     "servir": "node tools/serve.js"
   },
   "keywords": [
