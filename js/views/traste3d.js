@@ -63,6 +63,108 @@
     let laco = null;
     let destruido = false;
 
+    /* ---------------------------------------------------------------
+       A SAÍDA, VIGIADA
+
+       Um contexto WebGL e caro e o navegador entrega um numero pequeno deles.
+       Quando o app remonta a tela — trocar de acorde, trocar de aba, sair da
+       rota — o no antigo e descartado sem aviso. Se o renderer nao for
+       destruido junto, ele continua "vivo" para sempre: medido, o contador
+       chegava a tres Contextos e nao voltava, e o 3D passava a depender de o
+       `Gfx` reciclar o mais antigo por conta propria. O sintoma e o pior
+       possivel: o 3D funciona, some, funciona de novo, e a pessoa nao sabe
+       por que.
+
+       Duas saidas, e as duas importam:
+
+         - ESTA, que e a geral. Um observador nota quando o no sai do
+           documento e destroi tudo. Nao depende de ninguem lembrar: a proxima
+           tela que montar um traste herda o cuidado de graca.
+
+         - A destruicao explicita de quem remonta a tela, que e mais rapida e
+           nao espera o navegador avisar.
+       --------------------------------------------------------------- */
+    let observador = null;
+    let observadorDePagina = null;
+    let veioConectado = false;
+    let veioAtiva = false;
+
+    /** O no ainda esta na pagina? */
+    function naPagina(no) {
+      if (!no) return false;
+      if (typeof no.isConnected === 'boolean') return no.isConnected;
+      // Sem `isConnected`: sobe ate a raiz procurando um pai com `nodeType`.
+      let p = no;
+      while (p) {
+        if (p.nodeType === 9) return true;     // documento
+        p = p.parentNode;
+      }
+      return false;
+    }
+
+    function paginaAtiva() {
+      // Fora de uma pagina nao ha a que obedecer, e o app tem telas que nao
+      // usam o embrulho `.page`.
+      const p = wrap.closest && wrap.closest('.page');
+      if (!p) return true;
+      return p.classList.contains('active');
+    }
+
+    /** Prende a segunda vigia na pagina que contem o traste.
+
+     * So pode ser depois que o no foi anexado. `mostrar()` devolve o `wrap`, e
+     * quem chama e que o coloca na tela: no instante em que a vigia comeca, o no
+     * ainda nao tem pai, `closest('.page')` devolve `null`, e a vigia da pagina
+     * nunca chegaria a existir. Era o que acontecia — o traste do primeiro
+     * carregamento nunca era destruido ao sair da rota, e sobrava um contexto
+     * WebGL pedido para sempre. */
+    function prenderNaPagina() {
+      if (observadorDePagina) return;
+      const pagina = wrap.closest ? wrap.closest('.page') : null;
+      if (!pagina) return;
+      try {
+        observadorDePagina = new MutationObserver(function () {
+          if (destruido) return;
+          marcarEstado();
+          if (veioAtiva && !paginaAtiva()) destruir();
+        });
+        observadorDePagina.observe(pagina, { attributes: true, attributeFilter: ['class'] });
+      } catch (e) {
+        observadorDePagina = null;
+      }
+    }
+
+    /** Anota em que estado a tela ja esteve. */
+    function marcarEstado() {
+      if (naPagina(wrap)) veioConectado = true;
+      if (paginaAtiva()) veioAtiva = true;
+      if (veioConectado) prenderNaPagina();
+    }
+
+    function vigiarSaida() {
+      if (typeof MutationObserver !== 'function') return;
+      if (!global.document || !global.document.documentElement) return;
+
+      try {
+        /* A PRIMEIRA VIGIA: o no saiu do documento?
+
+           Acontece quando a tela e remontada e o antigo e descartado sem aviso.
+           E a que cobre quem descarta o no sem saber que ele era caro. */
+        observador = new MutationObserver(function () {
+          if (destruido) return;
+          marcarEstado();
+          if (!naPagina(wrap) && veioConectado) destruir();
+        });
+        observador.observe(global.document.documentElement, { childList: true, subtree: true });
+        marcarEstado();
+      } catch (e) {
+        // Sem observador, a saida continua dependendo de quem desmonta. Nao e
+        // motivo para nao mostrar o 3D.
+        observador = null;
+        observadorDePagina = null;
+      }
+    }
+
     /* ------------------------------------------------------------------
        A CARGA
 
@@ -88,6 +190,27 @@
              causas diferentes — e foi assim que este defeito passou: o
              developer via a tela quebrada e nenhuma pista do motivo. */
           if (global.console && console.error) console.error('[traste3d] montagem falhou:', err);
+
+          /* E precisa devolver o 2D.
+           *
+           * A montagem esconde o plano (o 2D) assim que o 3D entra, na linha
+           * `plano.style.display = 'none'`. Se ALGO DEPOIS disso falha — a cena,
+           * os ouvintes de toque, a camera — o `catch` avisava e nada mais.
+           *
+           * O resultado era uma tela que mostrava "Não consegui abrir o 3D. O
+           * traste acima funciona igual." e NAO TINHA NADA ACIMA: o 2D estava
+           * escondido e o canvas nunca desenhou. O aviso dizia a verdade ao
+           * contrario, que e a pior forma de mentir.
+           *
+           * O `aoErrar` do laco ja sabia disso e devolvia o plano. Aqui faltava
+           * a mesma metade. */
+          try {
+            if (laco) { laco.destruir(); laco = null; }
+            if (cena3d) { cena3d.dispose(); cena3d = null; }
+          } catch (e2) { /* ja destruido */ }
+          if (caixa) { try { caixa.remove(); } catch (e3) { /* ja saiu */ } }
+          wrap.classList.remove('tem-3d');
+          plano.style.display = '';
           aviso.textContent = 'Não consegui abrir o 3D. O traste acima funciona igual.';
           aviso.classList.add('visivel');
         }
@@ -201,19 +324,66 @@
         aoErrar: function () {
           // Um erro no desenho parou o laco. O 3D e um extra: o certo e voltar
           // ao traste 2D, que ja estava montado e so precisa reaparecer.
-          try {
-            v3.dispose();
-            global.Gfx.destruir(renderer);
-          } catch (e) { /* ja destruido */ }
-          caixa.remove();
-          wrap.classList.remove('tem-3d');
-          plano.style.display = '';
-          aviso.textContent = 'O 3D parou aqui. O traste acima mostra a mesma coisa.';
-          aviso.classList.add('visivel');
+          //
+          // `voltarAo2D` e a MESMA funcao que trata a perda de contexto. Duas
+          // metades de "voltar ao 2D" divergem no primeiro ajuste, e a divergencia
+          // aparece como "as vezes volta, as vezes nao" — que e impossivel de
+          // depurar e impossivel de explicar para quem usa.
+          voltarAo2D('O 3D parou aqui. O traste acima mostra a mesma coisa.');
         },
       });
 
       v3.ligarDesenho(function () { if (laco) laco.acordar(); });
+
+      /* ---- a PERDA DO CONTEXTO ----
+       *
+       * O contexto WebGL morre sem aviso em aparelho de verdade. O driver da GPU
+       * reinicia, a tela entra em economia, o celular esquenta, o navegador
+       * descarta o contexto para recuperar memoria. O app nao fez nada de
+       * errado e mesmo assim o canvas fica preto para o resto da tela.
+       *
+       * Num ensaio isso e o pior defeito possivel: a pessoa mexe no traste para
+       * achar o tom, o violao simplesmente desaparece, e nao ha aviso nem
+       * retorno. A unica saida honesta e devolver o 2D, que ja esta desenhado e
+       * diz a mesma coisa.
+       *
+       * Nao ha o que remontar: quando o contexto morre, os objetos que ele
+       * segurava morrem junto. Voltar ao 3D exigiria reconstruir a cena inteira,
+       * e essa e uma decisao de produto, nao uma correcao de emergencia. O
+       * certo agora e a pessoa poder ver o traste.
+       */
+      if (canvas.addEventListener) {
+        canvas.addEventListener('webglcontextlost', function (ev) {
+          /* Sem `preventDefault`, o navegador nao tenta recuperar — e o padrao
+           * e deixar morrer. Aqui a gente assume a morte e avisa. */
+          if (ev && ev.preventDefault) ev.preventDefault();
+          voltarAo2D('O 3D foi desligado pelo aparelho. O traste acima mostra a mesma coisa.');
+        }, false);
+      }
+
+      /** Desliga o 3D e devolve o traste 2D, com a frase que explica o motivo. */
+      function voltarAo2D(frase) {
+        if (destruido) return;
+        try {
+          if (laco) { laco.parar(); laco.destruir(); laco = null; }
+          if (cena3d) { cena3d.dispose(); cena3d = null; }
+        } catch (e) { /* ja destruido */ }
+        /* O renderer e solto aqui, e nao so pelo `laco`.
+         *
+         * `laco.destruir()` tambem solta o renderer — mas so quando o laco
+         * chegou a existir. Se a falha foi ANTES disso (a cena nao subiu, os
+         * ouvintes de toque quebraram), o renderer ja foi criado, ja esta
+         * contando no teto do `Gfx`, e nao tem laco para levar junto. Sem esta
+         * linha, o contexto ficava pedido com a tela ja mostrando o 2D.
+         *
+         * `Gfx.destruir` e idempotente: chamar duas vezes nao faz mal. */
+        try { global.Gfx.destruir(renderer); } catch (e) { /* ja destruido */ }
+        try { caixa.remove(); } catch (e) { /* ja saiu */ }
+        wrap.classList.remove('tem-3d');
+        plano.style.display = '';
+        aviso.textContent = frase;
+        aviso.classList.add('visivel');
+      }
 
       /* ---- o toque ----
          Arrastar gira; tocar numa corda toca. O dois no mesmo dedo: um arrasto
@@ -322,7 +492,21 @@
        pedidos ao navegador — e o app deixa de abrir 3D sem explicacao.
        ------------------------------------------------------------------ */
     function destruir() {
+      // Idempotente: quem chama e o observador E quem remonta a tela, e os dois
+      // podem acertar o mesmo instante. Sem esta guarda, o segundo chamada
+      // entraria em `cena3d` ja nulo — e `dispose()` duas vezes no three deixa
+      // geometrias com conteudo invalido, que so aparece como tela preta.
+      if (destruido) return;
       destruido = true;
+
+      if (observador) {
+        try { observador.disconnect(); } catch (e) { /* ja desconectado */ }
+        observador = null;
+      }
+      if (observadorDePagina) {
+        try { observadorDePagina.disconnect(); } catch (e) { /* ja desconectado */ }
+        observadorDePagina = null;
+      }
       if (laco) {
         laco.destruir();
         laco = null;
@@ -333,6 +517,7 @@
       }
     }
 
+    vigiarSaida();
     wrap.destruir3d = destruir;
     return wrap;
   }

@@ -133,8 +133,8 @@
       const itens = S.filtrarCifras(filtro);
       const total = S.cifras().length;
       info.textContent = itens.length === total
-        ? total + (total === 1 ? ' cifra' : ' cifras')
-        : itens.length + ' de ' + total + ' cifras';
+        ? U.plural(total, 'cifra')
+        : itens.length + ' de ' + U.plural(total, 'cifra');
       if (!itens.length) {
         box.appendChild(UI.empty({
           icon: total ? 'search-x' : 'library',
@@ -226,7 +226,7 @@
     if (f.ytId) marcas.push(['youtube', 'Vídeo do YouTube', '#FF0000']);
     if (f.vs) marcas.push(['audio-lines', 'Narração gravada', '']);
     if (f.foto) marcas.push(['image', 'Foto da cifra', '']);
-    if (f.anotacoes && f.anotacoes.length) marcas.push(['list-music', f.anotacoes.length + ' anotações', '']);
+    if (f.anotacoes && f.anotacoes.length) marcas.push(['list-music', U.plural(f.anotacoes.length, 'anotação'), '']);
     if (!marcas.length) return null;
     return el('div', { class: 'marcas' }, marcas.map(function (m) {
       return el('span', { class: 'marca', title: m[1], 'aria-label': m[1] },
@@ -373,7 +373,7 @@
     if (v.ytId) partes.push('vídeo');
     if (v.vs) partes.push('narração gravada');
     if (v.foto) partes.push('foto');
-    if (v.anotacoes && v.anotacoes.length) partes.push(v.anotacoes.length + ' anotações');
+    if (v.anotacoes && v.anotacoes.length) partes.push(U.plural(v.anotacoes.length, 'anotação'));
     body.appendChild(el('div', { class: 'fs-sm muted' },
       partes.length ? 'Pronto para o palco: ' + partes.join(' · ') : 'Nada gravado ainda: sem vídeo, narração ou anotações.'));
     if (v.letra) {
@@ -584,7 +584,8 @@
       const k = M.detectKey(txt);
       const nomes = Array.from(new Set(chords.map(function (c) { return c.text; }))).join(' - ');
       const knome = k ? (M.noteName(k.pc, M.useFlatsFor(k.pc)) + (k.mode === 'minor' ? 'm' : '')) : '?';
-      status.textContent = chords.length + ' acordes (' + nomes + ')' + (k ? '  -  tom sugerido: ' + knome : '');
+      status.textContent = U.plural(chords.length, 'acorde') + ' (' + nomes + ')'
+        + (k ? '  -  tom sugerido: ' + knome : '');
     }
     fCifra.addEventListener('input', U.debounce(analisar, 300));
     analisar();

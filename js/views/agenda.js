@@ -136,7 +136,7 @@
           el('div', { class: 'avatar' }, el('i', { 'data-lucide': 'list-music', style: { width: '17px', height: '17px' } })),
           el('div', { class: 'grow', style: { textAlign: 'left', minWidth: '0' } }, [
             el('div', { class: 'fs-md fw-7 ellipsis' }, e.titulo),
-            el('div', { class: 'fs-xs muted' }, (e.hora ? U.fmtTime(e.hora) + ' - ' : '') + e.musicas.length + ' musicas'),
+            el('div', { class: 'fs-xs muted' }, (e.hora ? U.fmtTime(e.hora) + ' - ' : '') + U.plural(e.musicas.length, 'música')),
           ]),
         ]));
       });
@@ -528,7 +528,7 @@
     const lista = S.cifras();
     const busca = el('input', { class: 'input', placeholder: 'Buscar no repertório...' });
     const box = el('div', { class: 'mt-3', style: { maxHeight: '50vh', overflowY: 'auto' } });
-    const h = UI.sheet({ title: 'Do repertório', sub: lista.length + ' cifras salvas', body: el('div', {}, [busca, box]),
+    const h = UI.sheet({ title: 'Do repertório', sub: U.plural(lista.length, 'cifra') + ' salva' + (lista.length === 1 ? '' : 's'), body: el('div', {}, [busca, box]),
       foot: [el('button', { class: 'btn btn-secondary btn-block', onclick: function () { h.close(); } }, 'Fechar')] });
 
     function pintar() {

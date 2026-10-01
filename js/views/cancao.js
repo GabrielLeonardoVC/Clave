@@ -66,9 +66,21 @@
     const wrap = el('div', { class: 'vid-card' });
 
     if (id) {
+      /* A URL vem de `Lk.embedYouTube`, e nao e montada aqui.
+       *
+       * A versao anterior escrevia o endereco a mao:
+       * `'/embed/' + id + '?...'`. Funcionava, porque `id` ja saiu validado do
+       * `extrairYouTubeId` — mas perdia o `encodeURIComponent` que o helper
+       * aplica, e criava um segundo lugar onde a regra do video mora. Duas
+       * copias da mesma regra divergem no primeiro ajuste, e a divergencia
+       * aparece como "o video abre em um lugar e nao no outro".
+       *
+       * O mesmo vale para o link de abrir: `urlYouTube` monta a URL de
+       * visualizacao a partir do mesmo id, e sabe fazer isso para o link curto
+       * tambem. */
       const iframe = el('iframe', {
         class: 'vid-frame',
-        src: 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&modestbranding=1&playsinline=1',
+        src: Lk.embedYouTube(id),
         title: 'Vídeo: ' + titulo,
         loading: 'lazy',
         referrerpolicy: 'strict-origin-when-cross-origin',
@@ -78,7 +90,7 @@
       wrap.appendChild(el('div', { class: 'vid-pe' }, [
         el('span', { class: 'grow ellipsis' }, titulo),
         el('a', {
-          class: 'vid-abrir', href: 'https://www.youtube.com/watch?v=' + id,
+          class: 'vid-abrir', href: Lk.urlYouTube(fonte),
           target: '_blank', rel: 'noopener noreferrer', title: 'Abrir no YouTube',
         }, [el('i', { 'data-lucide': 'external-link' })]),
       ]));

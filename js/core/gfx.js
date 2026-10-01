@@ -99,8 +99,9 @@
    * Carrega o three.js. Devolve sempre uma promessa que resolve — nunca rejeita.
    *
    * Uma promessa que rejeita obriga quem chama a ter um `catch`, e quem chama
-   * e uma tela que so queria mostrar uma cifra.better e resolver com `null` e
-   * deixar o chamador escolher o caminho sem rede, que e o que ele sabe fazer.
+   * e uma tela que so queria mostrar uma cifra. Resolver com `null` deixa o
+   * chamador escolher o caminho sem rede, que e o que ele sabe fazer: mostrar o
+   * traste 2D e avisar o motivo.
    */
   function carregar() {
     if (resultado) return Promise.resolve(resultado === 'pronto' ? three : null);

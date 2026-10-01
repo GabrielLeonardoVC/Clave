@@ -149,7 +149,7 @@
      ======================================================= */
   function folhaCifras(lista, titulo) {
     let body = '<div class="ps-head"><h1>' + esc(titulo || 'Repertório') + '</h1>' +
-      '<div class="meta">' + lista.length + ' cifras</div></div>';
+      '<div class="meta">' + esc(U.plural(lista.length, 'cifra')) + '</div></div>';
     body += '<div class="ps-sec"><table class="ps-table"><thead><tr>' +
       '<th>#</th><th>Música</th><th>Artista</th><th>Tom</th><th>BPM</th><th>Categoria</th>' +
       '</tr></thead><tbody>';

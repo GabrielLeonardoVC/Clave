@@ -17,7 +17,20 @@
     }
   }
 
-  /* ---------------- Toast ---------------- */
+  /* ---------------- Toast ----------------
+
+     Aceita `undo` (desfazer) ou `acao` + `acaoTexto` (levar a pessoa ate a tela
+     que resolve).
+
+     A distincao existe por causa de um aviso sobre o dado guardado. "Desfazer"
+     e a palavra certa para voltar atras de algo que o app acabou de fazer, e e
+     a palavra ERRADA para "seu trabalho pode ser apagado, va em Ajustes". A
+     pessoa le o rotulo antes do aviso, e um botao que promete desfazer faz a
+     pessoa desconfiar do aviso inteiro.
+
+     Um aviso que oferece o caminho e um aviso que se resolve sozinho. Este
+     aqui precisa da segunda coisa: o app nao pode apagar o armazenamento do
+     navegador, e a unica defesa que sobra e a pessoa tombol. */
   function toast(msg, opts) {
     opts = opts || {};
     const host = document.getElementById('toast-host');
@@ -28,12 +41,28 @@
       el('i', { 'data-lucide': iconName }),
       el('span', { class: 'grow' }, msg),
     ]);
-    if (opts.undo) {
+
+    const aoTocar = opts.acao || opts.undo;
+    if (aoTocar) {
+      /* O gancho e um ATRIBUTO, nao uma classe.
+       *
+       * A classe `undo` ja faz o estilo. Este marcador existe so para o clique
+       * por fora nao engolir o clique no botao — e um gancho de codigo, nao uma
+       * aparencia. Dar uma classe a ele obrigaria a criar uma regra de CSS que
+       * nao muda nada, e uma regra sem efeito e uma regra que o proximo
+       * mantenedor nao sabe se pode apagar. */
       node.appendChild(el('button', {
         class: 'undo',
-        onclick: () => { close(); opts.undo(); },
-      }, 'Desfazer'));
+        'data-toast-acao': '',
+        type: 'button',
+        onclick: function (ev) {
+          if (ev) ev.stopPropagation();
+          close();
+          try { aoTocar(); } catch (e) { console.error(e); }
+        },
+      }, opts.acaoTexto || 'Desfazer'));
     }
+
     host.appendChild(node);
     icons(node);
     let closed = false;
@@ -43,10 +72,12 @@
       node.classList.add('out');
       setTimeout(() => node.remove(), 220);
     }
-    const dur = opts.dur || (opts.undo ? 6000 : tipo === 'err' ? 5000 : 2800);
+    const dur = opts.dur || (aoTocar ? 6000 : tipo === 'err' ? 5000 : 2800);
     const t = setTimeout(close, dur);
     node.addEventListener('click', (e) => {
-      if (e.target.closest('.undo')) return;
+      // Clicar no botao de acao e o botao de acao: o clique por fora fecha o
+      // aviso, o clique em cima dele faz o que ele diz.
+      if (e.target.closest('[data-toast-acao]')) return;
       clearTimeout(t); close();
     });
     return close;
@@ -84,8 +115,20 @@
     const scrim = el('div', { class: 'scrim' });
     const bodyNode = el('div', { class: 'sheet-body' + (opts.flush ? ' flush' : '') });
     if (opts.body) {
-      if (typeof opts.body === 'string') bodyNode.innerHTML = opts.body;
-      else bodyNode.appendChild(opts.body);
+      /* O corpo e um NO. Sempre.
+       *
+       * Existia aqui um desvio que aceitava string e fazia `innerHTML` nela.
+       * Os 31 chamadores do app passam no — todos declarados com `el(...)` — de
+       * modo que o desvio nao servia para ninguem e so servia para errar: uma
+       * folha montada com `body: algumTexto` rodaria esse texto como HTML, e o
+       * lugar mais provavel do texto ser o titulo que a pessoa acabou de digitar.
+       *
+       * `body` continua aceitando texto dentro de um no: `el('p', {}, txt)`.
+       * E `el()` recusa `html:` com um erro, pelo mesmo motivo. */
+      if (typeof opts.body === 'string') {
+        throw new Error('UI.sheet: o corpo é um nó, não um texto. Use el("p", {}, texto).');
+      }
+      bodyNode.appendChild(opts.body);
     }
     const panel = el('div', { class: 'sheet' + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true' }, [
       el('div', { class: 'sheet-grip' }),

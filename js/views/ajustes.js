@@ -307,6 +307,74 @@ const TAMANHOS = [
     /* ---------- dados ---------- */
     root.appendChild(secao('database', 'Dados e backup'));
     const info = S.storageInfo();
+
+    /* O bloco que explica o risco.
+     *
+     * Este cartao ficava em silencio. Mostrava "1,2 MB" e um "Faca backup para
+     * levar para outro aparelho" generico, e mais nada. O numero vinha de um
+     * limite inventado no `store` — 4,5 MB nao e o limite de ninguem; o
+     * navegador decide, e o limite dele muda com o espaco que sobra no aparelho.
+     *
+     * A tela agora diz as tres coisas que importam: se este espaco pode ser
+     * apagado pelo navegador, quanto ja foi exportado, e o que fazer se a
+     * resposta for "pode". O `risco()` ja devolve a frase pronta, para que a
+     * tela nao invente um jeito de dizer a mesma coisa em dois lugares. */
+    const Arm = global.Armazenamento;
+    const cartaoRisco = el('div', { class: 'card' + (Arm ? '' : ' oculto') });
+    if (Arm) {
+      const r = Arm.risco();
+      /* O nivel do risco vira a familia visual que ja existe no projeto.
+       *
+       * `risco()` fala em tres situacoes da vida real — esta tudo bem, este
+       * espaco pode sumir, isto aqui ja esta atras. Cada uma ganha a cor que o
+       * resto do app ja usa para a mesma ideia, para o cartao nao virar uma
+       * quarta linguagem visual. */
+      const familia = r.nivel === 'perigo' ? 'danger' : r.nivel === 'atencao' ? 'warn' : 'ok';
+
+      cartaoRisco.appendChild(el('div', { class: 'row between mb-2' }, [
+        el('span', { class: 'fs-sm fw-7' }, [
+          el('i', {
+            'data-lucide': r.nivel === 'tranquilo' ? 'shield-check' : 'shield-alert',
+          }),
+          ' ' + r.titulo,
+        ]),
+        el('span', { class: 'badge badge-' + familia },
+          Arm.persistente() ? 'persistente' : 'descartável'),
+      ]));
+      cartaoRisco.appendChild(el('p', { class: 'fs-xs muted' }, r.texto));
+
+      /* O que o browser realmente diz, quando ele diz. */
+      Arm.medir().then(function (m) {
+        if (!m.exato) return;
+        const linhas = [];
+        linhas.push(U.fmtBytes(m.uso) + ' em uso');
+        if (m.cota) linhas.push('de ' + U.fmtBytes(m.cota) + ' disponíveis neste aparelho');
+        linhas.push(m.pct + '%');
+        const detalhe = el('p', { class: 'fs-xs muted mt-2' }, [
+          el('span', { class: 'muted' }, 'Medido pelo navegador: ' + linhas.join(' · ')),
+        ]);
+        cartaoRisco.appendChild(detalhe);
+      });
+
+      /* Se o espaco puder ser apagado, o botao de pedir deixa de ser interno.
+       * E o que a pessoa pode fazer que o app nao pode. */
+      if (!Arm.persistente() && Arm.suporta()) {
+        cartaoRisco.appendChild(el('div', { class: 'stack gap-2 mt-3' }, [
+          el('button', {
+            class: 'btn btn-soft btn-block', type: 'button',
+            onclick: function () {
+              Arm.pedir().then(function (concedido) {
+                if (concedido) UI.toast('Este espaço agora é seu. O navegador não apaga.', { tipo: 'ok' });
+                else UI.toast('O navegador ainda não Liberou. Baixar um backup é o que resolve.', { tipo: 'warn' });
+                recarregar();
+              });
+            },
+          }, [el('i', { 'data-lucide': 'lock' }), 'Pedir para o navegador não apagar isto']),
+        ]));
+      }
+      root.appendChild(cartaoRisco);
+    }
+
     const dad = el('div', { class: 'card' });
     dad.appendChild(el('div', { class: 'row between mb-2' }, [
       el('span', { class: 'fs-sm fw-7' }, 'Armazenamento no aparelho'),
@@ -315,8 +383,19 @@ const TAMANHOS = [
     dad.appendChild(el('div', { class: 'progress' + (info.pct > 85 ? ' danger' : info.pct > 70 ? ' warn' : '') },
       el('i', { style: { width: Math.min(100, info.pct) + '%' } })));
     const m = S.metricas();
+    const ultimo = Arm && Arm.ultimoBackup ? Arm.ultimoBackup() : '';
     dad.appendChild(el('p', { class: 'fs-xs muted mt-2' },
-      m.escalas + ' eventos e ' + m.cifras + ' cifras salvos. Faca backup para levar para outro aparelho.'));
+      U.plural(m.escalas, 'evento') + ' e ' + U.plural(m.cifras, 'cifra')
+      /* O "salva/salvas" concorda com CIFRA, nao com a soma.
+       *
+       * Amarrar no total dava "1 evento e 1 cifra salvas": um evento e uma
+       * cifra somam dois, o total era dois, e a frase saia com o adjetivo no
+       * plural. O adjetivo olha para o substantivo mais proximo — e a regra do
+       * portugues e tambem a regra do algoritmo. */
+      + (m.cifras === 1 ? ' salva' : ' salvas') + '.'
+      + (ultimo
+        ? ' Último backup em ' + ultimo + '.'
+        : ' Faça backup para levar para outro aparelho.')));
     dad.appendChild(el('div', { class: 'stack gap-2 mt-3' }, [
       el('button', { class: 'btn btn-secondary btn-block', onclick: exportar },
         [el('i', { 'data-lucide': 'download' }), 'Fazer backup (.json)']),
@@ -395,7 +474,23 @@ const TAMANHOS = [
 
   function exportar() {
     U.download('acorde-backup-' + U.todayKey() + '.json', S.exportar());
-    UI.toast('Backup salvo', { tipo: 'ok' });
+
+    /* O backup so ajuda se a pessoa souber que ele existe e quando foi feito.
+     *
+     * Sem esta linha, o app nao tinha como saber que a copia estava feita: o
+     * contador "ha quanto tempo voce nao exporta" nao teria de onde sair, e a
+     * tela nao poderia dizer "seu backup e de ontem" — que e a frase que faz
+     * alguem apertar o botao.
+     *
+     * `registrarBackup` guarda no proprio store, entao a data sobrevive a
+     * fechar o app. E o botao de apagar tudo tambem passa por aqui. */
+    const Arm = global.Armazenamento;
+    if (Arm && typeof Arm.registrarBackup === 'function') {
+      const hoje = Arm.registrarBackup();
+      UI.toast('Backup salvo (' + hoje + '). Guarde o arquivo fora do navegador.', { tipo: 'ok', dur: 6000 });
+    } else {
+      UI.toast('Backup salvo', { tipo: 'ok' });
+    }
   }
 
   function importar(modo) {
@@ -408,7 +503,7 @@ const TAMANHOS = [
       try {
         const txt = await U.readFile(f, false);
         const r = S.importar(txt, modo);
-        UI.toast('Restaurado: ' + r.escalas + ' eventos e ' + r.cifras + ' cifras', { tipo: 'ok', dur: 4000 });
+        UI.toast('Restaurado: ' + U.plural(r.escalas, 'evento') + ' e ' + U.plural(r.cifras, 'cifra'), { tipo: 'ok', dur: 4000 });
         recarregar();
       } catch (e) {
         UI.toast(e.message || 'Arquivo inválido', { tipo: 'err', dur: 5000 });

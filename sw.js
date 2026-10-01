@@ -31,6 +31,7 @@ const RECURSOS = [
   './js/core/music.js',
   './js/core/utils.js',
   './js/core/store.js',
+  './js/core/armazenamento.js',
   './js/core/ui.js',
   './js/core/render.js',
   './js/core/print.js',

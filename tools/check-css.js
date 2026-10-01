@@ -151,10 +151,33 @@ console.log('\n=== as regras do arquivo chegam ao navegador? ===');
 
 let checado = false;
 try {
-  // O probe abre a pagina em um servidor local e pergunta ao CSSOM.
-  const probe = execFileSync(process.execPath, [path.join(__dirname, 'probe-css.js')], {
-    encoding: 'utf8', timeout: 60000, stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  /* O probe abre a pagina em um servidor local e pergunta ao CSSOM.
+   *
+   * Uma tentativa so, com 60 segundos, deixava este verificador instavel. Ele
+   * abria um Chrome headless, subia um servidor e carregava as tres folhas — e
+   * numa maquina carregada (varias instancias do Chrome abertas, o proprio
+   * agente rodando) o `spawnSync` estourava o tempo e o verificador falhava
+   * sem ter visto nada.
+   *
+   * Um verificador que falha sozinho e pior do que um que nao existe: ele
+   * treina a pessoa a rodar de novo "para confirmar", e da proxima vez ela
+   * aceita a falha tambem. Entao: duas tentativas, e o tempo dobrado. Um
+   * verificador de CSS que demora e confiavel serve muito mais do que um rapido
+   * e com duvida. */
+  let probe = null;
+  let ultimoErro = null;
+  for (let tentativa = 1; tentativa <= 2 && probe === null; tentativa++) {
+    try {
+      probe = execFileSync(process.execPath, [path.join(__dirname, 'probe-css.js')], {
+        encoding: 'utf8', timeout: 120000, stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (e) {
+      ultimoErro = e;
+      if (tentativa < 2) console.log('  --    o probe nao respondeu; tentando de novo (' + tentativa + '/2)');
+    }
+  }
+  if (probe === null) throw ultimoErro;
+
   const dados = JSON.parse(probe);
   checado = true;
 

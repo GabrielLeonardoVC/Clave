@@ -49,9 +49,32 @@
     root.appendChild(box);
     UI.icons(root);
   }
+  /** Solta os 3D desta pagina antes de trocar o conteudo.
+
+   Cada traste ocupa um contexto WebGL, e o navegador entrega poucos. Trocar de
+   acorde remonta a pagina inteira, entao sem isto cada troca deixaria um
+   renderer pedido para sempre — e depois de algumas, o 3D deixaria de aparecer
+   sem explicacao.
+
+   A tela 3D tambem se guarda por conta propria (ela observa quando o no sai do
+   documento). Esta chamada e a via rapida: nao espera o navegador avisar, e
+   `destruir` e idempotente, entao as duas juntas nao quebram nada. */
+  function soltarTraste(p) {
+    if (!p || !p.querySelectorAll) return;
+    const nos = p.querySelectorAll('.traste3d');
+    for (const n of nos) {
+      if (typeof n.destruir3d === 'function') {
+        try { n.destruir3d(); } catch (e) { /* ja destruido */ }
+      }
+    }
+  }
+
   function recarregar() {
     const p = document.getElementById('page-teoria');
-    if (p && p.classList.contains('active')) render(p, {});
+    if (p && p.classList.contains('active')) {
+      soltarTraste(p);
+      render(p, {});
+    }
   }
 
   /* =======================

@@ -25,14 +25,30 @@
         const v = attrs[k];
         if (v === null || v === undefined || v === false) continue;
         if (k === 'class') node.className = v;
-        else if (k === 'html') node.innerHTML = v;
         else if (k === 'text') node.textContent = v;
         else if (k === 'style' && typeof v === 'object') Object.assign(node.style, v);
         else if (k.slice(0, 2) === 'on' && typeof v === 'function') {
           node.addEventListener(k.slice(2).toLowerCase(), v);
         } else if (k === 'dataset') {
           for (const d in v) node.dataset[d] = v[d];
-        } else node.setAttribute(k, v === true ? '' : v);
+        }
+        /* `html` nao e atributo: ele viraria `setAttribute('html', ...)`, que nao
+         * faz nada, e quem quisesse HTML passaria a acreditar que fez.
+         *
+         * Existia aqui uma linha que assignava `innerHTML`, e ela foi removida.
+         * Nenhum codigo do projeto usava — mas o atributo era o caminho mais
+         * curto entre um campo que a pessoa preenche e o navegador executando o
+         * que ela escreveu. Bastava um `el('div', { html: m.titulo })` e o titulo
+         * viraria script.
+         *
+         * Quem precisar de HTML constroi o no: `el('br')`, `el('b', {}, 'x')`.
+         * Para texto, `text:` ja resolve, e resolve certo.
+         *
+         * O `check-seguranca` vigia esta linha. */
+        else if (k === 'html') {
+          throw new Error('el() não aceita html. Use text: para texto, ou construa o nó.');
+        }
+        else node.setAttribute(k, v === true ? '' : v);
       }
     }
     (Array.isArray(children) ? children : children != null ? [children] : []).forEach((c) => {
@@ -335,7 +351,86 @@
     if (!b) return '0 KB';
     const u = ['B', 'KB', 'MB', 'GB'];
     const i = Math.min(Math.floor(Math.log(b) / Math.log(1024)), u.length - 1);
-    return (b / Math.pow(1024, i)).toFixed(i ? 1 : 0) + ' ' + u[i];
+    return (Math.pow(1024, i) ? b / Math.pow(1024, i) : 0).toFixed(i ? 1 : 0) + ' ' + u[i];
+  }
+
+  /**
+   * Um numero com a palavra certa: 1 música, 4 músicas.
+   *
+   * Existe por causa de um defeito que aparecia em quase toda tela: o app
+   * escrevia `e.musicas.length + ' músicas'` e a pessoa com uma música na
+   * escala lia "1 músicas". Nenhuma ferramenta acusava, porque o codigo estava
+   * certo — a string estava certa, a concatenacao estava certa, e o defeito e
+   * de portugues, nao de programa.
+   *
+   * E "1 músicas" e o tipo de detalhe que faz alguem desconfiar de que o app
+   * foi escrito por alguem. Ninguem que escreve portugues escreve "1 musicas"
+   * de proposito: escreve sem pensar, e o resultado denuncia a maquina.
+   *
+   * O plural nao e sempre "acrescentar um s": "1 dia" e "2 dias", mas
+   * "1 capaz"? O par vem do chamador, e o padrao cobre o caso comum do app:
+   * o singular e o plural sao a mesma palavra com o `s` no fim.
+   *
+   *     U.plural(e.musicas.length, 'música')   ->  "1 música"
+   *     U.plural(e.musicas.length, 'música')   ->  "4 músicas"
+   *
+   * Devolve so a palavra combinada com o numero. Quem quiser o numero separado,
+   * passa o texto antes.
+   */
+  /** O plural de uma palavra, quando o chamador nao passou.
+   *
+   * Aqui NAO existe heuristica, e essa ausencia e uma decisao.
+   *
+   * A primeira versao tentava adivinhar: terminava em `-l`, `-m`, `-z` e
+   * ganhava `es`. Produzia "2 homemes" e "2 festivales". Em portugues o plural
+   * de `homem` e `homens`, o de `festival` e `festivais`, e o de `papel` e
+   * `papeis` — nenhuma das tres regras cabe em "acrescente `es`".
+   *
+   * Palavra errada na tela e pior do que palavra repetida. A pessoa le "2
+   * homemes" e sabe que aquilo foi escrito sem ninguem pensar — que e o defeito
+   * que este modulo existe para tirar. Entao a regra e uma so, a unica que
+   * quase sempre esta certa, e quem sabe melhor passa a palavra certa.
+   *
+   * Os casos irregulares deste app estao na lista abaixo. Uma palavra fora da
+   * lista ganha `s`, e quem precisar de outro manda o plural explicitamente. */
+  const PLURAIS_IRREGULARES = {
+    capaz: 'capazes',
+    pais: 'países',
+    mês: 'meses',
+  };
+
+  /* As regras do portugues, na ordem em que precisam ser testadas.
+   *
+   * A ordem importa e nao e detalhe. `anotação` termina em `ão`, e uma regra de
+   * `o` mal colocada comecaria a comer esse `ão` e faria "anotaçãos". `luz`
+   * termina em `z`, e a regra do `z` precisa vir antes da do `s`. Testar na
+   * ordem errada produz exatamente o defeito que este modulo existe para tirar.
+   *
+   * Cada regra tem o exemplo ao lado porque a lista e curta e o exemplo diz mais
+   * do que um paragrafo. */
+  const REGRAS_PLURAL = [
+    { fim: /ão$/, troca: (p) => p.slice(0, -2) + 'ões' },  // anotação -> anotações
+    { fim: /z$/, troca: (p) => p.slice(0, -1) + 'zes' },   // luz -> luzes
+    { fim: /el$/, troca: (p) => p.slice(0, -2) + 'éis' },  // papel -> papéis
+    { fim: /l$/, troca: (p) => p.slice(0, -1) + 'is' },    // animal -> animais
+    { fim: /m$/, troca: (p) => p.slice(0, -1) + 'ns' },    // homem -> homens
+    { fim: /r$/, troca: (p) => p + 'es' },                  // altar -> altares
+    { fim: /s$/, troca: (p) => p.slice(0, -1) + 'ses' },   // pais -> países
+  ];
+
+  function pluralDe(palavra) {
+    if (Object.prototype.hasOwnProperty.call(PLURAIS_IRREGULARES, palavra)) {
+      return PLURAIS_IRREGULARES[palavra];
+    }
+    for (const regra of REGRAS_PLURAL) {
+      if (regra.fim.test(palavra)) return regra.troca(palavra);
+    }
+    return palavra + 's';                                 // música -> músicas
+  }
+
+  function plural(n, singular, pluralForma) {
+    const quantos = Number(n) || 0;
+    return quantos + ' ' + (quantos === 1 ? singular : (pluralForma || pluralDe(singular)));
   }
 
   /** Abre link externo com validação (o app original falhava nisso). */
@@ -386,7 +481,7 @@
     fmtDate, fmtDateLong, fmtMonthYear, fmtTime, fmtRelativeDay, capitalize,
     norm, deaccent, slug, titleCase, debounce, throttle,
     uid, clamp, clone, groupBy, groupByDate, sortBy, highlight,
-    copy, download, readFile, shrinkImage, fmtBytes, openLink, searchLinks,
+    copy, download, readFile, shrinkImage, fmtBytes, plural, openLink, searchLinks,
     estimateDuration, byteLen,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

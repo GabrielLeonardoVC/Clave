@@ -85,10 +85,10 @@
 
   function textoDoAviso(e) {
     const linhas = e.musicas.slice(0, 3).map((m) => '• ' + m.nome).join('\n');
-    const resto = e.musicas.length > 3 ? '\n+' + (e.musicas.length - 3) + ' outras' : '';
+    const resto = e.musicas.length > 3 ? '\n+' + U.plural(e.musicas.length - 3, 'outra') : '';
     return e.hora
-      ? U.fmtTime(e.hora) + ' · ' + e.musicas.length + ' músicas\n' + linhas + resto
-      : e.musicas.length + ' músicas\n' + linhas + resto;
+      ? U.fmtTime(e.hora) + ' · ' + U.plural(e.musicas.length, 'música') + '\n' + linhas + resto
+      : U.plural(e.musicas.length, 'música') + '\n' + linhas + resto;
   }
 
   function checar() {
@@ -140,7 +140,7 @@
     if (jaAvisou) return;
     sessionStorage.setItem('acorde_aviso_' + alvo[0].id, '1');
     global.UI && global.UI.toast(
-      alvo[0].titulo + ' ' + quando + ' · ' + alvo[0].musicas.length + ' músicas',
+      alvo[0].titulo + ' ' + quando + ' · ' + U.plural(alvo[0].musicas.length, 'música'),
       { tipo: 'info', dur: 6000 }
     );
   }

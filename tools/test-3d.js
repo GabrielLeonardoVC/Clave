@@ -61,7 +61,20 @@ function secao(titulo) {
    viram funcoes contadas: e a unica forma de provar que o laco PARA, que e
    justamente a promessa do arquivo. */
 function montarNavegadorFalso() {
-  const estado = { quadros: 0, pendentes: new Map(), proximo: 1, visivel: 'visible', ouvintes: [] };
+  /* O relogio comeca num valor grande DE PROPOSITO.
+   *
+   * `Cena` limita quadros por tempo: `MINIMO_MS` (33 ms) comparado com
+   * `ultimoDesenho`, que comeca em zero. Com um relogio começando em zero, o
+   * primeiro quadro cai dentro da janela e e descartado — e o teste comeca
+   * medindo a hora errada.
+   *
+   * E `rodar()` avanca o relogio. Sem isso, a secao da tela 3D inteira rodava
+   * dentro da mesma janela de 33 ms: o quadro da montagem era desenhado e o do
+   * arraste era descartado pelo limitador, exatamente como aconteceria num
+   * aparelho onde a pessoa arrasta depressa demais. O teste media a velocidade
+   * da maquina, e nao a tela. */
+  const estado = { quadros: 0, pendentes: new Map(), proximo: 1, visivel: 'visible',
+    ouvintes: [], ms: 10000 };
   const nav = {
     document: {
       get visibilityState() { return estado.visivel; },
@@ -83,13 +96,21 @@ function montarNavegadorFalso() {
       return id;
     },
     cancelAnimationFrame: function (id) { estado.pendentes.delete(id); },
-    /* Corre o que o navegador faria: dispara tudo que esta na fila. */
+    /* Corre o que o navegador faria: dispara tudo que esta na fila.
+     *
+     * Cada volta e um quadro de verdade, e um quadro leva tempo. O relogio anda
+     * 100 ms — bem acima do limite de 33 ms do `Cena` — para que o limitador
+     * nunca decida o resultado do teste por acidente. */
     rodar: function () {
+      estado.ms += 100;
       const fila = Array.from(estado.pendentes.entries());
       estado.pendentes.clear();
-      for (const [, cb] of fila) cb(0);
+      for (const [, cb] of fila) cb(estado.ms);
       return fila.length;
     },
+    /* O `performance` que casa com este relogio. Quem instala mede o `Cena`
+     * inteiro por ele, em vez de deixar o `Cena` usar o relogio de verdade. */
+    performance: { now: function () { return estado.ms; } },
     /* Troca a visibilidade da aba E avisa quem escutou, como o navegador faz.
      *
      * Fica aqui, e nao como atribuicao, porque `visibilityState` e so leitura no
@@ -700,9 +721,16 @@ secao('5. A tela para de trabalhar quando ninguem mexe');
 {
   const nav = montarNavegadorFalso();
   const CHAVES5 = ['document', 'addEventListener', 'removeEventListener',
-    'requestAnimationFrame', 'cancelAnimationFrame', 'matchMedia'];
+    'requestAnimationFrame', 'cancelAnimationFrame', 'matchMedia', 'performance'];
   const anterior5 = {};
   CHAVES5.forEach(function (k) { anterior5[k] = global[k]; });
+
+  /* O tempo e falso aqui tambem, e pelo mesmo motivo da secao 1: o `Cena`
+   * descarta um quadro que chegue menos de 33 ms depois do anterior. Sem isto, a
+   * montagem e o arraste acontecem na mesma janela, o quadro do arraste e
+   * descartado, e o teste acusa "o arraste nao redesenha" — sendo que num
+   * aparelho a tela redesenha, so que nao antes do proximo passo. */
+  global.performance = nav.performance;
 
   const criar = elFake();
   global.document = {
@@ -772,6 +800,24 @@ secao('5. A tela para de trabalhar quando ninguem mexe');
   Gfx.criarRenderer = function () { return rendererFalso; };
   Gfx.destruir = function () {};
 
+  /* A CARGA PRECISA VIR DE MENTIRA AQUI.
+   *
+   * `Gfx.carregar` faz `import()` de uma CDN. No Node isso falha sempre — e
+   * falha do jeito certo: a promessa resolve com `null`, a tela mostra o aviso
+   * "sem 3D" e o traste 2D continua. O resultado e um teste que passa sem nunca
+   * montar a cena: o canvas nunca aparece, e a asercao abaixo falha sem dizer
+   * nada sobre a cena em si.
+   *
+   * Substituir `carregar` e o certo aqui porque a DECISAO de carregar — modo
+   * economia, WebGL ausente, ordem das CDNs — ja e testada na secao 2, com o
+   * `carregar` de verdade. Esta secao e sobre a cena: os objetos, o
+   * raycast, o laco. Deixar a carga de fora e o que mantem as duas separadas. */
+  let cargaResolveu = false;
+  Gfx.carregar = function () {
+    cargaResolveu = true;
+    return Promise.resolve(threeFalso(contador));
+  };
+
   require(path.join(RAIZ, 'js/core/cena.js'));
   const Traste3D = require(path.join(RAIZ, 'js/views/traste3d.js'));
 
@@ -784,6 +830,13 @@ secao('5. A tela para de trabalhar quando ninguem mexe');
   /* O 3D entra por uma promessa — a carga do three.js nao trava a tela, e o
    * traste 2D fica no lugar enquanto ela chega. */
   esperarPromessa().then(function () {
+  /* O quadro da MONTAGEM ainda esta na fila quando a promessa resolve: `Cena`
+     chama `acordar()` ao criar, e isso agenda um quadro. Comparar `quadros`
+     antes de rodar a fila media um quadro que era esperado — a tela nao estava
+     "desenhando sozinha", estava entregando o primeiro desenho. Sao coisas
+     diferentes, entao a fila e drenada antes de contar. */
+  nav.rodar();
+  nav.rodar();
   const base = quadros;
   nav.rodar(); nav.rodar(); nav.rodar();
   igual(quadros, base, 'a tela montada e parada: o laco nao fica rodando sozinho');
@@ -807,11 +860,45 @@ secao('5. A tela para de trabalhar quando ninguem mexe');
     ok(quadros > aposArrasto, 'o arraste redesenha a tela',
       'nenhum quadro depois de ' + guardou + ' voltas do agendador');
 
-    /* E o que a prova: a tela VOLTA A PARAR. Sem decair a velocidade, este
-     * contador cresce sem fim. */
+    /* E o que a prova: a tela VOLTA A PARAR.
+
+     * Dois defeitos moram aqui, e por isso sao duas asercoes.
+     *
+     * A primeira e o defeito antigo: sem decair a velocidade, `desenhar()`
+     * devolveria `true` para sempre e o contador cresceria sem limite — 30 fps
+     * com a tela parada, e a bateria do aparelho descendo sem ninguem tocar em
+     * nada.
+     *
+     * A segunda e o erro que estava no teste. Ele comparava `quadros` com o
+     * valor de antes do arraste e esperava zero crescimento. Mas o arraste DEIXA
+     * inercia de proposito: e o violao deslizando e parando, que e o peso de um
+     * objeto pequeno na mao. Medido, sao 55 quadros ate assentar, cerca de 1,8 s
+     * a 30 fps. Esse numero e o certo, e a comparacao estava acusando o certo.
+     *
+     * O que a tela promete nao e "nenhum quadro depois do arraste". E "a
+     * CONTAGEM PARA". Entao a verificacao deixa a inercia assentar, anota onde
+     * ela parou, e so entao mede se continua andando. */
     const depoisDoArrasto = quadros;
+    /* O laco precisa de uma volta antes de poder dizer "parou". Comecar
+       `ultimo` igual a `quadros` faria a condicao ser falsa na primeira
+       checagem, o laco nunca entraria, e o teste passaria medindo zero
+       assentamento — que e o resultado que ele deveria estar Napoleonando. */
+    let voltas = 0;
+    let ultimo = quadros;
+    let andou = true;
+    while (voltas < 400 && andou) {
+      nav.rodar();
+      voltas++;
+      andou = quadros !== ultimo;
+      ultimo = quadros;
+    }
+    const assentouEm = quadros - depoisDoArrasto;
+    ok(assentouEm < 300, 'a inercia do arraste assenta em pouco tempo',
+      'assentou em ' + assentouEm + ' quadros; o teto e 300');
+
+    const paradoEm = quadros;
     for (let i = 0; i < 120; i++) nav.rodar();
-    igual(quadros, depoisDoArrasto, 'a tela volta a parar sozinha depois do arraste');
+    igual(quadros, paradoEm, 'a tela volta a parar sozinha depois do arraste');
   }
 
   CHAVES5.forEach(function (k) { global[k] = anterior5[k]; });
@@ -933,10 +1020,25 @@ function elCompleto(criar) {
 }
 
 /* Acha o canvas na arvore do falso DOM. */
+/* Acha o canvas descendo a arvore.
+ *
+ * O no de mentira aceita texto como filho: `elCompleto` transforma string em
+ * `{ text: ... }` e o `appendChild` guarda no `children`. Esse objeto nao tem
+ * `tagName` nem `children` — e um no de texto, nao um elemento.
+ *
+ * Sem a guarda, `no.children` e `undefined` e o `|| []` segura. Mas o que
+ * segurava era o `||` doChildren, e ele foi removido numa edicao: o primeiro
+ * erro disso foi um `Cannot read properties of undefined` dentro do proprio
+ * teste, com a tela 3D funcionando perfeitamente. O defeito estava no
+ * verificador, e ele acusou a cena.
+ *
+ * A guarda e entao explicita, e nao implicita: e um no so e o que tem `tagName`
+ * que se percorre. */
 function acharCanvas(no) {
-  if (!no) return null;
+  if (!no || typeof no !== 'object' || !no.tagName) return null;
   if (no.tagName === 'CANVAS') return no;
-  for (const f of (no.children || [])) {
+  const filhos = Array.isArray(no.children) ? no.children : [];
+  for (const f of filhos) {
     const achado = acharCanvas(f);
     if (achado) return achado;
   }

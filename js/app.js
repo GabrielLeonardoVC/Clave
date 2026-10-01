@@ -337,7 +337,7 @@
     const info = S.storageInfo();
     if (info.pct >= 85) {
       avisouCota = true;
-      UI.toast('Armazenamento cheio (' + info.pct + '%). Faca backup em Ajustes.', { tipo: 'err', dur: 9000 });
+      UI.toast('Armazenamento cheio (' + info.pct + '%). Faça backup em Ajustes.', { tipo: 'err',dur: 9000 });
     }
   }
 
@@ -393,6 +393,54 @@
       global.Notify.iniciar();
       setTimeout(function () { global.Notify.avisoInterno(); }, 2400);
     }
+
+    cuidarDoDado();
+  }
+
+  /* ---------------------------------------------------------------
+     O DADO DA PESSOA, NO ABERTURA
+
+     Duas coisas que nao podem esperar a pessoa ir em Ajustes.
+
+     1. PEDIR o espaco persistente. O pedido e feito aqui, e nao no primeiro
+        toque, porque nao depende de toque nenhum — e quanto antes o navegador
+        responder, antes o `persist()` concede. O modulo tambem escuta
+        `appinstalled` e pede de novo, que e quando o navegador costuma dizer
+        sim.
+
+     2. AVISAR quando o risco e real. O aviso vai para quem ja tem trabalho
+        guardado e nao fez backup ha um tempo. E vai uma vez por dia, e nunca
+        para quem nao tem nada salvo — avisar quem nao tem nada a perder e
+        treinar a pessoa a ignorar avisos.
+     --------------------------------------------------------------- */
+  function cuidarDoDado() {
+    const Arm = global.Armazenamento;
+    if (!Arm) return;
+
+    Arm.aoAbrir();
+
+    const avisar = function () {
+      const r = Arm.risco();
+      if (r.nivel === 'tranquilo') return;
+
+      // Uma vez por dia. O aviso que repete todo dia vira barulho, e barulho e
+      // o caminho mais curto para a pessoa nunca mais ler nenhum aviso.
+      const chave = 'dadoAvisoEm';
+      const hoje = U.todayKey();
+      if (S.ajuste(chave, '') === hoje) return;
+      S.setAjuste(chave, hoje);
+
+      UI.toast(r.titulo + ' — ' + r.texto, {
+        tipo: r.nivel === 'perigo' ? 'err' : 'warn',
+        dur: 9000,
+        acao: function () { ir('ajustes'); },
+        acaoTexto: 'Ver',
+      });
+    };
+
+    // Depois do primeiro quadro: a tela precisa estar montada para um aviso
+    // ter onde aparecer, e o modulo responde uma promessa.
+    setTimeout(avisar, 1200);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
