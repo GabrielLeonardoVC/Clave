@@ -20,3 +20,18 @@ Thumbs.db
 .env
 .env.local
 *.local
+
+# Saida do Gradle. O build do android nao entra no git.
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.iml
+android/.idea/
+
+# A chave de assinatura NUNCA entra no git. Uma chave versionada e uma
+# chave publica: com ela qualquer um gera um aplicativo com o mesmo nome.
+*.jks
+*.keystore
+keystore.properties
+local.properties

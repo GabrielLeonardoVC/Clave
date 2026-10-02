@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  O DOMINIO QUE ESTE APLICATIVO PODE ABRIR.
+
+  Este e o arquivo que impede o pior ataque contra um aplicativo de loja:
+  alguem que NAO tenha o site escrever o endereco dele aqui dentro. Se o
+  dominio nao estiver na lista, o Android nao abre a janela e cai no navegador
+  comum — que e a resposta correta para um endereco desconhecido.
+
+  Por isso a lista tem UM dominio so, sem curinga, sem subdominio.
+
+  E o `cleartextTrafficPermitted="false"` diz que o endereco e HTTPS. Sem essa
+  linha, um dominio com certificado vencido ainda abriria, e o conteudo
+  passaria por texto legivel.
+
+  `check-twa.js` confere o dominio contra o endereco de verdade, e roda em todo
+  `npm run verificar`.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">gabrielleonardovc.github.io</domain>
+    </domain-config>
+</network-security-config>

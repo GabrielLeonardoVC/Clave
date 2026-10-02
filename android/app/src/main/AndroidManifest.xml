@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  O MANIFESTO DO APLICATIVO
+
+  Este arquivo diz tres coisas: que o aplicativo abre uma janela do sistema,
+  QUAL endereco essa janela abre, e que esse endereco e seu.
+
+  A segunda linha e a importante. Todo TWA declara a origem de duas formas, e as
+  duas precisam estar certas:
+
+    network_security_config.xml    o dominio, SEM caminho
+    MainActivity                   o endereco completo, COM caminho
+
+  Errar a primeira da um aplicativo que abre a raiz do dominio. Errar a segunda
+  da um aplicativo que abre sem o `/Cifras-pro`, e a pessoa cai numa pagina que
+  nao existe — o pior sintoma possivel, porque o aplicativo abre e mostra um
+  404, sem explicacao.
+
+  `check-twa.js` confere os dois contra o endereco de verdade, e roda em todo
+  `npm run verificar`. Nao confie no olho.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.NoTitleBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="unspecified"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density|fontScale">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <!--
+          A JANELA DO SISTEMA.
+
+          E este servico que faz a janela ter barra de status, botao voltar e o
+          comportamento de um aplicativo instalado, e nao o de uma pagina web
+          com moldura. Sem ele o TWA abre o navegador comum por dentro.
+        -->
+        <service
+            android:name="androidx.browser.customtabs.TrustedWebActivityService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.support.customtabs.action.CustomTabsService" />
+            </intent-filter>
+        </service>
+
+        <!--
+          A PROVA DE QUE O ENDERECO E SEU.
+
+          Este `meta-data` aponta para o arquivo que declara o dominio. O
+          Android so abre a janela se o endereco estiver na lista — e, para
+         ，alem de abrir, ainda exige que o proprio endereco prove, por
+          `assetlinks.json`, que este aplicativo android e dono dele.
+
+          A ordem importa e a intuição errada: primeiro o android confere a lista
+          daqui, depois o site se prova. Um site que nao prove abre no Chrome
+          comum, sem erro nenhum visivel.
+        -->
+        <meta-data
+            android:name="androidx.browser.customtabs.trustedwebactivity"
+            android:resource="@xml/network_security_config" />
+
+    </application>
+
+</manifest>

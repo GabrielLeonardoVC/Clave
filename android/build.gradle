@@ -1,0 +1,10 @@
+// Sobrescritas da versao das bibliotecas do Gradle.
+//
+// Fixadas de proposito: um projeto que usa "latest" para AndroidX quebra sem
+// aviso quando sai uma versao nova, e a pessoa perde a tarde sem entender por
+// que o app de ontem nao compila hoje. Cada numero aqui e uma decisao que
+// alguem tomou e testou.
+
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}

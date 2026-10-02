@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Os textos do aplicativo.
+
+  O `app_name` tem de ser igual ao `name` do `manifest.webmanifest` e ao
+  `Identidade.NOME` do app. Sao tres lugares dizendo o mesmo nome, e nenhum
+  avisa quando um deles fica para tras — o aplicativo entra na loja com um nome
+  e abre com outro, e ninguem descobre de onde veio a diferenca.
+
+  `check-twa.js` confere os tres. Ele roda em todo `npm run verificar`, e nao
+  depende de compilar nada. -->
+<resources>
+    <string name="app_name">Clave</string>
+</resources>

@@ -1,0 +1,62 @@
+plugins {
+    id 'com.android.application'
+}
+
+/* A unica dependencia do projeto inteiro.
+   *
+   * E a biblioteca oficial do Google que desenha o site dentro de uma janela do
+   * sistema. Nao ha SDK de anuncio, nao ha analytics, nao ha crash reporter, e
+   * nao ha servico de terceiros: o app nao fala com ninguem. Isso e a mesma
+   * disciplina do resto do projeto — zero dependencia no lado do navegador — e
+   * aqui ela e levada a serio porque um aplicativo de loja e-installed passa
+   * a rodar codigo de terceiros no aparelho da pessoa.
+   *
+   * Nada e coletado. O TWA so mostra o endereco que ja estava no manifesto. */
+dependencies {
+    implementation 'androidx.browser:browser:1.8.0'
+}
+
+android {
+    namespace 'br.com.clave.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'br.com.clave.app'
+        /* 23 e o minSdk do androidx.browser. Abaixo disso a biblioteca nao roda,
+         * e o Android nao execaria nada de qualquer jeito. */
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName '2.0.0'
+    }
+
+    signingConfigs {
+        release {
+            /* A chave NAO esta neste repositorio, e nunca deve estar.
+             *
+             * Uma chave de assinatura versionada e uma chave publica: com ela
+             * qualquer um gera um aplicativo com o mesmo nome e pode oferecer
+             * uma versao falsa para quem tem o Clave instalado. E um `.jks`
+             *Guardado no git vaza da mesma forma que uma senha.
+             *
+             * O caminho vem de uma propriedade local, e o arquivo de
+             * propriedade local esta no `.gitignore`. Ver COMO-MONTAR.md. */
+            storeFile file(project.findProperty('CLAVE_STORE_FILE') ?: 'upload-keystore.jks')
+            storePassword project.findProperty('CLAVE_STORE_PASSWORD') ?: ''
+            keyAlias project.findProperty('CLAVE_KEY_ALIAS') ?: 'clave'
+            keyPassword project.findProperty('CLAVE_KEY_PASSWORD') ?: ''
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

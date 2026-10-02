@@ -1,0 +1,11 @@
+{
+  "aplicativos": [
+    {
+      "origem": "TODO",
+      "package_name": "br.com.clave.app",
+      "sha256_cert_fingerprints": [
+        "TODO: a impressão digital SHA-256 da sua chave de assinatura"
+      ]
+    }
+  ]
+}
