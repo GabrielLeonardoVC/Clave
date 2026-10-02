@@ -119,6 +119,183 @@ const TAXA = 44100;
     ' (erro ' + erro.toFixed(1) + ' cents)');
 });
 
+console.log('\n=== 8b. A precisao de verdade, medida como o afinador e usado ===');
+/* O bloco acima aceita 20 cents. Vinte cents e a tolerancia de um afinador de
+ * parede: a pessoa afina a corda 20 cents fora, e ela acha que afinou.
+ *
+ * Este bloco existe para prender o numero que importa, e a TOLERANCIA aqui e
+ * de 1 cent. Nao e exigir demais: e o que a medicao entrega depois da
+ * interpolacao do pico. E a tolerancia antiga nunca brotou para menos
+ * justamente porque nao havia nada prendendo o numero — e foi assim que os 7,7
+ * cents da versao anterior passaram anos sem ninguem reclamar.
+ *
+ * Os casos sao as cordas de verdade dos instrumentos do app, nas DUAS taxas de
+ * amostragem: 44100 no Mac e no PC, e 48000 no iPhone, que e o aparelho em que
+ * a pessoa mais vai usar. Um afinador que acerta a 44100 e erra a 48000 so
+ * funciona no computador do desenvolvedor. */
+const JANELA = 4096;   // o fftSize que a tela realmente usa
+
+/** Uma corda: fundamental mais harmonicos, que e o que o violao faz. */
+function corda(n, taxa, f0) {
+  const b = new Float32Array(n);
+  for (const h of [[1, 1], [2, 0.5], [3, 0.25], [4, 0.12]]) {
+    const w = (2 * Math.PI * f0 * h[0]) / taxa;
+    for (let i = 0; i < n; i++) b[i] += h[1] * Math.sin(w * i);
+  }
+  return b;
+}
+
+/** Com ruido, porque microfone tem ruido. */
+function sujar(buf, semente, nivel) {
+  const out = new Float32Array(buf.length);
+  let s = semente;
+  for (let i = 0; i < buf.length; i++) {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    out[i] = buf[i] + ((s / 0x7fffffff) - 0.5) * nivel;
+  }
+  return out;
+}
+
+const CORDAS = [
+  ['Si1 (contrabaixo, 5 cordas)', 30.87],
+  ['Sol2 (violao, 6a corda)', 98.00],
+  ['Re2 (violao, 5a corda)', 146.83],
+  ['La2 (violao, 4a corda)', 220.00],
+  ['Mi3 (violao, 3a corda)', 329.63],
+  ['Sol3 (violao, 2a corda)', 392.00],
+  ['La3 (cantor)', 220.00],
+  ['Do4 (piano)', 261.63],
+  ['Sol4 (piano)', 392.00],
+  ['La4 (a referencia)', 440.00],
+  ['Do5 (piano, agudo)', 523.25],
+  ['Sol5 (bem agudo)', 783.99],
+];
+
+const TOLERANCIA = 1;   // cent
+
+for (const taxa of [44100, 48000]) {
+  console.log('\n-- taxa ' + taxa + ' Hz' + (taxa === 48000 ? ' (a do iPhone)' : '') + ' --');
+  let pior = 0;
+  for (const c of CORDAS) {
+    const buf = sujar(corda(JANELA, taxa, c[1]), 12345, 0.06);
+    const r = T.detectar(buf, taxa);
+    if (!r.hz) {
+      ok(false, c[0] + ' -> NAO LEU');
+      pior = 9999;
+      continue;
+    }
+    const cents = 1200 * Math.log2(r.hz / c[1]);
+    if (Math.abs(cents) > pior) pior = Math.abs(cents);
+    ok(Math.abs(cents) < TOLERANCIA,
+      c[0].padEnd(30) + ' -> ' + r.hz.toFixed(3) + ' Hz  (erro ' + cents.toFixed(2) + ' cents)');
+  }
+  ok(pior < TOLERANCIA,
+    'nenhuma corda passou do limite de ' + TOLERANCIA + ' cent (pior: ' + pior.toFixed(2) + ')');
+}
+
+console.log('\n-- nunca cair numa oitava errada --');
+/* O defeito classico de afinador: o harmonico segundo correlaciona quase tanto
+ * quanto a fundamental, e o afinador sobe ou desce uma oitava. O pior caso e
+ * nota aguda com harmonico forte, na taxa do iPhone. */
+for (const taxa of [44100, 48000]) {
+  for (const hz of [98, 220, 392, 440, 523.25, 783.99]) {
+    const buf = sujar(corda(JANELA, taxa, hz), 777, 0.08);
+    const r = T.detectar(buf, taxa);
+    if (!r.hz) { ok(false, hz + ' Hz: nao leu'); continue; }
+    const oitavas = Math.abs(Math.round(1200 * Math.log2(r.hz / hz)));
+    ok(oitavas === 0, hz + ' Hz a ' + taxa + ' Hz nao caiu de oitava (leu ' + r.hz.toFixed(1) + ')');
+  }
+}
+
+console.log('\n-- corda desafinada: o caso real do palco --');
+/* Ninguem afina em 0 cents. A corda chega -30, e o app precisa mostrar -30 e
+ * nao 0. Este bloco pega o detector que arredonda para a nota e perde o
+ * desvio — que e o que faz o musico acreditar que afinou. */
+for (const alvo of [-40, -18, -7, -2, 2, 7, 18, 40]) {
+  const hz = 220 * Math.pow(2, alvo / 1200);
+  const buf = sujar(corda(JANELA, 48000, hz), 4242, 0.05);
+  const r = T.detectar(buf, 48000);
+
+  /* Duas perguntas differentes, e a segunda e a que a pessoa ve.
+   *
+   * A primeira: o detector mediu a frequencia que estava tocando? A corda foi
+   * desafinada de proposito, entao o valor verdadeiro e `hz` — e nao a nota. A
+   * primeira versao deste teste comparava a medida com o `alvo` e falhava nos
+   * oito casos, medindo a coisa errada.
+   *
+   * A segunda: o visor mostra o desvio? Uma corda 40 cents abaixo tem de
+   * aparecer como 40 abaixo. Um detector que acerta a frequencia e arredonda
+   * para a nota sem levar os cents junto passa na primeira e falha nesta — e e
+   * o que faz o musico acreditar que afinou. */
+  const erroMedida = r.hz ? 1200 * Math.log2(r.hz / hz) : 9999;
+  ok(Math.abs(erroMedida) < 2,
+    'corda em ' + String(alvo).padStart(4) + ' cents: o detector mediu sem errar '
+    + erroMedida.toFixed(2));
+
+  const nota = r.hz ? T.hzParaNota(r.hz) : null;
+  ok(!!nota && Math.abs(nota.cents - alvo) < 2,
+    'e o visor mostra ' + (nota ? nota.cents : 'nada') + ' cents (devia mostrar ' + alvo + ')');
+}
+
+console.log('\n-- quando nao sabe, o app tem de dizer que nao sabe --');
+/* O pior defeito de um afinador nao e ler errado: e ler errado COM CONFIANCA.
+ * A pessoa afina a corda no lugar errado e so descobre no palco. Por isso a
+ * deteccao devolve confianca, e ela tem de cair quando o som e ruim. */
+{
+  const limpo = T.detectar(sujar(corda(JANELA, 48000, 220), 5, 0.02), 48000);
+  const sujo = T.detectar(sujar(corda(JANELA, 48000, 220), 5, 0.9), 48000);
+  ok(limpo.confianca > sujo.confianca,
+    'som limpo tem mais confianca que som com ruido (' + limpo.confianca.toFixed(2)
+      + ' contra ' + sujo.confianca.toFixed(2) + ')');
+
+  const branco = new Float32Array(JANELA);
+  for (let i = 0; i < branco.length; i++) branco[i] = Math.random() * 2 - 1;
+  ok(T.detectar(branco, 48000).confianca < 0.8,
+    'e ruido branco puro tem confianca baixa, para a tela poder recusar mostrar a nota');
+}
+
+console.log('\n-- o que esta fora da faixa musical nao e nota --');
+/* Um afinador que aceita qualquer frequencia deixa de ser um afinador. O
+ * rumble do aparelho e o chiado do microfone tem frequencia, e uma faixa sem
+ * limite transformaria os dois em nota — a pessoa veria "Sol" ao encostar o
+ * celular na mesa.
+ *
+ * A faixa e 27 Hz (Si grave do contrabaixo) a 4200 Hz. Abaixo disso nao ha
+ * nota musical; acima, e o conteudo estourado de microfone de eletronico.
+ *
+ * Este bloco nao existia. A mutacao que solta a faixa passava verde nos 12
+ * casos de corda, porque todas as cordas estao dentro dela — e um teste que
+ * so verifica o caminho feliz nao verifica o portao. */
+{
+  ok(T.detectar(sujar(corda(JANELA, 48000, 16), 3, 0.02), 48000).hz === 0,
+    'rumble de 16 Hz nao vira nota');
+  ok(T.detectar(sujar(corda(JANELA, 48000, 20), 3, 0.02), 48000).hz === 0,
+    '20 Hz, pouco acima do limite, tambem nao');
+  ok(T.detectar(sujar(corda(JANELA, 48000, 7000), 3, 0.02), 48000).hz === 0,
+    'chiado de 7 kHz nao vira nota (aliasing na reducao de taxa)');
+  ok(T.detectar(sujar(corda(JANELA, 48000, 27), 3, 0.02), 48000).hz === 0,
+    '27 Hz sao so 2,3 periodos na janela: recusa, e o honesto');
+  ok(T.detectar(sujar(corda(JANELA, 48000, 30.87), 3, 0.02), 48000).hz > 0,
+    'e o Si grave do contrabaixo de 5 cordas, o grave real do app, ainda e lido');
+}
+
+console.log('\n-- o custo, porque isto roda a cada quadro --');
+/* O detector antigo levava 4,9 ms por leitura: a 30 leituras por segundo eram
+ * 147% de um nucleo. No iPhone isso esquenta o aparelho e o navegador corta o
+ * AudioContext, o que aparece para a pessoa como "o afinador travou".
+ *
+ * O limite e 2,5 ms, e nao e um numero arbitrario: e onde 30 leituras por
+ * segundo deixam de passar da metade de um nucleo. */
+{
+  const buf = sujar(corda(JANELA, 48000, 110), 999, 0.05);
+  T.detectar(buf, 48000);   // aquece
+  const REPS = 20;
+  const t0 = Date.now();
+  for (let i = 0; i < REPS; i++) T.detectar(buf, 48000);
+  const ms = (Date.now() - t0) / REPS;
+  ok(ms < 2.5, 'uma leitura leva ' + ms.toFixed(2) + ' ms (limite 2,5 ms)');
+}
+
 console.log('\n=== 9. Silencio e ruido nao viram nota ===');
 const silencio = new Float32Array(4096);
 eq(T.detectarHz(silencio, TAXA), 0, 'silencio devolve zero');

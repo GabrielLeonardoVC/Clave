@@ -36,6 +36,7 @@
     let stream = null;
     let raf = null;
     let histHz = [];
+    let histConf = [];
     let ultimoDesenhado = 0;
     let refA4 = 440;
 
@@ -86,10 +87,11 @@
 
       function laco() {
         analisador.getFloatTimeDomainData(dados);
-        const hzBruto = T.detectarHz(dados, ctx.sampleRate);
-        if (hzBruto > 0) {
-          histHz.push(hzBruto);
-          if (histHz.length > 5) histHz.shift();
+        const leitura = T.detectar(dados, ctx.sampleRate);
+        if (leitura.hz > 0) {
+          histHz.push(leitura.hz);
+          histConf.push(leitura.confianca);
+          if (histHz.length > 5) { histHz.shift(); histConf.shift(); }
         }
         desenhar();
         raf = global.requestAnimationFrame(laco);
@@ -104,7 +106,7 @@
       if (raf) global.cancelAnimationFrame(raf);
       if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
       if (ctx && ctx.close) ctx.close();
-      ctx = null; stream = null; raf = null; histHz = [];
+      ctx = null; stream = null; raf = null; histHz = []; histConf = [];
       notaEl.textContent = '—';
       centsEl.textContent = '';
       hzEl.textContent = '';
@@ -124,14 +126,35 @@
 
       if (!histHz.length) return;
       const hz = T.suavizar(histHz.slice(), histHz[histHz.length - 1]);
+      const conf = histConf.length ? T.suavizar(histConf.slice(), histConf[histConf.length - 1]) : 0;
       const lido = T.hzParaNota(hz, refA4);
       if (!lido) return;
 
-      notaEl.textContent = lido.nome;
-      notaEl.className = 'af-nota' + (lido.perto ? ' afinado' : '');
-      centsEl.textContent = lido.perto ? 'afinado' : (lido.cents > 0 ? lido.cents + ' cents acima' : Math.abs(lido.cents) + ' cents abaixo');
+      /* ── QUANDO NAO TEM CERTEZA, DIZ QUE NAO TEM ──
+      *
+      * O pior defeito de um afinador nao e ler errado: e ler errado COM
+      * CONFIANCA. A pessoa ve "Sol", gira a cravelha, e afina a corda no lugar
+      * errado — e so descobre no palco, com a banda tocando.
+      *
+      * Por isso a deteccao devolve confianca, e por isso ela manda aqui. Abaixo
+      * do limite, a tela mostra que esta ouvindo mas nao arrisca o nome da nota.
+      * A pessoa sabe que precisa de mais som; ela nao sabe qual nota tocar.
+      *
+      * O limite e 0,72. Uma corda limpa passa de 0,90; um chiado fica perto de
+      * zero. O espaco entre os dois e largo de proposito — e melhor hesitar
+      * numa nota boa do que afirmar uma nota errada. */
+      const incerta = conf < 0.72;
+
+      notaEl.textContent = incerta ? '—' : lido.nome;
+      notaEl.className = 'af-nota' + (incerta ? '' : (lido.perto ? ' afinado' : ''));
+      centsEl.textContent = incerta
+        ? 'não tenho certeza — toque mais perto do microfone'
+        : (lido.perto ? 'afinado' : (lido.cents > 0 ? lido.cents + ' cents acima' : Math.abs(lido.cents) + ' cents abaixo'));
+
       hzEl.textContent = lido.hz.toFixed(1) + ' Hz';
-      cursor.style.transform = 'translateX(calc(-50% + ' + (posicaoDoCursor(lido.cents) * 50) + '%))';
+      cursor.style.transform = incerta
+        ? 'translateX(-50%)'
+        : 'translateX(calc(-50% + ' + (posicaoDoCursor(lido.cents) * 50) + '%))';
     }
 
     // ── A4 ajustavel ──
