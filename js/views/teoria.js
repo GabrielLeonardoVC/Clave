@@ -15,8 +15,23 @@
   const V = global.Views || (global.Views = {});
 
   let aba = 'acordes';
-  let estAcorde = { root: 0, quality: '', inst: 'violão' };
-  let estEscala = { root: 0, scale: 'major', inst: 'violão' };
+  /* O braco comeca no que a pessoa escolheu em Ajustes.
+   *
+   * Antes esta linha era `inst: 'violão'`, com acento. O id do violao e
+   * `'violao'`, sem: a busca caia no padrao por sorte e aparecia certo, e o
+   * botao do instrumento selecionado nunca era marcado como ligado — a
+   * pessoa apertava e nao via nada mudar. Nenhum dos dois sintomas aparece
+   * em log nenhum. */
+  const bracoEscolhido = (function () {
+    const St = global.Store;
+    const M = global.Music;
+    if (!St || typeof St.ajuste !== 'function' || !M || typeof M.bracoPara !== 'function') {
+      return null;
+    }
+    return M.bracoPara(St.ajuste('instrumento', 'violao'));
+  })();
+  let estAcorde = { root: 0, quality: '', inst: bracoEscolhido ? bracoEscolhido.id : 'violao' };
+  let estEscala = { root: 0, scale: 'major', inst: bracoEscolhido ? bracoEscolhido.id : 'violao' };
   let estCifra = { texto: '', semis: 0 };
 
   const QUALIDADES = [

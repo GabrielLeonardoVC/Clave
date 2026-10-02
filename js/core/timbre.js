@@ -68,6 +68,7 @@
      -------------------------------------------------------------- */
   const MODELOS = {
     violao: {
+      braco: 'violao',
       nome: 'Violão',
       // Queda suave: a caixa de ressonancia segura os medios, e o sexto
       // harmonico ainda da para ouvir numa nota baixa.
@@ -84,7 +85,12 @@
     },
 
     violaoClassico: {
-      nome: 'Violão clássico',
+      nome: 'Violão de nylon',
+      /* O mesmo braco do violao, com corda de nylon. Sao duas escolhas que
+       * parecem separadas — o instrumento e o som — e nao sao: quem tem um
+       * violao de nylon tem o mesmo braco de quem tem um de aco. Por isso o
+       * timbre e a escolha unica, e ele e que diz qual braco usar. */
+      braco: 'violao',
       // Corda de nylon: fundamental mais presente, medios mais cheios, agudo
       // mais macio que o acustico de corda de aço. O(popular) e essa
       // diferenca que da a sensacao de "violao de boa qualidade".
@@ -99,6 +105,7 @@
     },
 
     baixo: {
+      braco: 'baixo',
       nome: 'Baixo',
       // Corda grossa e longa: quase nada acima do terceiro harmonico. E o que
       // faz o baixo ser o baixo — o quinto e o sexto praticamente nao existem,
@@ -113,7 +120,25 @@
       brilhoTraste: 0.7,
     },
 
+    baixo5: {
+      braco: 'baixo5',
+      nome: 'Baixo 5 cordas',
+      /* A corda a mais nao e so "mais uma": ela alonga a escala whole. Um
+       * baixo de 5 cordas tem uma corda de 31 Hz, e corda grave precisa
+       * vibrar mais tempo para aparecer. Por isso o decaimento e maior que no
+       * baixo de 4, e o parcial grave pesa um pouco mais. */
+      parciais: [1, 0.44, 0.19, 0.095, 0.052, 0.030, 0.017, 0.009],
+      cai: [1, 0.62, 0.44, 0.32, 0.23, 0.17, 0.13, 0.09],
+      ressonancias: [[58, 2.3], [165, 1.25]],
+      tauBase: 3.1,
+      ataque: 0.0065,
+      atacante: 0.05,
+      oitavasAte: 7,
+      brilhoTraste: 0.75,
+    },
+
     ukulele: {
+      braco: 'ukulele',
       nome: 'Ukulele',
       // Corda fina e caixa pequena: pico de corpo alto e decaimento rapido. E
       // o instrumento mais "estourado" da lista, e de proposito.
@@ -128,6 +153,7 @@
     },
 
     violino: {
+      braco: 'violino',
       nome: 'Violino',
       // Corda da mais aguda e arco, nao pinca. Por isso o ataque e longo e o
       // espectro e riquissimo: e o arco que alimenta os harmonicos, e nao a
@@ -143,6 +169,7 @@
     },
 
     cavaquinho: {
+      braco: 'cavaquinho',
       nome: 'Cavaquinho',
       // Mesma afinacao do ukulele, timbre proprio: a caixa de rosewood e o
       // braco de nylon dao um medio a mais e um agudo menos "estourado".
@@ -158,6 +185,21 @@
 
     piano: {
       nome: 'Teclado',
+      /* Sem braco, e isso e uma RESPOSTA e nao uma falta.
+       *
+       * Um teclado nao tem cordas nem trastes. Desenhar um braco de violao para
+       * quem escolheu "Teclado" seria inventar um instrumento que a pessoa nao
+       * tem — e ela so descobriria isso depois de olhar a tela.
+       *
+       * As telas que precisam de braco leem este campo e dizem que nao ha, em
+       * vez de mostrar a coisa errada em silencio.
+       *
+       * Um comentario mal fechado aqui engoliu o `nome` deste timbre uma vez, e
+       * o arquivo passou na verificacao de sintaxe a semana toda: `nome` ficava
+       * DENTRO do comentario, entao o modelo existia, os parciais existiam, e o
+       * timbre aparecia sem nome na lista. Foi o `test-escolha` que achou, com
+       * uma verificacao de tres linhas. Sintaxe valida nao e codigo correto. */
+      braco: null,
       // Nao e corda: e um martelo batendo numa placa sobre uma base de madeira.
       // Por isso o decaimento e EXTREMAMENTE rapido e o ataque e curtissimo com
       // muito parcial — o "brilho" do teclado estourado e a marca dele.
@@ -172,7 +214,12 @@
     },
 
     sintetizador: {
+      braco: null,
       nome: 'Sintetizador',
+      /* Existe para tocar e nao aparece na lista: ninguem tem um sintetizador
+       * na coxa. Sem este campo o modelo funciona, passa em todos os testes,
+       * e ninguem nunca chega nele — o tipo de codigo morto que passa limpo. */
+      noPique: true,
       // Aqui os parciais duram IGUAIS, e nao e uma falha do modelo: e o que
       // define o instrumento. Um pad e feito para nao mudar de cor.
       parciais: [1, 0.5, 0.33, 0.25, 0.2, 0.166, 0.14, 0.125, 0.11, 0.1],
@@ -193,9 +240,39 @@
     return m || MODELOS.violao;
   }
 
-  /** Quantos instrumentos existem, e como acerta-los. */
+  /** Todos os timbres, inclusive os que nao aparecem na lista. */
   function ids() {
     return Object.keys(MODELOS);
+  }
+
+  /**
+   * Os timbres que a pessoa pode escolher em Ajustes.
+   *
+   * A lista e separada da lista de todos de proposito: sao coisas diferentes.
+   * Um timbre que ninguem pode escolher e codigo que passa em todos os
+   * testes, funciona perfeitamente e nunca e exercitado — e o que da a
+   * sensacao de que a tela esta certa enquanto um botao nao faz nada.
+   */
+  function noPique() {
+    return Object.keys(MODELOS).filter(function (id) { return !MODELOS[id].noPique; });
+  }
+
+  /** O nome que aparece na lista, para o id que vier. */
+  function nomeDe(id) {
+    const m = modeloDe(id);
+    return m.nome;
+  }
+
+  /**
+   * Qual braco este timbre usa, ou `null` quando nao tem braco.
+   *
+   * O timbre e a escolha unica da pessoa — nao ha "instrumento" e "som" em
+   * Settings. Mas violao de nylon e o mesmo braco do violao de aco, e
+   * teclado nao tem braco nenhum. Por isso o timbre e que carrega essa
+   * resposta, e as telas leem aqui em vez de adivinhar. */
+  function bracoDe(id) {
+    const m = MODELOS[String(id)];
+    return m ? (m.braco || null) : null;
   }
 
   /**
@@ -405,6 +482,9 @@
     MODELOS: MODELOS,
     modeloDe: modeloDe,
     ids: ids,
+    noPique: noPique,
+    nomeDe: nomeDe,
+    bracoDe: bracoDe,
     espectro: espectro,
     parciaisPorVoz: parciaisPorVoz,
     tocarNo: tocarNo,

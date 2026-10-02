@@ -98,6 +98,27 @@
       el('div', { class: 'sub' }, 'Do jeito que fica melhor para você'),
     ]));
 
+    /* ---------- o instrumento ----------
+     *
+     * Esta secao esta no topo, e nao junto com o som, porque nao e uma preferencia
+     * de som: e a escolha que dirige tres coisas ao mesmo tempo. O timbre de
+     * tudo que o app toca, o braco que aparece nas telas de teoria e o violao 3D.
+     *
+     * Por isso o rotulo diz "no braço" e nao "qual som": escolher "Violão de
+     * nylon" nao troca so o timbre, mantem o mesmo braço de seis cordas, e quem
+     * tem um nao tem o outro.
+     *
+     * E o item que NAO tem braço aparece assim mesmo, com o aviso. Um teclado nao
+     * tem trastes para desenhar; esconder a opcao seria esconder que a escolha
+     * existe, e mostrar um braco de violao seria inventar um instrumento. */
+    root.appendChild(secao('guitar', 'Seu instrumento'));
+
+    const T = global.Timbre;
+    const M = global.Music;
+    const instrumento = secaoInstrumento(T, M);
+    root.appendChild(instrumento.linha);
+    if (instrumento.aviso) root.appendChild(instrumento.aviso);
+
     /* ---------- aparencia ---------- */
     root.appendChild(secao('palette', 'Aparência'));
     const ap = el('div', { class: 'card' });
@@ -488,6 +509,67 @@ const TAMANHOS = [
     row.addEventListener('click', toggle);
     sw.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
     return row;
+  }
+
+  /**
+   * A escolha do instrumento.
+   *
+   * E uma lista de TIMBRES, e nao de instrumentos. Para quem tem violao a
+   * diferenca parece academica; para quem tem dois — um de aco e um de nylon —
+   * sao dois sons de verdade, com o mesmo braco. Como o timbre e o que decide o
+   * som e o timbre e o que diz qual braco usar, uma lista so resolve.
+   *
+   * O item sem braço continua na lista, avisado. Esconder a opcao esconde a
+   * escolha; mostrar um braco de violao para quem toca teclado seria desenhar um
+   * instrumento que a pessoa nao tem.
+   */
+  function secaoInstrumento(T, M) {
+    const card = el('div', { class: 'card' });
+
+    if (!T || typeof T.noPique !== 'function') {
+      card.appendChild(el('div', { class: 'd' },
+        'O módulo de som não carregou. O app continua tocando o tom de referência.'));
+      return { linha: card, aviso: null };
+    }
+
+    card.appendChild(el('label', { class: 'label' }, 'O que você toca'));
+
+    const ids = T.noPique();
+    const atual = S.ajuste('instrumento', 'violao');
+
+    const chips = el('div', { class: 'chips' });
+    const aviso = el('div', { class: 'd mt-2' });
+
+    ids.forEach(function (id) {
+      const nome = T.nomeDe(id);
+      const braco = M && typeof M.bracoPara === 'function' ? M.bracoPara(id) : null;
+      const marcado = id === atual;
+
+      chips.appendChild(el('button', {
+        class: 'chip', 'aria-pressed': String(!!marcado),
+        onclick: function () {
+          S.setAjuste('instrumento', id);
+          // A tela inteira e redesenhada: o aviso e a lista dependem da escolha,
+          // e redesenhar so os botoes deixaria o "ligado" fora do lugar.
+          render(document.getElementById('page-ajustes'));
+        },
+      }, nome + (braco ? ' · ' + braco.cordas + ' cordas' : '')));
+    });
+    card.appendChild(chips);
+
+    const bracoDoAtual = M && typeof M.bracoPara === 'function' ? M.bracoPara(atual) : null;
+    if (bracoDoAtual) {
+      aviso.textContent = 'O braço aparece nas telas de teoria e no violão 3D.';
+    } else if (ids.indexOf(atual) >= 0) {
+      aviso.textContent = 'Esse não tem braço. O app não vai desenhar trastes para ele —'
+        + ' o som funciona, o desenho não.';
+    } else {
+      aviso.textContent = 'A escolha salva não existe mais nesta versão do app.'
+        + ' O som está no violão até você escolher outro.';
+    }
+    card.appendChild(aviso);
+
+    return { linha: card, aviso: null };
   }
 
   function recarregar() {

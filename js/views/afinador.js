@@ -184,7 +184,7 @@
             // Toca a nota de referencia, para a pessoa ter com o que comparar.
             if (!global.Nota) return;
             const hz = T.notaParaHz(g.pc, g.oit, refA4);
-            global.Nota.tocarNota ? global.Nota.tocarNota(hz, 1.2) : global.Nota.tocarAcorde([hz], { duracao: 1.2 });
+            global.Nota.tocarNota ? global.Nota.tocarNota(hz, 1.2, { puro: true }) : global.Nota.tocarAcorde([hz], { duracao: 1.2 });
           },
           title: g.inst + ' — ' + g.nota,
         }, [

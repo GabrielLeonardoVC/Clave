@@ -33,6 +33,24 @@
      uma nota so — que e o jeito mais bonito de o aparelho travar. */
   let vozes = 0;
 
+  /**
+   * O instrumento que a pessoa escolheu em Ajustes, ou `null`.
+   *
+   * O `Store` e lido aqui, e nao carregado no topo, por dois motivos: o
+   * `audio.js` pode ser carregado antes do `store.js`, e a escolha muda em
+   * tempo de uso. Se a tela de ajustes mudar o instrumento no meio de um
+   * ensaio, a proxima nota ja sai no instrumento novo.
+   *
+   * E se o Store nao existir — o `audio.js` funcionando sozinho, num teste —
+   * isto devolve `null`, e o app cai no tom puro, que nunca quebra.
+   */
+  function instrumentoDaPessoa() {
+    const St = global.Store;
+    if (!St || typeof St.ajuste !== 'function') return null;
+    const id = St.ajuste('instrumento', '');
+    return typeof id === 'string' && id ? id : null;
+  }
+
   /** Quantas notas ainda estao soando. */
   function vozesSoando() {
     return vozes;
@@ -105,9 +123,21 @@
      * corda parecer mais afinada do que esta. Por isso o afinador nunca pede
      * instrumento — o resto do app so pede quando a nota e para ornamentar o
      * que ja esta na tela. */
-    if (opts.instrumento && T && typeof T.tocarNo === 'function') {
+    /* O INSTRUMENTO DA PESSOA, a nao ser que ela peça o tom puro.
+     *
+     * Quem tem violao quer ouvir violao. Nao faz sentido obrigar cada tela a
+     * lembrar de passar o instrumento: basta uma delas esquecer e o som volta
+     * a ser um triangulo, sem ninguem notar.
+     *
+     * E `puro: true` existe porque duas telas PRECISAM do tom puro: o
+     * afinador e a emergencia. La o tom e a referencia, e um violao com
+     * harmonicos no meio faz a corda parecer mais afinada do que esta. */
+    const escolhido = opts.puro === true ? null
+      : (opts.instrumento || instrumentoDaPessoa());
+
+    if (escolhido && T && typeof T.tocarNo === 'function') {
       const montada = T.tocarNo(c, f, seg, volume, {
-        instrumento: opts.instrumento,
+        instrumento: escolhido,
         traste: opts.traste,
         atraso: opts.atraso,
         vozesAtivas: vozesSoando(),
@@ -115,7 +145,7 @@
       if (montada) {
         montada.hz = f;
         montada.volume = volume;
-        montada.instrumento = opts.instrumento;
+        montada.instrumento = escolhido;
         contarVoz(montada);
       }
       return montada;

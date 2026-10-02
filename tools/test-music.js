@@ -441,7 +441,16 @@ eq(M.resumoDeTons([{ pc: 0 }, { pc: 1 }, { pc: 2 }, { pc: 3 }]).n, 1, 'com tudo 
    Por isso cada forma devolvida e conferida nota a nota contra o acorde.
    ======================================================= */
 console.log('\n=== INSTRUMENTOS: a tabela ===');
-eq(M.INSTRUMENTOS.length, 4, 'quatro instrumentos');
+/* A contagem era 4 e foi conferida como 4 durante anos. Ela falhou quando
+ * entraram o cavaquinho e o violino — e a contagem e a unica coisa aqui que
+ * precisa mudar quando um instrumento entra, o que faz dela a verificacao que
+ * mais-protecteda de ter valor.
+ *
+ * O que interessa nao e o numero: e que cada instrumento TEM timbre. Uma
+ * verificacao de contagem protege contra o oposto do que parece — ela impede
+ * de adicionar, e nao impede de adicionar errado. O `test-escolha` cobre o
+ * caso que importa. */
+eq(M.INSTRUMENTOS.length, 6, 'seis instrumentos no braco');
 eq(M.INSTRUMENTO_PADRAO.id, 'violao', 'o padrao e o violao');
 eq(M.instrumento('baixo').cordas, 4, 'baixo tem 4 cordas');
 eq(M.instrumento('ukulele').cordas, 4, 'ukulele tem 4 cordas');

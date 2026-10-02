@@ -1305,15 +1305,67 @@ const INSTRUMENTOS = [
     openPc: [4, 9, 2, 7], openMidi: [28, 33, 38, 43], labels: ['E', 'A', 'D', 'G'] },
   { id: 'baixo5', nome: 'Baixo 5 cordas', afinacao: 'Padrão', cordas: 5, trastes: 20, triade: true,
     openPc: [11, 4, 9, 2, 7], openMidi: [23, 28, 33, 38, 43], labels: ['B', 'E', 'A', 'D', 'G'] },
+  /* Violino e cavaquinho entraram por causa do som, e nao da moda.
+   *
+   * O violino e arco: tem 4 cordas em Sol-Re-La-Mi, afinacao identica a da 4a
+   * corda do violao, mas comeca em Sol3 em vez de Mi2. Sao duas oitavas acima, e
+   * e por isso que uma escala de violao nele toca na altura errada.
+   *
+   * O cavaquinho tem a MESMA afinacao do ukulele (Sol-Ut-Mi-La). O que muda e
+   * o braco: cavaquinho costuma ter mais trastes, e o som e outro — caixa menor,
+   * mais media, menos agudo estourado. Timbre e braco ficam em lugares
+   * diferentes de proposito: afinacao e geometria sao coisas do braco, som e
+   * outra coisa. */
+  { id: 'cavaquinho', nome: 'Cavaquinho', afinacao: 'Solastro', cordas: 4, trastes: 16,
+    openPc: [7, 0, 4, 9], openMidi: [55, 60, 64, 69], labels: ['G', 'C', 'E', 'A'] },
+  { id: 'violino', nome: 'Violino', afinacao: 'Padrão', cordas: 4, trastes: 19, triade: true,
+    openPc: [7, 2, 9, 4], openMidi: [55, 62, 69, 76], labels: ['G', 'D', 'A', 'E'] },
   { id: 'ukulele', nome: 'Ukulele', afinacao: 'Solastro', cordas: 4, trastes: 12,
     openPc: [7, 0, 4, 9], openMidi: [55, 60, 64, 69], labels: ['G', 'C', 'E', 'A'] },
 ];
 const INSTRUMENTO_PADRAO = INSTRUMENTOS[0];
 
+/**
+ * Normaliza um nome de instrumento para comparar.
+ *
+ * Sem acento e sem caixa: "violão", "Violão" e "VIOLAO" sao o mesmo
+ * instrumento. Escrever o acento errado num id nao pode trocar a tela sem ninguem
+ * perceber — ver `instrumento()`.
+ */
+function chaveDeInstrumento(id) {
+  return String(id == null ? '' : id)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+}
+
 /** Acha o instrumento pelo id, com queda para o violao. */
 function instrumento(id) {
-  for (const i of INSTRUMENTOS) if (i.id === id) return i;
+  const alvo = chaveDeInstrumento(id);
+  for (const i of INSTRUMENTOS) if (chaveDeInstrumento(i.id) === alvo) return i;
   return INSTRUMENTO_PADRAO;
+}
+
+/** O id canonico de um nome de instrumento, ou null se nao existir. */
+function idDeInstrumento(nome) {
+  const alvo = chaveDeInstrumento(nome);
+  if (!alvo) return null;
+  for (const i of INSTRUMENTOS) if (chaveDeInstrumento(i.id) === alvo) return i.id;
+  return null;
+}
+
+/**
+ * O braco de um timbre escolhido, ou `null` quando o timbre nao tem braco.
+ *
+ * Quem escolhe "Teclado" em Ajustes nao tem trastes para desenhar. Devolver o
+ * violao aqui seria inventar um instrumento que a pessoa nao tem.
+ */
+function bracoPara(timbreId) {
+  const T = global.Timbre;
+  const braco = T && typeof T.bracoDe === 'function' ? T.bracoDe(timbreId) : null;
+  if (!braco) return null;
+  const achado = idDeInstrumento(braco);
+  return achado ? instrumento(achado) : null;
 }
 
 /** O mesmo instrumento, ou o padrao quando o argumento nao serve. */
@@ -1616,7 +1668,8 @@ function instrumentoOuPadrao(inst) {
     ORDEM_SUS, ORDEM_BEM, armadura, resumoDeTons,
     // guitarra
     TUNING, OPEN_PC, STRING_LABELS, guitarShapes, fretNote, fretNoteName, fretsForNote, fretDelta,
-    INSTRUMENTOS, INSTRUMENTO_PADRAO, instrumento, instrumentShapes, validateVoicing,
+    INSTRUMENTOS, INSTRUMENTO_PADRAO, instrumento, idDeInstrumento, chaveDeInstrumento,
+    bracoPara, instrumentShapes, validateVoicing,
     // tons
     keyLabel, modeName,
   };

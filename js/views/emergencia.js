@@ -118,7 +118,10 @@
     if (!hz) return false;
     // A quinta junto, para dar corpo. Sem ela a nota e fina demais para
     // afinar contra, e a corda parece desafinada por causa do timbre.
-    A.tocarNota(hz, 1.6, { volume: 0.24 });
+    // `puro`: aqui o tom e a referencia que a pessoa compara com a corda.
+    // Um violao com harmonicos no meio faz a corda parecer mais afinada do
+    // que esta — que e justamente o erro que a tela existe para corrigir.
+    A.tocarNota(hz, 1.6, { volume: 0.24, puro: true });
     return true;
   }
 

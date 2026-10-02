@@ -298,6 +298,19 @@ const CODIGOS = [
      da fonte de som. Sao grafados sem acento porque sao chave de objeto — o
      rotulo que aparece ao lado ("Vídeo") leva acento normalmente. */
   'repertorio', 'audio', 'video',
+
+  /* Os ids dos instrumentos.
+     *
+     * `'violao'` e uma chave: vai para o `localStorage`, para o backup, para o
+     * prefetch do service worker e para a comparacao da lista. Acentuar o id
+     * significaria trocar o valor guardado — e perder a preferencia de quem
+     * chose o instrumento, sem erro em lugar nenhum.
+     *
+     * O nome que a pessoa LÊ e outro, e leva acento normalmente: `nome: 'Violão'`.
+     * Sao duas coisas, e e por isso que `Music.instrumento()` aceita o id com
+     * acento e sem — para que um acento perdido num lugar nao vire um
+     * instrumento trocado em silencio. */
+  'violao', 'ukulele', 'cavaquinho', 'violino', 'baixo', 'baixo5',
 ];
 
 /* ------------------------------------------------------------

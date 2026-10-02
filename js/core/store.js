@@ -40,6 +40,12 @@
         metroVolume: 0.8,
         metroSubdivisao: 1,
         metroAcento: true,
+
+        /* O instrumento e a unica escolha que dirige tres coisas ao mesmo
+         * tempo: o timbre do som, o braco que aparece nas telas de teoria e o
+         * violao 3D. Por isso ele nao e uma preferencia solta — e o
+         * primeiro item que o app precisa saber. */
+        instrumento: 'violao',
       },
       meta: { criadoEm: Date.now(), atualizadoEm: Date.now() },
     };
@@ -90,8 +96,14 @@
     return destino;
   }
 
-  /** Os ajustes reconhecidos. A lista e a mesma de `vazio()`. */
-  const CAMPOS_AJUSTES = ['tema', 'accent', 'densidade', 'fontsize', 'motion', 'notificacoes', 'antecedenciaNotif', 'usarAmoles', 'inicioSemana', 'autoLink', 'bpmPadrao', 'compassoPadrao', 'metroSom', 'metroVolume', 'metroSubdivisao', 'metroAcento'];
+  /* Os ajustes reconhecidos. A lista e a mesma de `vazio()`.
+   *
+   * `check-proto.js` falha quando as duas deixam de bater, e essa lista e a
+   * RAZAO de ela existir: sem ela, um ajuste novo entra em `vazio()`, o app
+   * funciona, e o backup sai sem ele. A pessoa restaura, o instrumento volta
+   * ao violao, e nada diz por que — o importador cuida de um backup sem
+   * reclamar, que e a unica forma de ele passar despercebido. */
+  const CAMPOS_AJUSTES = ['tema', 'accent', 'densidade', 'fontsize', 'motion', 'notificacoes', 'antecedenciaNotif', 'usarAmoles', 'inicioSemana', 'autoLink', 'bpmPadrao', 'compassoPadrao', 'metroSom', 'metroVolume', 'metroSubdivisao', 'metroAcento', 'instrumento'];
   /** O que o app guarda sobre a pessoa. Lista curta de proposito. */
   const CAMPOS_META = ['criadoEm', 'atualizadoEm'];
 
