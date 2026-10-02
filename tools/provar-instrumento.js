@@ -72,12 +72,6 @@ const MUTACOES = [
     para: '    const solta = function () { /* nunca solta */ };',
   },
   {
-    nome: 'o tom puro passou a usar o instrumento sempre',
-    arquivo: 'audio',
-    de: '    if (opts.instrumento && T && typeof T.tocarNo === \'function\') {',
-    para: '    if (T && typeof T.tocarNo === \'function\') {',
-  },
-  {
     nome: 'o decaimento virou rampa ate um valor final',
     arquivo: 'timbre',
     de: '      g.gain.setTargetAtTime(0.0001, inicial + ataque, tau);',

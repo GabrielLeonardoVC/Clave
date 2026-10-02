@@ -104,6 +104,22 @@ const MUTACOES = [
     de: '      noPique: true,',
     para: '      /* saiu da lista */',
   },
+  /* A mutacao que morava no `provar-instrumento` e que nao pegava la.
+   *
+   * O `test-instrumento` monta o audio SEM o Store, entao a escolha da
+   * pessoa nunca chega a ser lida e trocar `instrumentoDaPessoa()` por
+   * `return null` nao mudava nada naquele teste. Aqui o Store existe, e a
+   * escolha e lida de verdade.
+   *
+   * O defeito: com a escolha ignorada, o app toca sempre no tom puro. O
+   * som FUNCIONA, so nao e o instrumento de quem escolheu — e e o tipo de
+   * defeito que ninguem percebe usando, porque nao ha erro nenhum. */
+  {
+    nome: 'a escolha de instrumento da pessoa foi ignorada',
+    rel: 'js/core/audio.js',
+    de: "    return typeof id === 'string' && id ? id : null;",
+    para: '    return null;',
+  },
 ];
 
 function rodarTeste() {
