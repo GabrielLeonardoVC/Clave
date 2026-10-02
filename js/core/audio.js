@@ -19,6 +19,37 @@
   'use strict';
 
   const U = global.Utils;
+  const T = global.Timbre;
+  /* --------------------------------------------------------------
+     VOZES TOCANDO
+
+     Um acorde de seis notas com dez parciais cada sao sessenta osciladores ao
+     mesmo tempo. Num celular isso nao e "um acorde", e o app comecando a
+     engasgar no meio do ensaio.
+
+     O `timbre.js` reduz os parciais quando ha muitas vozes, mas ele so sabe
+     quantas ha se alguem contar. E este e o alguem. Sem esta contagem o
+     `timbre.js` receberia sempre 1 e tocaria o arranjo inteiro como se fosse
+     uma nota so — que e o jeito mais bonito de o aparelho travar. */
+  let vozes = 0;
+
+  /** Quantas notas ainda estao soando. */
+  function vozesSoando() {
+    return vozes;
+  }
+
+  /** Soma uma voz e solta quando a nota acaba de verdade. */
+  function contarVoz(nota) {
+    vozes++;
+    const solta = function () { if (vozes > 0) vozes--; };
+    const lista = nota && nota.osciladores;
+    // O ultimo oscilador criado e o ultimo a parar, entao e nele que o
+    // `onended` conta. Se a nota nao tem nenhum, ela nunca chegou a soar.
+    const ultimo = lista && lista.length ? lista[lista.length - 1].osc : null;
+    if (ultimo) ultimo.onended = solta;
+    else solta();
+    return nota;
+  }
 
   /**
    * O contexto so nasce depois do primeiro toque.
@@ -63,6 +94,32 @@
     const seg = U.clamp(Number(duracao) || 1.2, 0.08, 20);
     const volume = opts.volume == null ? 0.22 : U.clamp(Number(opts.volume), 0, 1);
     if (volume <= 0) return null;
+
+    /* QUANDO PEDE INSTRUMENTO, O CAMINHO E OUTRO. O `timbre.js` monta um
+     * oscilador por harmonico, cada um com o seu decaimento, e o resultado soa
+     * como o instrumento em vez de como um sinal de gerador.
+     *
+     * Sem `instrumento`, continua o caminho de baixo: UM oscilador, tom puro.
+     * Isso nao e resto de codigo antigo, e uma decisao. Para afinar, o ouvido
+     * precisa de um tom limpo e longo; um violao com harmonicos no meio faz a
+     * corda parecer mais afinada do que esta. Por isso o afinador nunca pede
+     * instrumento — o resto do app so pede quando a nota e para ornamentar o
+     * que ja esta na tela. */
+    if (opts.instrumento && T && typeof T.tocarNo === 'function') {
+      const montada = T.tocarNo(c, f, seg, volume, {
+        instrumento: opts.instrumento,
+        traste: opts.traste,
+        atraso: opts.atraso,
+        vozesAtivas: vozesSoando(),
+      });
+      if (montada) {
+        montada.hz = f;
+        montada.volume = volume;
+        montada.instrumento = opts.instrumento;
+        contarVoz(montada);
+      }
+      return montada;
+    }
 
     const timbre = opts.timbre === 'quadrada' ? 'square'
       : opts.timbre === 'seno' ? 'sine'
@@ -124,6 +181,8 @@
       const n = tocarNota(lista[i], duracao, {
         volume: opts.volume,
         timbre: opts.timbre,
+        instrumento: opts.instrumento,
+        traste: opts.traste,
         atraso: i * espalhar,
       });
       if (n) notas.push(n);

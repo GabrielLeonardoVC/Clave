@@ -16,7 +16,7 @@
    arquivo carregado na pagina nao estiver aqui. Um arquivo novo no index
    entra com um aviso, nao com um defeito em campo.
    ========================================================= */
-const CACHE = 'clave-v2';
+const CACHE = 'clave-v3';
 
 const RECURSOS = [
   './',
@@ -42,6 +42,7 @@ const RECURSOS = [
   './js/core/links.js',
   './js/core/search.js',
   './js/core/tuner.js',
+  './js/core/timbre.js',
   './js/core/audio.js',
   './js/core/gravador.js',
   './js/core/metronome.js',
