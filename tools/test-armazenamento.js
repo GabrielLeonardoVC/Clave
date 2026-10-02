@@ -64,15 +64,24 @@ function secao(titulo) {
    e o codigo precisa funcionar sem ele, nao falhar por causa dele.
    ------------------------------------------------------------------ */
 
-function instalarNavegador(storage) {
+function instalarNavegador(storage, ua, toques) {
   const anterior = Object.getOwnPropertyDescriptor(global, 'navigator');
+
+  /* `ua` e `toques` entraram depois, para o relogio de sete dias. Sao
+   * argumentos novos e opcionais justamente para nao ter que reescrever as
+   * secoes que ja existiam: quem nao passa nada recebe um `navigator` sem
+   * `userAgent`, e `soSafari()` devolve `false` — que e o certo para um
+   * aparelho que nao diz qual e. */
+  const falso = { storage: storage };
+  if (ua !== undefined) falso.userAgent = ua;
+  if (toques !== undefined) falso.maxTouchPoints = toques;
 
   /* `navigator` global e SOMENTE LEITURA no Node moderno, e nao e so leitura:
    * a atribuicao direto lanca `TypeError`. `defineProperty` e o caminho que
    * funciona — e precisa de `configurable`, senao o primeiro `instalar` ja
    * trava o segundo, e o teste inteiro morre na secao 2. */
   Object.defineProperty(global, 'navigator', {
-    value: { storage: storage },
+    value: falso,
     configurable: true,
     writable: true,
   });
@@ -555,6 +564,303 @@ function carregar() {
     await Arm.estado();
 
     nav();
+    st.restaurar();
+  }
+
+  /* =======================================================
+     13. O relogio de sete dias do iPhone
+
+     O texto antigo dizia "este navegador pode limpar este espaco SE PRECISAR".
+     Isso e a regra de pressao de espaco, que e a do Chrome. No iPhone nao existe
+     falta de espaco na historia: o Safari apaga o que o app guardou no SETIMO
+     DIA SEM ABRIR, e apaga tudo de uma vez.
+
+     Quem tem 256 GB no celular le "se precisar", olha o armazenamento vazio e
+     conclui que esta seguro. No iPhone ele nao esta — e o aviso dizia que ele
+     estava, exatamente na situacao em que nao esta.
+     ======================================================= */
+  secao('13. O relogio de sete dias do iPhone');
+
+  const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) '
+    + 'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1';
+  const CHROME = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) '
+    + 'Chrome/120.0.0.0 Mobile Safari/537.36';
+  const MAC_SAFARI = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 '
+    + '(KHTML, like Gecko) Version/18.1 Safari/605.1.15';
+
+  /* Data de N dias atras, em `YYYY-MM-DD`. Uma funcao, e nao a palavra "HOJE",
+   * pelo mesmo motivo que o falso de `Utils` ja traz escrito: um falso que
+   * mente sobre o formato da data acaba acusando o codigo certo. */
+  const diasAtras = function (n) {
+    const d = new Date(HOJE + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - n);
+    return d.toISOString().slice(0, 10);
+  };
+
+  console.log('\n-- quem tem o relogio --');
+  {
+    const medir = (ua, toques) => {
+      const nav = instalarNavegador(undefined, ua, toques);
+      const Arm = carregar();
+      const r = Arm.soSafari();
+      nav();
+      return r;
+    };
+
+    igual(medir(IPHONE), true, 'o iPhone tem o relogio');
+    igual(medir(CHROME), false, 'o Chrome nao tem: la o risco e falta de espaco');
+    igual(medir('Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) '
+      + 'Chrome/120.0.0.0 Safari/537.36'), false, 'Chrome de mesa nao tem');
+    igual(medir(MAC_SAFARI), true, 'Safari de mesa tem o relogio tambem');
+
+    /* Qualquer navegador do iPhone e WebKit, ate os de outro fabricante. E o
+     * iPadOS 13+ se anuncia como Macintosh — o toque e o que denuncia. */
+    igual(medir(MAC_SAFARI, 5), true, 'iPad disfarçado de Macintosh tem o relogio: 5 toques');
+
+    /* Este caso JA foi escrito ao contrario, e vale registrar por que.
+     *
+     * A primeira versao afirmava que um Macintosh de verdade (0 pontos de toque)
+     * NAO tinha o relogio. O codigo discordou — e o codigo estava certo: o cap
+     * de sete dias chegou no Safari 13.1, nao so no iOS 13.4. Ele e uma politica
+     * de privacidade do WebKit, nao um limite de espaco do celular, e por isso
+     * alcança o Safari de mesa do mesmo jeito.
+     *
+     * Corrigir a expectativa foi o caminho certo, e o contrario de "ajustar o
+     * teste para passar": o teste afirmava uma coisa que eu nao tinha
+     * verificado, e a verificacao mostrou que a afirmacao era falsa. */
+
+    igual(medir(undefined), false, 'aparelho que nao diz qual e nao ganha alarme falso');
+    igual(medir(''), false, 'userAgent vazio nao ganha alarme falso');
+
+    /* `userAgent` pode chegar como funcao. Ler direto daria `[object Function]`
+     * e nenhum navegador casaria — o aviso nunca apareceria em lugar nenhum. */
+    const nav = instalarNavegador(undefined, function () { return IPHONE; });
+    igual(carregar().soSafari(), true, 'userAgent que e funcao tambem e lido');
+    nav();
+  }
+
+  console.log('\n-- o intervalo e medido ANTES de marcar o dia de hoje --');
+  {
+    /* Este e o detalhe que faz o aviso existir. Se o app gravasse o uso e so
+     * depois lesse o intervalo, o intervalo seria zero no exato instante em que
+     * a pessoa abre o app — e o aviso de "voce voltou a tempo" jamais apareceria,
+     * sempre na visita em que ela esta de volta e ainda tem tudo. */
+    const bom = storageBom({ persiste: false });
+    const nav = instalarNavegador(bom.api, IPHONE, 5);
+    const st = instalarStore({ ultimoUso: diasAtras(8) },
+      function () { return { escalas: 3, cifras: 9 }; });
+    const Arm = carregar();
+
+    igual(Arm.diasDesdeUso(), 8, 'faziam 8 dias que a pessoa nao abria');
+
+    await Arm.aoAbrir();
+
+    ok(st.mapa.ultimoUso === HOJE, 'o dia de hoje foi gravado');
+    igual(Arm.diasDesdeUso(), 0, 'depois de gravar, o intervalo e zero — como deve ser');
+
+    const r = Arm.risco();
+    igual(r.nivel, 'perigo', 'mas o veredito ainda sabe da ausencia de 8 dias');
+    ok(/voltou a tempo/i.test(r.titulo),
+      'e o aviso e o de "voltei a tempo", e nao o de um backup atrasado');
+
+    /* A frase tem que dizer o mecanismo certo. "Se precisar" seria a regra
+     * errada — e a que fazia a pessoa concluir que estava segura. */
+    ok(/s[eé]timo dia|sétimo/i.test(r.texto), 'o texto diz que e no setimo dia');
+    ok(/iPhone|Safari/i.test(r.texto), 'e diz que e o iPhone que apaga');
+    ok(!/se precisar/i.test(r.texto),
+      'e NAO diz "se precisar": no iPhone nao depende de espaco nenhum');
+
+    nav();
+    st.restaurar();
+  }
+
+  console.log('\n-- quando o aviso nao pode aparecer --');
+  {
+    const comDados = function () { return { escalas: 3, cifras: 9 }; };
+
+    const cenario = async function (ua, persiste, ultimoUso) {
+      const bom = storageBom({ persiste: persiste });
+      const nav = instalarNavegador(bom.api, ua, 5);
+      const st = instalarStore({ ultimoUso: ultimoUso }, comDados);
+      const Arm = carregar();
+      if (persiste) await Arm.pedir();
+      await Arm.aoAbrir();
+      const risco = Arm.relogioPerigoso();
+      nav();
+      st.restaurar();
+      return risco;
+    };
+
+    /* Persistencia concedida e a UNICA isencao do relogio. Com ela, trinta dias
+     * fora e o relogio nao corre — o aviso aqui seria mentira. */
+    igual(await cenario(IPHONE, true, diasAtras(30)), null,
+      'persistencia concedida: o relogio nao corre, mesmo apos 30 dias fora');
+
+    /* No Chrome nao existe o mecanismo. Trinta dias fora la e o risco de sempre:
+     * o backup atrasado. */
+    igual(await cenario(CHROME, false, diasAtras(30)), null,
+      'no Chrome o relogio de sete dias nao existe');
+
+    /* Abaixo do limite o app cala a boca. Avisar sobre cinco dias e treinar a
+     * pessoa a ignorar o aviso que vem no sexto. */
+    igual(await cenario(IPHONE, false, diasAtras(2)), null,
+      'dois dias fora ainda nao e aviso: o prazo e de sete');
+
+    /* Sem historico nao ha o que afirmar. */
+    igual(await cenario(IPHONE, false, undefined), null,
+      'sem historico o app nao inventa um prazo');
+  }
+
+  console.log('\n-- "se precisar" e a regra errada, e ela aparecia justamente aqui --');
+  {
+    /* A frase "este navegador pode apagar este espaco SE PRECISAR" descreve a
+     * regra de PRESSAO DE ESPACO, que e a do Chrome. No iPhone o Safari apaga
+     * no setimo dia SEM USO, e nao depende de espaco nenhum.
+     *
+     * O efeito de dizer a coisa errada aqui era o pior possivel: a pessoa que
+     * NUNCA fez backup e justamente a que mais tem a perder, e ela era a
+     * primeira a receber "se precisar". Quem tem 256 GB no celular lia isso,
+     * olhava o armazenamento vazio e saia de tela com a certeza de que estava
+     * segura. Este caso nao tinha teste nenhum — a mutacaoIntroduzindo o texto
+     * antigo passou verde, e foi o que revelou a lacuna. */
+    const verNoIphone = async function (ultimoBackup) {
+      const bom = storageBom({ persiste: false });
+      const nav = instalarNavegador(bom.api, IPHONE, 5);
+      const st = instalarStore(ultimoBackup === undefined ? {} : { ultimoBackup: ultimoBackup },
+        function () { return { escalas: 2, cifras: 6 }; });
+      const Arm = carregar();
+      await Arm.aoAbrir();
+      const r = Arm.risco();
+      nav();
+      st.restaurar();
+      return r;
+    };
+
+    const nunca = await verNoIphone(undefined);
+    igual(nunca.nivel, 'atencao', 'sem backup nenhum, o app ainda pede o primeiro');
+    ok(!/se precisar/i.test(nunca.texto),
+      'NAO promete que o espaco so se perder se precisar: no iPhone nao depende de espaco');
+    ok(/sete dias|sétimo dia/i.test(nunca.texto),
+      'e diz a regra que vale no iPhone');
+    ok(/Safari/i.test(nunca.texto), 'e diz quem e que apaga');
+
+    const atrasado = await verNoIphone(diasAtras(3));
+    ok(!/se precisar/i.test(atrasado.texto),
+      'no caso do backup atrasado tambem: a mesma regra errada aparecia duas vezes');
+    ok(/tela de in[ií]cio/i.test(atrasado.texto),
+      'e o aviso oferece instalar na tela de inicio, que e o conserto');
+
+    /* O titulo tambem. Ele e o cabecalho do aviso que aparece na tela — o
+     * texto abaixo e o detalhe, e o titulo e o que a pessoa le de longe. Um
+     * teste que olha so para o `texto` deixa o titulo dizer a regra errada
+     * sem ninguem reclamar. */
+    ok(!/este espa[cç]o pode ser apagado/i.test(atrasado.titulo),
+      'o titulo nao promete "este espaco pode ser apagado" no iPhone');
+    ok(/iPhone|s[eé]timo dia/i.test(atrasado.titulo),
+      'e diz no titulo que e o iPhone que apaga');
+
+    /* No Chrome a frase antiga estava certa — la o risco e mesmo falta de
+     * espaco. Trocar o texto do iPhone nao pode ter estragado o do Chrome. */
+    const bom = storageBom({ persiste: false });
+    const nav = instalarNavegador(bom.api, CHROME, 5);
+    const st = instalarStore({ ultimoBackup: diasAtras(3) },
+      function () { return { escalas: 2, cifras: 6 }; });
+    const Arm = carregar();
+    await Arm.aoAbrir();
+    const noChrome = Arm.risco();
+    ok(/pode limpar este espa[cç]o/i.test(noChrome.texto),
+      'no Chrome a frase de espaco continua: la ela descreve o risco certo');
+    ok(!/s[eé]timo dia/i.test(noChrome.texto),
+      'e o Chrome nao entra na regra do relogio de sete dias');
+    nav();
+    st.restaurar();
+
+    ok(carregar().DIAS_SEM_USO < 7,
+      'o aviso vem antes do prazo, e nao depois de vencer');
+  }
+
+  console.log('\n-- quem nao tem nada a perder nao ouve nada --');
+  {
+    const bom = storageBom({ persiste: false });
+    const nav = instalarNavegador(bom.api, IPHONE, 5);
+    const st = instalarStore({ ultimoUso: diasAtras(30) },
+      function () { return { escalas: 0, cifras: 0 }; });
+    const Arm = carregar();
+    await Arm.aoAbrir();
+    igual(Arm.risco().nivel, 'tranquilo',
+      '30 dias sem abrir e nada salvo: o "nada em risco" vem primeiro');
+    nav();
+    st.restaurar();
+  }
+
+  console.log('\n-- o estado que a tela recebe --');
+  {
+    const bom = storageBom({ persiste: false });
+    const nav = instalarNavegador(bom.api, IPHONE, 5);
+    const st = instalarStore({ ultimoUso: diasAtras(8) },
+      function () { return { escalas: 1, cifras: 2 }; });
+    const Arm = carregar();
+    await Arm.aoAbrir();
+    const e = await Arm.estado();
+    igual(e.soSafari, true, 'a tela sabe que e iPhone');
+    igual(e.diasDesdeUso, 8, 'e sabe quantos dias a pessoa ficou fora');
+    igual(e.relogioSeteDias, true, 'e sabe que o relogio esta correndo');
+    nav();
+    st.restaurar();
+  }
+
+  console.log('\n-- instalar na tela de inicio: o conserto de verdade --');
+  {
+    /* O unico jeito de REMOVER o relogio, e nao apenas enxergar o prazo, e
+     * instalar o app na tela de inicio. Um app instalado nao passa pelo contador
+     * do Safari, e e por isso que o WebKit concede o `persist()` a ele.
+     *
+     * E isso so vale se o manifesto disser `"display": "standalone"`. Com
+     * `minimal-ui` ou `browser`, o icone abre o Safari e o app continua no
+     * relogio mesmo instalado — que e o defeito relatado no bug 232302 do
+     * WebKit. O nosso manifesto ja diz `standalone`. */
+    const instalarTela = function (consultas) {
+      const anterior = global.matchMedia;
+      global.matchMedia = function (q) {
+        return { matches: consultas.indexOf(q) >= 0 };
+      };
+      const r = carregar().instalado();
+      global.matchMedia = anterior;
+      return r;
+    };
+
+    igual(instalarTela(['(display-mode: standalone)']), true, 'standalone: instalado');
+    igual(instalarTela(['(display-mode: fullscreen)']), true,
+      'fullscreen: tambem conta como instalado');
+    igual(instalarTela([]), false, 'nem standalone nem fullscreen: ainda no Safari');
+
+    /* Sem `matchMedia` nenhum, o app diz "nao instalado" em vez de quebrar. */
+    const nav = instalarNavegador(undefined, IPHONE, 5);
+    igual(carregar().instalado(), false, 'navegador sem matchMedia nao quebra');
+    nav();
+
+    /* O sinal do iPhone vale mais que o `display-mode`. Este `standalone` e o
+     * que o proprio Safari publica dentro de um app na tela de inicio. */
+    const nav2 = instalarNavegador(undefined, IPHONE, 5);
+    igual(carregar().instalado(), false, 'sem o sinal, e so o Safari mesmo');
+    global.navigator.standalone = true;
+    igual(carregar().instalado(), true, 'navigator.standalone do iPhone e respeitado');
+    nav2();
+
+    /* E o texto tem que oferecer o conserto, e nao so o medo. Um aviso que
+     * diz "o repertorio pode sumir" sem dizer o que fazer e metade do trabalho. */
+    const bom = storageBom({ persiste: false });
+    const nav3 = instalarNavegador(bom.api, IPHONE, 5);
+    const st = instalarStore({ ultimoUso: diasAtras(8) },
+      function () { return { escalas: 2, cifras: 5 }; });
+    const Arm = carregar();
+    await Arm.aoAbrir();
+    const r = Arm.risco();
+    ok(/tela de in[ií]cio/i.test(r.texto),
+      'o aviso oferece instalar na tela de inicio, que e o que remove o prazo');
+    ok(/backup/i.test(r.texto), 'e ainda assim oferece o backup');
+    igual(r.nivel, 'perigo', 'e continua sendo perigo: instalar nao traz o dado de volta');
+    nav3();
     st.restaurar();
   }
 
