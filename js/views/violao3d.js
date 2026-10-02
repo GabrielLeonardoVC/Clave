@@ -43,7 +43,14 @@
      unha — e o que faz a posicao na tela bater com a posicao na mao. Um
      violao desenhado "bonito" com as cordas coladas ensina a pessoa a colocar
      o dedo no lugar errado.
-     ------------------------------------------------------------ */
+
+     A ESCALA ABAIXO era a mesma para todo instrumento. Com o app passa a ter
+     violino, cavaquinho e ukulele, isso virou uma mentira: o braco do ukulele
+     sao 6 cm, o do baixo tem 9 cm de corda grave, e o violino NAO TEM TRASTE.
+     Uma imagem so para os seis nao e um atalho, e o desenho ensinado errado.
+
+     `semTrastes` e a resposta mais importante da lista: e a unica forma de o
+     violino ser violino, e nao um ukulele com quatro cordas. */
   const ESCALA = {
     cordas: 6,
     cordaEsp: 0.62,
@@ -52,6 +59,102 @@
     nutL: 0.5,
     nutH: 0.3,
   };
+
+  /* O que muda de um instrumento para o outro.
+   *
+   * `escalaComprimento` e a medida da escala em trastes — o comprimento da
+   * corda da cravelha ate a ponte. E de onde sai a largura dos trastes, e o
+   * valor que decide a forma do braco inteiro.
+   *
+   * Esta lista tem uma entrada por INSTRUMENTO, e nao por timbre. O violao de
+   * nylon tem o mesmo braco do violao de aco — o que muda e a corda e o som,
+   * nao a madeira nem a medida. Um `violaoClassico` aqui seria duas medidas
+   * para o mesmo braco, e as duas valendo ao mesmo tempo. */
+  const GEOMETRIA = {
+    violao: { cordaEsp: 0.62, escalaComprimento: 8.9, alturaL: 0.14, nutL: 0.5, nutH: 0.3, cabeca: true, trastes: true },
+    baixo: { cordaEsp: 0.74, escalaComprimento: 10.2, alturaL: 0.17, nutL: 0.55, nutH: 0.34, cabeca: true, trastes: true },
+    baixo5: { cordaEsp: 0.78, escalaComprimento: 10.2, alturaL: 0.17, nutL: 0.55, nutH: 0.34, cabeca: true, trastes: true },
+    ukulele: { cordaEsp: 0.44, escalaComprimento: 6.2, alturaL: 0.11, nutL: 0.34, nutH: 0.22, cabeca: true, trastes: true },
+    cavaquinho: { cordaEsp: 0.46, escalaComprimento: 6.6, alturaL: 0.12, nutL: 0.38, nutH: 0.24, cabeca: true, trastes: true },
+    violino: { cordaEsp: 0.5, escalaComprimento: 7.4, alturaL: 0.13, nutL: 0.42, nutH: 0.26, cabeca: true, trastes: false },
+  };
+
+  function geometriaDe(inst) {
+    if (!inst || !inst.id) return GEOMETRIA.violao;
+    return GEOMETRIA[inst.id] || GEOMETRIA.violao;
+  }
+
+  /* ------------------------------------------------------------
+     A POSICAO DE UM TRASTE — a correcao que mais aparece
+
+     Todo braco de corda tem os trastes mais juntos conforme se sobe, e a lei e
+     a mesma em todos: o traste `n` fica a `1 - 2^(-n/12)` da escala.
+
+     A consequencia que qualquer musico reconhece na hora: o decimo segundo
+     traste fica exatamente na METADE do comprimento. E o que permite medir um
+     braco sem regua.
+
+     A versao anterior espalhava os trastes em intervalos iguais. Isso e um
+     desenho, nao um braco: num violao de verdade o traste 12 fica em 4,45
+     unidades e o desenho o colocava em 6 — um terco mais longe, e todos os
+     trastes a partir do oitavo fora de lugar. Quem aprende por este desenho
+     aprende a contagem errada, e o erro so aparece no brao de verdade. */
+  function posicaoDeTraste(f, escalaComprimento) {
+    return escalaComprimento * (1 - Math.pow(2, -f / 12));
+  }
+
+  /* Em que traste vao os marcadores de posicao.
+   *
+   * Nao e enfeite: sao a forma de CONTAR o traste sem tirar o olho do braco, e
+   * e o que permite saber que o dedo esta no quinto sem ir ate a cravelha.
+   *
+   * No violino nao ha nem traste nem marcador. Quem toca conta pela altura da
+   * quarta — e por isso que um violino com trastes marcados parece errado para
+   * quem sabe, do mesmo jeito que parece certo para quem nunca viu um.
+   *
+   * Vive aqui, e nao dentro de `criar()`: houve duas listas, uma em cada lugar,
+   * e a de dentro da cena era a que o desenho usava enquanto `medidas()` lia a
+   * de fora. Mudar uma nao mudava a outra, e o teste conferia a que nao era
+   * a que mandava na tela. Uma lista, um lugar. */
+  /* A largura do primeiro traste, e o que `medidas()` devolve como `trasteL`.
+   *
+   * O nome antigo continua valendo porque e o que as telas e os testes ja
+   * leem. E ele e a largura do PRIMEIRO traste de proposito: os seguintes sao
+   * mais estreitos, e nao existe "a largura do traste" num braco de verdade. */
+  const MARCADORES = [3, 5, 7, 9, 12];
+
+  /* O comprimento da cabeca, em funcao da cravelha.
+   *
+   * Um valor so, usado pela cena E por `medidas()`. Com o numero escrito em
+   * cada lugar, um `compCabeca = 0` na cena e um `2.1` na medicao conviviam
+   * sem ninguem notar — e o teste confirmava uma cabeca que nao existia. */
+  function comprimentoDaCabeca(g) {
+    return g.cabeca !== false ? g.nutL * 2.1 : 0;
+  }
+
+  /* Quantas cordas o instrumento tem, que e o numero de chaves na cabeca. */
+  function cordasDe(instId) {
+    if (instId) {
+      const achado = M.instrumento(instId);
+      if (achado && typeof achado.cordas === 'number') return achado.cordas;
+    }
+    return ESCALA.cordas;
+  }
+
+  /* A escala precisa ser escolhida para o primeiro traste ter a largura de
+   * referencia do VIOLAO. A versao anterior media em intervalos iguais e o
+   * `trasteL` era literalmente o primeiro intervalo; agora e o mesmo numero,
+   * tirado da escala real — e o que mantem o violao com a largura que tinha
+   * antes, so que com a forma certa.
+   *
+   * Repare que `trasteL` NAO e a largura do primeiro traste de qualquer
+   * instrumento: e a do violao. O baixo tem escala maior, entao o primeiro
+   * traste dele e mais largo — e tem de ser, porque o braco dele e maior. E o
+   * ukulele tem escala menor e traste mais estreito. Uma largura igual para
+   * todos so seria uma foto. */
+  function escalaPara(trasteL) {
+    return trasteL / (1 - Math.pow(2, -1 / 12));
+  }
 
   /* Os recursos do three.js que precisam ser devolvidos.
    *
@@ -101,52 +204,138 @@
     const cena = new three.Scene();
     const camera = new three.PerspectiveCamera(40, 1, 0.1, 120);
 
-    const largura = ESCALA.cordaEsp * (nc - 1);
-    const comprimento = nf * ESCALA.trasteL;
+    const geoBase = geometriaDe(opts.inst ? M.instrumento(opts.inst) : null);
+    const cordaEsp = geoBase.cordaEsp;
+    const alturaL = geoBase.alturaL;
+    const nutL = geoBase.nutL;
+    const nutH = geoBase.nutH;
+    const temTraste = geoBase.trastes !== false;
+
+    /* A largura da corda e da escala sao o que muda de um instrumento para o
+     * outro. `escalaPara` mantem o primeiro traste com a largura de referencia,
+     * e o resto vem da lei real — o que faz o braco do ukulele ser curto sem
+     * mudar nada do que ja estava certo no violao. */
+    const escalaCorda = escalaPara(ESCALA.trasteL) * (geoBase.escalaComprimento / 8.9);
+    const largura = cordaEsp * (nc - 1);
+    const ultimoTraste = posicaoDeTraste(nf, escalaCorda);
+    const comprimento = ultimoTraste + ESCALA.trasteL / 2;
     const centroX = comprimento / 2 - ESCALA.trasteL / 2;
 
     const raiz = new three.Group();
     cena.add(raiz);
 
-    const zDaCorda = function (s) { return (s - (nc - 1) / 2) * ESCALA.cordaEsp; };
-    const xDoTraste = function (f) { return f * ESCALA.trasteL + ESCALA.trasteL / 2 - 0.25; };
+    const zDaCorda = function (s) { return (s - (nc - 1) / 2) * cordaEsp; };
+    const xDoTraste = function (f) { return posicaoDeTraste(f, escalaCorda) - ESCALA.trasteL / 2; };
 
     /* ---- o braco ---- */
     const matBraco = registrar(new three.MeshStandardMaterial({
       color: 0x3b2617, roughness: 0.74, metalness: 0.03,
 }), pilha);
-    const geoBraco = registrar(new three.BoxGeometry(comprimento + 0.5, ESCALA.alturaL, largura + 0.66), pilha);
+    const geoBraco = registrar(new three.BoxGeometry(comprimento + 0.5, alturaL, largura + 0.66), pilha);
     const braco = new three.Mesh(geoBraco, matBraco);
-    braco.position.set(centroX, -ESCALA.alturaL / 2 - 0.01, 0);
+    braco.position.set(centroX, -alturaL / 2 - 0.01, 0);
     raiz.add(braco);
 
-    /* ---- os trastes ---- */
+    /* ---- os trastes ----
+       Nas posicoes que a lei manda, e nao em intervalos iguais. Sem isso o
+       decimo segundo traste fica a um terco de onde ele esta, e quem esta
+       aprendendo conta errado. */
     const matTraste = registrar(new three.MeshStandardMaterial({
       color: 0xd9d3c6, roughness: 0.3, metalness: 0.7,
 }), pilha);
     const geoTraste = registrar(new three.BoxGeometry(0.042, 0.03, largura + 0.13), pilha);
-    for (let f = 0; f <= nf; f++) {
-      const t = new three.Mesh(geoTraste, matTraste);
-      t.position.set(f * ESCALA.trasteL - 0.25, 0.004, 0);
-      raiz.add(t);
+    if (temTraste) {
+      for (let f = 0; f <= nf; f++) {
+        const t = new three.Mesh(geoTraste, matTraste);
+        t.position.set(posicaoDeTraste(f, escalaCorda) - ESCALA.trasteL / 2, 0.004, 0);
+        raiz.add(t);
+      }
+    }
+
+    /* ---- os marcadores de posicao ----
+       Os pontinhos do tabuleiro, nos trastes 3, 5, 7 e 9, e dois no 12.
+       Nao sao enfeite: eles sao a forma de CONTAR o traste sem tirar o olho do
+       braco. E o que permite saber que o dedo esta no quinto sem ir ate a
+       cravelha e contar, que e o que se faz no palco. */
+    const geoMarca = registrar(new three.CylinderGeometry(0.036, 0.036, 0.008, 12), pilha);
+    const matMarca = registrar(new three.MeshStandardMaterial({
+      color: 0xe8e2d4, roughness: 0.42, metalness: 0.05,
+}), pilha);
+    const marcas = [];
+    if (temTraste) {
+      for (const f of MARCADORES) {
+        if (f > nf) continue;
+        const x = (posicaoDeTraste(f, escalaCorda) + posicaoDeTraste(f - 1, escalaCorda)) / 2
+          - ESCALA.trasteL / 2;
+        // No 12 saem dois, porque e onde o olho procura o fim do braco.
+        const zs = f === 12 && nc >= 5
+          ? [-(cordaEsp * (nc - 1)) / 6, (cordaEsp * (nc - 1)) / 6]
+          : [0];
+        for (const z of zs) {
+          const m = new three.Mesh(geoMarca, matMarca);
+          m.position.set(x, 0.006, z);
+          raiz.add(m);
+          marcas.push(m);
+        }
+      }
     }
 
     /* ---- a cravelha ---- */
     const matNut = registrar(new three.MeshStandardMaterial({
       color: 0xf4efe4, roughness: 0.38, metalness: 0.04,
 }), pilha);
-    const geoNut = registrar(new three.BoxGeometry(ESCALA.nutL, ESCALA.nutH, largura + 0.15), pilha);
+    const geoNut = registrar(new three.BoxGeometry(nutL, nutH, largura + 0.15), pilha);
     const cravelha = new three.Mesh(geoNut, matNut);
-    cravelha.position.set(-0.25 - ESCALA.nutL / 2, 0.05, 0);
+    cravelha.position.set(-ESCALA.trasteL / 2 - nutL / 2, 0.05, 0);
     raiz.add(cravelha);
+
+    /* ---- a cabeca, onde as cordas vao morrer ----
+       Sem isto as cordas saem no vazio do lado da cravelha. E a peca que faz a
+       pessoa entender que o desenho e um INSTRUMENTO e nao um tabuleiro solto —
+       e onde estao as chaves, que e a primeira coisa que se procura quando uma
+       corda esta desafinada. */
+    const compCabeca = comprimentoDaCabeca(geoBase);
+    const matCabeca = registrar(new three.MeshStandardMaterial({
+      color: 0x33200f, roughness: 0.68, metalness: 0.04,
+}), pilha);
+    const geoCabeca = registrar(new three.BoxGeometry(compCabeca, alturaL * 0.86, largura + 0.2), pilha);
+    const cabeca = new three.Mesh(geoCabeca, matCabeca);
+    const xCabeca = -ESCALA.trasteL / 2 - nutL - compCabeca / 2;
+    cabeca.position.set(xCabeca, 0.02, 0);
+    raiz.add(cabeca);
+
+    /* Uma chave por corda, alternando os lados como num violao de verdade. */
+    const geoChave = registrar(new three.CylinderGeometry(0.028, 0.028, 0.13, 8), pilha);
+    const matChave = registrar(new three.MeshStandardMaterial({
+      color: 0xcfcabd, roughness: 0.32, metalness: 0.62,
+}), pilha);
+    const chaves = [];
+    for (let s = 0; s < nc; s++) {
+      for (const lado of [-1, 1]) {
+        const c = new three.Mesh(geoChave, matChave);
+        c.rotation.x = Math.PI / 2;
+        c.position.set(
+          xCabeca + (s % 2 ? 1 : -1) * compCabeca * 0.22,
+          0.055,
+          lado * (largura + 0.2) / 2 + lado * 0.04
+        );
+        raiz.add(c);
+        chaves.push(c);
+      }
+    }
 
     /* ---- as cordas ----
        A espessura muda da vala para a grave. E o que da a sensacao de peso ao
-       olhar: seis linhas iguais nao dizem qual corda e a prima. */
+       olhar: seis linhas iguais nao dizem qual corda e a prima.
+       E cada corda nasce na SUA chave e atravessa a cravelha ate o fim do
+       braco — antes elas simplesmente apareciam no nada, do lado da cravelha,
+       sem cabeca ondeelas terminassem. */
     const cordas = [];
+    const xDaChave = -ESCALA.trasteL / 2 - nutL * 1.1;
     for (let s = 0; s < nc; s++) {
       const raio = 0.021 + (s / Math.max(1, nc - 1)) * 0.02;
-      const geo = registrar(new three.CylinderGeometry(raio, raio, comprimento + 0.85, 7, 1), pilha);
+      const comp = comprimento + Math.abs(xDaChave) + ESCALA.trasteL / 2;
+      const geo = registrar(new three.CylinderGeometry(raio, raio, comp, 7, 1), pilha);
       const mat = registrar(new three.MeshStandardMaterial({
         color: s >= nc - 3 ? 0xc9bfa8 : 0xd6cfbe,
         roughness: 0.44, metalness: 0.56,
@@ -155,7 +344,10 @@
       // O cilindro do three.js e vertical. Deitar no X e o que faz a corda
       // correr ao longo do braco.
       c.rotation.z = Math.PI / 2;
-      c.position.set(centroX, 0.052, zDaCorda(s));
+      // A corda entra inclinada: nasce na chave, de lado, e chega no meio da
+      // cravelha. Uma corda reta nao tem gancho, e nao parece afinada.
+      const meio = (xDaChave + comprimento) / 2;
+      c.position.set(meio, 0.052, zDaCorda(s) * (0.52 + 0.48 * (meio - xDaChave) / (comprimento - xDaChave)));
       raiz.add(c);
       cordas.push({ mesh: c, raio: raio, s: s });
     }
@@ -472,19 +664,75 @@
     };
   }
 
-  /* Le a geometria para quem quiser conferir sem abrir o 3D. */
-  function medidas() {
+  /* ------------------------------------------------------------
+     A GEOMETRIA, PARA QUEM QUISER CONFERIR SEM ABRIR O 3D
+
+     Isto nao e so para depurar. E o que permite PROVAR que o braco esta com a
+     forma certa: a lei do traste, a largura do ukulele contra a do baixo e o
+     violino sem traste sao afirmações verificáveis, e não são o tipo de coisa
+     que se descobre olhando uma captura de tela.
+     ------------------------------------------------------------ */
+  function medidas(instId, nf) {
+    const g = geometriaDe(instId ? M.instrumento(instId) : null);
+    /* O numero de trastes tem de ser um INTEIRO. `Math.max(1, Math.min(24, 1.5))`
+     * devolve 1,5, e `posicoes[1.5]` e `undefined` — o comprimento do braco
+     * saia `NaN`, a camera era posicionada em `NaN`, e o 3D simplesmente nao
+     * aparecia. Sem erro, sem aviso: so a tela vazia. */
+    const n = Math.max(1, Math.min(24, Math.round(Number(nf)) || 12));
+
+    /* O violino NAO tem traste, e o valor vem da tabela sem nenhuma conversa.
+     *
+     * Isto era escrito como `trastes: g.trastes !== false` dentro do objeto de
+     * retorno, e devolvia `true` para um instrumento cuja tabela diz `false` —
+     * com `geometriaDe()`, com a tabela e com o arquivo inteiro conferidos um
+     * por um. A conta feita a mao, na mesma funcao, dava `false`. Nao ha
+     * explicacao para isso, e um `||` no lugar errado seria um paliativo.
+     *
+     * Ler o valor e pronto resolve, e deixa a fonte da verdade em um lugar so:
+     * quem decide se o violino tem traste e a tabela, nao uma comparacao feita
+     * em tres lugares diferentes. */
+    const temTraste = g.trastes === true;
+    const escala = escalaPara(ESCALA.trasteL) * (g.escalaComprimento / 8.9);
+
+    const posicoes = [];
+    for (let f = 0; f <= n; f++) posicoes.push(posicaoDeTraste(f, escala));
+
+    /* As larguras entre traste e traste. E o que o olho ve: elas encolhem. */
+    const larguras = [];
+    for (let f = 1; f <= n; f++) larguras.push(posicoes[f] - posicoes[f - 1]);
+
     return {
-      cordaEsp: ESCALA.cordaEsp,
-      trasteL: ESCALA.trasteL,
-      cordas: ESCALA.cordas,
-      nutL: ESCALA.nutL,
-      nutH: ESCALA.nutH,
-      alturaL: ESCALA.alturaL,
+      cordaEsp: g.cordaEsp,
+      cordas: g.cordaEsp && instId && M.instrumento(instId) ? M.instrumento(instId).cordas : ESCALA.cordas,
+      alturaL: g.alturaL,
+      trasteL: larguras[0],
+      nutL: g.nutL,
+      nutH: g.nutH,
+      trastes: temTraste,
+      escala: escala,
+      posicoes: posicoes,
+      larguras: larguras,
+      comprimento: posicoes[n] + ESCALA.trasteL / 2,
+      /* As pecas que existem, e nao so as que o codigo menciona.
+       *
+       * Verificar que o arquivo contem a palavra `MARCADORES` e que contem
+       * `compCabeca` nao prova nada: as duas sobreviveriam a um
+       * `MARCADORES = []` e a um `compCabeca = 0`, que sao exatamente os
+       * defeitos. O que prova e a quantidade — e por isso que elas sao dados
+       * aqui, e nao so texto na tela. */
+      marcadores: temTraste ? MARCADORES.filter(function (f) { return f <= n; }) : [],
+      chavesPorLado: cordasDe(instId),
+      cabeca: comprimentoDaCabeca(g) > 0,
+      cabecaComprimento: comprimentoDaCabeca(g),
     };
   }
 
-  V.violao3d = { criar: criar, medidas: medidas };
+  /** A lei do traste, exposta. E matematica pura: nao depende de three.js. */
+  function posicaoDeTrasteDe(f, escala) {
+    return posicaoDeTraste(f, escala);
+  }
+
+  V.violao3d = { criar: criar, medidas: medidas, posicaoDeTraste: posicaoDeTrasteDe, GEOMETRIA: GEOMETRIA };
   global.Violao3D = V.violao3d;
 
   if (typeof module !== 'undefined' && module.exports) module.exports = V.violao3d;

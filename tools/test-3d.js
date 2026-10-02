@@ -419,10 +419,19 @@ secao('3. A cena do violao');
   const Violao3D = require(path.join(RAIZ, 'js/views/violao3d.js'));
 
   // --- as medidas ---
+  //
+  // `trasteL` foi trocado por `larguras[0]`: os trastes nao sao mais iguais
+  // entre si, entao "a largura do traste" deixou de ser um numero so. A
+  // propriedade continua exposta por compatibilidade com quem chama `medidas()`
+  // sem passar instrumento — e ela significa a largura do PRIMEIRO traste, que
+  // e a unica que tem valor de unha.
   const m = Violao3D.medidas();
   igual(m.cordas, 6, 'o violao tem 6 cordas');
-  ok(m.trasteL > 0.3 && m.trasteL < 0.8, 'o traste tem largura de unha', 'trasteL=' + m.trasteL);
-  ok(m.cordaEsp > m.trasteL, 'a corda e mais espacada que o traste');
+  const unha = m.larguras[0];
+  ok(unha > 0.3 && unha < 0.8, 'o primeiro traste tem largura de unha', 'trasteL=' + unha);
+  ok(m.cordaEsp > unha, 'a corda e mais espacada que o traste',
+    m.cordaEsp.toFixed(2) + ' contra ' + unha.toFixed(2));
+  igual(m.trasteL, unha, 'e `trasteL` continua de volta, para quem chama sem instrumento');
 
   // --- sem three, devolve nulo em vez de explodir ---
   Object.defineProperty(Gfx, 'three', { value: null, configurable: true });
