@@ -54,9 +54,21 @@
      qualquer calendario)
      ======================= */
   function esc(s) {
+    /* A quebra de linha e procurada como `\\r\\n` OU `\\r` OU `\\n`, e nao
+     * como `\\r?\\n`.
+     *
+     * A diferenca e um carriage return sozinho. Ele vem de texto colado de
+     * Mac antigo, de alguns programas de Windows, e de quem digita num
+     * aplicativo que manda so `\r`. Num arquivo .ics, um CR solto e uma quebra
+     * de linha tanto quanto um LF: o titulo "Missao" colado com CR virava
+     * "Miss" + quebra + "ao", e o calendario recusava o arquivo inteiro sem
+     * dizer por que. A pessoa perdia a escala que acabara de marcar.
+     *
+     * A ordem importa: `\\r\\n` primeiro, senao o CR comeria metade do par e
+     * sobraria um LF nu no lugar. */
     return String(s == null ? '' : s)
       .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')
-      .replace(/\r?\n/g, '\\n');
+      .replace(/\r\n|\r|\n/g, '\\n');
   }
   function dataIcs(data, hora) {
     const [a, m, d] = data.split('-');
