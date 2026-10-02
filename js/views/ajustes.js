@@ -495,34 +495,100 @@ const TAMANHOS = [
     if (p && p.classList.contains('active')) render(p);
   }
 
-  function exportar() {
-    U.download('acorde-backup-' + U.todayKey() + '.json', S.exportar());
-
-    /* O backup so ajuda se a pessoa souber que ele existe e quando foi feito.
-     *
-     * Sem esta linha, o app nao tinha como saber que a copia estava feita: o
-     * contador "ha quanto tempo voce nao exporta" nao teria de onde sair, e a
-     * tela nao poderia dizer "seu backup e de ontem" — que e a frase que faz
-     * alguem apertar o botao.
-     *
-     * `registrarBackup` guarda no proprio store, entao a data sobrevive a
-     * fechar o app. E o botao de apagar tudo tambem passa por aqui. */
+  /* O backup so ajuda se a pessoa souber que ele existe e quando foi feito.
+   *
+   * Sem esta linha, o app nao tinha como saber que a copia estava feita: o
+   * contador "ha quanto tempo voce nao exporta" nao teria de onde sair, e a
+   * tela nao poderia dizer "seu backup e de ontem" — que e a frase que faz
+   * alguem apertar o botao.
+   *
+   * `registrarBackup` guarda no proprio store, entao a data sobrevive a
+   * fechar o app. E o botao de apagar tudo tambem passa por aqui. */
+  function marcarBackup() {
     const Arm = global.Armazenamento;
-    if (Arm && typeof Arm.registrarBackup === 'function') {
-      const hoje = Arm.registrarBackup();
-      UI.toast('Backup salvo (' + hoje + '). Guarde o arquivo fora do navegador.', { tipo: 'ok', dur: 6000 });
-    } else {
-      UI.toast('Backup salvo', { tipo: 'ok' });
-    }
+    if (Arm && typeof Arm.registrarBackup === 'function') return Arm.registrarBackup();
+    return U.todayKey();
   }
 
+  function exportar() {
+    const hoje = U.todayKey();
+    U.download('acorde-backup-' + hoje + '.json', S.exportar())
+      .then(function (r) {
+        if (r.via === 'nada') {
+          UI.toast('Não consegui gerar o arquivo. Tente de novo.', { tipo: 'err', dur: 6000 });
+          return;
+        }
+        if (r.cancelou) return;
+
+        if (r.via === 'ancora') {
+          marcarBackup();
+          UI.toast('Backup salvo (' + hoje + '). Guarde o arquivo fora do navegador.', { tipo: 'ok', dur: 6000 });
+          recarregar();
+          return;
+        }
+
+        /* A partilha do sistema entregou o arquivo, mas QUEM GUARDA E A PESSOA.
+         *
+         * A versao anterior marcava o backup como feito no mesmo instante em que
+         * a funcao de download retornava, sem saber de nada. No iPhone isso era o
+         * pior defeito possivel: a folha de partilha abre, a pessoa cancela por
+         * engano ou envia para o lugar errado, e o app ja tinha gravado "backup
+         * feito" — desligando o aviso de "faz N dias sem backup", que e a unica
+         * coisa que protege o repertorio de quem nao fez copia nenhuma.
+         *
+         * Entao aqui o app PERGUNTA, em vez de declarar. Um toque e o app
+         * acredita na pessoa; sem o toque, o aviso continua aparecendo, que e o
+         * comportamento certo. */
+        UI.toast('Escolha "Salvar nos Arquivos" para guardar o backup.', {
+          tipo: 'warn',
+          dur: 12000,
+          acaoTexto: 'Guardei',
+          acao: function () {
+            marcarBackup();
+            UI.toast('Backup guardado (' + hoje + ').', { tipo: 'ok' });
+            recarregar();
+          },
+        });
+      });
+  }
+
+  /* O `accept` leva tres coisas, e as tres sao para o iPhone.
+   *
+   * No iOS o `accept` nao filtra por extensao: ele filtra pelo que o PROPRIO
+   * iOS reconhece. E o WebKit avisa explicitamente (bug 279606) que "se nenhuma
+   * extensao for suportada, nenhum arquivo pode ser selecionado".
+   *
+   * Isso e perigoso aqui: o seletor de arquivo e a unica coisa entre a pessoa e
+   * a restauracao do repertorio. Quem perdeu tudo volta, toca em "Restaurar", e
+   * se depara com um seletor sem nada selecionavel — e conclui que o backup
+   * nunca existiu.
+   *
+   * Por isso tres valores:
+   *   - `.json`, a extensao, que funciona no resto;
+   *   - `application/json`, o tipo, para quem nao reconhece a extensao;
+   *   - `application/octet-stream`, a rede de seguranca. E o tipo que o iOS
+   *     sempre aceita, e e ele que garante que o seletor ofereca alguma coisa.
+   *
+   * A extensao e conferida no codigo, porque no iOS quem filtra de verdade e o
+   * app: ali o `accept` e so uma sugestao de interface. */
+  const ACEITE_BACKUP = '.json,application/json,application/octet-stream';
+
   function importar(modo) {
-    const file = el('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' } });
+    const file = el('input', { type: 'file', accept: ACEITE_BACKUP, style: { display: 'none' } });
     document.body.appendChild(file);
     file.addEventListener('change', async function () {
       const f = file.files[0];
       document.body.removeChild(file);
       if (!f) return;
+      /* No iOS o `accept` e so uma sugestao, e o `application/octet-stream`
+       * deixa passar qualquer arquivo. E por isso que a extensao e conferida
+       * aqui: e o app que filtra de verdade. A mensagem diz o que fazer em vez
+       * de recusar em silencio, porque a pessoa esta a um toque de recuperar o
+       * repertorio inteiro. */
+      if (!/\.json$/i.test(f.name || '')) {
+        UI.toast('Escolha o arquivo de backup do Clave, que termina em .json.', { tipo: 'err', dur: 6000 });
+        return;
+      }
       try {
         const txt = await U.readFile(f, false);
         const r = S.importar(txt, modo);

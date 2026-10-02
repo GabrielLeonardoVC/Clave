@@ -723,6 +723,12 @@ function normAnotacao(a) {
   const Store = {
     STORAGE_KEY, SCHEMA,
     carregar, salvar, salvarLogo, gravar, assinar, emitir, mudou,
+    /* Por que a ultima gravacao falhou: `'cheio'`, `'erro'`, ou `null` quando
+     * deu certo. A tela precisa da diferenca porque a resposta muda: "cheio"
+     * pede para apagar uma gravacao antiga ou baixar um backup; "erro" nao se
+     * resolve com espaco. Sem isto, o `Store` dizia que a gravacao falhou e a
+     * tela so pava. */
+    ultimoErro: function () { return ultimoErro; },
     get db() { return db; }, vazio,
     escalas, porData, porId, proximas, ultimas, cmp,
     cifras, cifraPorId, filtrarCifras, categorias, tons,

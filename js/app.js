@@ -331,6 +331,50 @@
   /* =======================
      BOOT
      ======================= */
+  /* ---------------------------------------------------------------
+     QUANDO A GRAVACAO FALHA, A PESSOA PRECISA SABER
+
+     Este era o furo mais silencioso do arquivo, e ele e o que mais doi no
+     iPhone.
+
+     O `Store.salvar()` devolve `false` e emite `'erro'` ou `'cota'` quando o
+     navegador RECUSA a escrita. O unico assinante do `Store` escutava
+     `'mudou'` e `'importado'` — entao `'erro'` e `'cota'` iam para lugar
+     nenhum. A pessoa digitava a escala inteira, via o nome dela na tela,
+     fechava o app, e o nome nao estava em lugar nenhum. Sem erro, sem aviso:
+     so a tela, que mente com seguranca porque mostrava o que o armazenamento
+     nao tinha aceito.
+
+     E o iPhone e onde isso acontece primeiro. A cota do Safari por origem e
+     de cerca de 5 MB, e uma gravacao de faixa cabe ate 4 MB. Uma so gravacao
+     de dois minutos, e o espaco inteiro do app.
+
+     A distincao que importa: `vigiarCota` avisa que o espaco esta CHEIO, o
+     que e previsao. Isto avisa que a gravacao NAO ACONTECEU, o que e fato. O
+     primeiro convida a baixar um backup. O segundo obriga. */
+  let avisouFalha = false;
+  function avisarFalhaAoSalvar(tipo) {
+    const causa = typeof S.ultimoErro === 'function' ? S.ultimoErro() : null;
+    const cheio = tipo === 'cota' || causa === 'cheio';
+    if (cheio) {
+      // O aviso de espaco cheio ja cobre este caso, e repetir seria barulho.
+      vigiarCota();
+      return;
+    }
+    if (avisouFalha) return;
+    avisouFalha = true;
+    /* A palavra "pode" e deliberada. Nao da para prometer que a tela mentiu:
+     * pode ser que a gravacao de tres segundos atras tenha sido aceita. O
+     * honesto e dizer que isto aqui nao entrou, e deixar a pessoa decidir se
+     * confia no que ve. */
+    UI.toast('Não consegui salvar agora. O que você acabou de digitar pode não estar gravado.', {
+      tipo: 'err',
+      dur: 0,
+      acao: function () { ir('ajustes'); },
+      acaoTexto: 'Ver',
+    });
+  }
+
   let avisouCota = false;
   function vigiarCota() {
     if (avisouCota) return;
@@ -359,6 +403,8 @@
     document.addEventListener('keydown', aoTeclar);
 
     S.assinar(function (tipo) {
+      if (tipo === 'erro') { avisarFalhaAoSalvar('erro'); return; }
+      if (tipo === 'cota') { avisarFalhaAoSalvar('cota'); return; }
       if (tipo === 'mudou' || tipo === 'importou') { aplicarTema(); vigiarCota(); }
     });
 

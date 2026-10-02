@@ -387,9 +387,25 @@
           if (!pincel || !pincel.temAlgo()) { UI.toast('Desenhe algo na foto antes de salvar', { tipo: 'err' }); return; }
           pincel.exportar(imgBase).then(function (png) {
             if (!png) { UI.toast('Não consegui gerar a imagem', { tipo: 'err' }); return; }
-            const a = el('a', { href: png, download: m.nome + ' (anotada).jpg' });
-            document.body.appendChild(a); a.click(); a.remove();
-            UI.toast('Imagem anotada salva', { tipo: 'ok' });
+            const nome = m.nome + ' (anotada)';
+            /* A imagem vai pela mesma rota do backup, e pelo mesmo motivo: no
+             * iPhone, um `image/jpeg` com `download` e ABERTO pelo Safari em vez
+             * de salvo — a pessoa ve a foto na tela e acredita que salvou. A
+             * folha de partilha do sistema e o caminho que o iOS espera. */
+            const arquivo = U.dataURLParaArquivo(png, nome, 'jpg');
+            U.entregarArquivo(arquivo, nome + '.jpg').then(function (r) {
+              if (r.via === 'nada') {
+                UI.toast('Não consegui preparar a imagem.', { tipo: 'err' });
+              } else if (r.cancelou) {
+                /* Cancelou: cala. */
+              } else if (r.via === 'partilha') {
+                UI.toast('Escolha "Salvar nos Arquivos" para guardar a imagem.', {
+                  tipo: 'warn', dur: 9000,
+                });
+              } else {
+                UI.toast('Imagem anotada salva', { tipo: 'ok' });
+              }
+            });
           });
         } }, [el('i', { 'data-lucide': 'download' }), 'Salvar anotação']),
         escala ? el('button', { class: 'btn btn-success', onclick: function () { gravarNaEscala(escala, m, aoSalvar); h.close(); } },

@@ -106,9 +106,29 @@
     return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
   }
 
+  /* O .ics vai pela MESMA rota do backup, e pelo mesmo motivo: no iPhone o
+   * `download` com `blob:` pode apenas ABRIR o arquivo em vez de salvar, e a
+   * folha de partilha do sistema e o caminho que o iOS espera. A pessoa escolhe
+   * "Salvar nos Arquivos" ou manda direto para o app de calendario.
+   *
+   * A funcao devolve o que aconteceu, e quem chama fala a partir disso. A
+   * versao anterior dizia "Arquivo de calendario salvo" sem saber de nada. */
   function baixarIcs(e) {
-    U.download('escala-' + e.data + '.ics', ics(e), 'text/calendar;charset=utf-8');
-    UI.toast('Arquivo de calendário salvo', { tipo: 'ok' });
+    return U.download('escala-' + e.data + '.ics', ics(e), 'text/calendar;charset=utf-8')
+      .then(function (r) {
+        if (r.via === 'nada') {
+          UI.toast('Não consegui gerar o arquivo do calendário.', { tipo: 'err' });
+        } else if (r.cancelou) {
+          /* Cancelou a partilha: a pessoa mudou de ideia, e o certo e calar. */
+        } else if (r.via === 'parteilha') {
+          UI.toast('Escolha "Salvar nos Arquivos" ou mande para o calendário.', {
+            tipo: 'warn', dur: 9000,
+          });
+        } else {
+          UI.toast('Arquivo de calendário salvo', { tipo: 'ok' });
+        }
+        return r;
+      });
   }
 
   /* =======================
@@ -180,7 +200,7 @@
       // verdade num celular.
       e.foto ? linha('image-plus', 'Enviar com a foto',
         'Abre a partilha do sistema com o texto e a imagem', function () {
-        const arquivo = dataURLParaArquivo(e.foto);
+        const arquivo = U.dataURLParaArquivo(e.foto);
         if (!arquivo) { UI.toast('Não deu para preparar a foto', { tipo: 'err' }); return; }
         const conteudo = texto(e, { comLinks: true });
         if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
@@ -225,37 +245,12 @@
       body: corpo,
       foot: [el('button', { class: 'btn btn-secondary btn-block', onclick: function () { UI.closeAllSheets(); } }, 'Fechar')],
     });
-    /**
-   * Data-URL para um arquivo que a partilha do sistema aceita.
+    /* A conversao de data-URL para arquivo mora no Utils, e nao aqui.
    *
-   * O armazenamento guarda a foto como data-URL — e a unica forma de ela
-   * sobreviver a um F5 sem servidor. Mas `navigator.share` so anexa um
-   * `File` de verdade, entao a base64 precisa virar bytes.
-   *
-   * Devolve null quando nao da: entao quem chama cai no texto, em vez de
-   * falhar calado e a pessoa nao entender por que a foto nao foi.
-   */
-  function dataURLParaArquivo(dataUrl, nome) {
-    if (!dataUrl || typeof dataUrl !== 'string') return null;
-    const i = dataUrl.indexOf(',');
-    if (i < 0) return null;
-    const cabecalho = dataUrl.slice(0, i);
-    const base64 = dataUrl.slice(i + 1);
-    const tipo = /data:([^;]+)/.exec(cabecalho);
-    if (!tipo) return null;
-    let bin;
-    try { bin = atob(base64); } catch (e) { return null; }
-    const bytes = new Uint8Array(bin.length);
-    for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
-    const extensao = tipo[1].indexOf('png') >= 0 ? 'png' : 'jpg';
-    try {
-      return new File([bytes], (nome || 'evento') + '.' + extensao, { type: tipo[1] });
-    } catch (e) {
-      // Navegador antigo sem o construtor de File.
-      return null;
-    }
-  }
-
+   * Existia uma copia neste arquivo, para a foto do evento. A imagem anotada
+   * do studio precisa do mesmo caminho — e em iOS o caminho do arquivo e
+   * justamente o que decide se a pessoa conseguiu salvar. Duas copias deste
+   * codigo divergiriam na calada, e a segunda seria a que quebra. */
   function linha(ic, titulo, sub, onclick) {
       return el('button', { class: 'list-item tap', style: { width: '100%', textAlign: 'left' }, onclick: onclick }, [
         el('div', { class: 'avatar' }, el('i', { 'data-lucide': ic, style: { width: '17px', height: '17px' } })),

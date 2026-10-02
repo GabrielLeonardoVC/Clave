@@ -281,14 +281,147 @@
     });
   }
 
-  /** Baixa um texto como arquivo. */
+  /* ------------------------------------------------------------
+     BAIXAR ARQUIVO — O CAMINHO DO IPHONE
+
+     A versao anterior era esta:
+
+         const a = el('a', { href: url, download: filename });
+         a.click();
+         setTimeout(() => URL.revokeObjectURL(url), 100);
+
+     Tres defeitos, e os tres doem no iPhone.
+
+     1. NO IPHONE, `download` COM `blob:` E' SERRILHA. O Safari escolhe o que
+        fazer pelo TIPO do arquivo: quando ele reconhece o tipo, ABRE O
+        CONTEUDO no lugar de salvar. Um `.ics` abre como calendario, um `.json`
+        pode abrir como texto. A pessoa toca em "Salvar backup", ve o arquivo
+        aberto, e acredita que salvou.
+
+     2. REVOGAR A URL EM 100 MS CORTA O ARQUIVO. O download do navegador e
+        assincrono: revogar a URL enquanto ele ainda esta lendo o blob da o
+        arquivo pela metade. Emrede rapida passa; em 3G deIncreto nao.
+
+     3. A FUNCAO NAO DEVIA NADA. Ela nao sabia se o arquivo saiu. E o chamador
+        usava isso para GRABAR O BACKUP E CALAR O AVISO — entao um download
+        falhado virava "Backup salvo" e desligava a unica protecao que o app
+        tinha. A funcao agora conta o que aconteceu.
+
+     A saida nativa do iPhone e `navigator.share` com arquivo: o app entrega o
+     arquivo, o iPhone abre a folha de partilha do sistema, e a pessoa escolhe
+     "Salvar nos Arquivos". E o caminho que o proprio iOS espera, e o unico em
+     que o app tem CERTEZA de que chegou ate a mao — porque alguem tocou em
+     "Salvar".
+
+     No iPhone o `navigator.share` so existe a partir do iOS 15. Antes disso, e
+     no resto, o ancor com `download` continua sendo o caminho, e o retorno
+     avisa que o caminho e menos confiavel.
+     ------------------------------------------------------------ */
+
+  /** O conteudo vira um arquivo de verdade, ou `null` se nao der. */
+  function arquivoDe(content, filename, mime) {
+    try {
+      const blob = new Blob([content == null ? '' : String(content)], {
+        type: mime || 'application/json;charset=utf-8',
+      });
+      // O construtor de File nao existe em navegador velho, e sem ele nao ha
+      // como anexar arquivo na partilha do sistema.
+      if (typeof File !== 'function') return null;
+      return new File([blob], filename, { type: blob.type });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** O navegador aceita compartilhar ESTE arquivo? */
+  function podeCompartilharArquivo(arquivo) {
+    if (!arquivo) return false;
+    const n = global.navigator;
+    if (!n || typeof n.share !== 'function') return false;
+    if (typeof n.canShare !== 'function') return false;
+    try { return n.canShare({ files: [arquivo] }) === true; } catch (e) { return false; }
+  }
+
+  /** Data-URL vira um arquivo de verdade, ou `null` se nao der.
+   *
+   * O app guarda imagem como data-URL — e a unica forma de ela sobreviver sem
+   * servidor. Mas `navigator.share` so anexa um `File` de verdade, entao a
+   * base64 precisa virar bytes. */
+  function dataURLParaArquivo(dataUrl, nome, extensaoForcada) {
+    if (!dataUrl || typeof dataUrl !== 'string') return null;
+    const i = dataUrl.indexOf(',');
+    if (i < 0) return null;
+    const cabecalho = dataUrl.slice(0, i);
+    const base64 = dataUrl.slice(i + 1);
+    const tipoM = /data:([^;]+)/.exec(cabecalho);
+    if (!tipoM) return null;
+    let bin;
+    try { bin = atob(base64); } catch (e) { return null; }
+    const bytes = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+    const tipo = tipoM[1];
+    const ext = extensaoForcada || (tipo.indexOf('png') >= 0 ? 'png' : 'jpg');
+    if (typeof File !== 'function') return null;
+    try { return new File([bytes], (nome || 'arquivo') + '.' + ext, { type: tipo }); }
+    catch (e) { return null; }
+  }
+
+  /* Entrega um arquivo pronto — um `File` ou um `Blob` — e CONTA o que
+   * aconteceu.
+   *
+   * E o nucleo de `download`, e existe separado porque a imagem anotada ja
+   * chega pronta do `canvas`, sem passar por texto. */
+  function entregarArquivo(arquivo, filename) {
+    if (!arquivo) return Promise.resolve({ via: 'nada', salvou: false });
+
+    if (podeCompartilharArquivo(arquivo)) {
+      return Promise.resolve()
+        .then(function () {
+          return global.navigator.share({ files: [arquivo], title: filename || arquivo.name });
+        })
+        .then(function () { return { via: 'partilha', salvou: true }; })
+        .catch(function () {
+          /* Cancelar a partilha NAO e falha do app. A pessoa mudou de ideia, e
+           * o certo e ficar quieto — um "deu errado" aqui seria mentira. */
+          return { via: 'partilha', salvou: false, cancelou: true };
+        });
+    }
+
+    try {
+      const url = URL.createObjectURL(arquivo);
+      const a = el('a', { href: url, download: filename || arquivo.name || 'arquivo' });
+      document.body.appendChild(a);
+      a.click();
+      /* A revogacao vai para muito depois. 100 ms era o "prazo do download", e o
+       * download nao termina em 100 ms — em rede de telefone, nao termina nem em
+       * dez segundos. `revokeObjectURL` nao e urgente: a memoria do blob e
+       * devolvida quando a aba fecha, e o que estava antes era um arquivo pela
+       * metade. */
+      setTimeout(function () {
+        try { document.body.removeChild(a); } catch (e) { /* ja saiu */ }
+        URL.revokeObjectURL(url);
+      }, 60000);
+      return Promise.resolve({ via: 'ancora', salvou: true });
+    } catch (e) {
+      return Promise.resolve({ via: 'nada', salvou: false });
+    }
+  }
+
+  /**
+   * Baixa um texto como arquivo.
+   *
+   * Devolve PROMESSA com `{via, salvou}`:
+   *   via = 'partilha' — entregue a folha do sistema; a pessoa escolheu o destino
+   *   via = 'ancora'   — baixado direto pelo navegador
+   *   via = 'nada'     — o navegador nao aceitou de jeito nenhum
+   *
+   * `salvou` quer dizer "o arquivo saiu daqui", e nao "esta guardado em algum
+   * lugar". Guardar foi decisao da pessoa, no destino que ela escolheu.
+   *
+   * E PROMESSA de proposito. A versao anterior era sincrona e nao dizia nada, e
+   * foi por isso que o app declarava "Backup salvo" sem saber. */
   function download(filename, content, mime) {
-    const blob = new Blob([content], { type: mime || 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = el('a', { href: url, download: filename });
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    return entregarArquivo(arquivoDe(content, filename, mime), filename);
   }
 
   /** Lê um arquivo como texto. */
@@ -482,6 +615,8 @@
     norm, deaccent, slug, titleCase, debounce, throttle,
     uid, clamp, clone, groupBy, groupByDate, sortBy, highlight,
     copy, download, readFile, shrinkImage, fmtBytes, plural, openLink, searchLinks,
+    arquivoDe: arquivoDe, podeCompartilharArquivo: podeCompartilharArquivo,
+    entregarArquivo: entregarArquivo, dataURLParaArquivo: dataURLParaArquivo,
     estimateDuration, byteLen,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
