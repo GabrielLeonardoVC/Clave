@@ -154,6 +154,18 @@ const REGRAS = [
     re: /\.addEventListener\s*\(\s*['"]message['"]/,
     porQue: 'qualquer aba pode mandar mensagem. Sem comparar `event.origin`, o '
       + 'app obedece a quem abrir.',
+    /* A forma segura e comparar `event.origin` com a origem do proprio app — e
+     * essa comparacao NAO fica na mesma linha do registro: ela vai no corpo do
+     * ouvinte, porque e la que o `event` existe. Uma regra que so aceitasse a
+     * forma de uma linha so estaria proibindo a forma correta e aceitando a
+     * errada, que e o pior dos dois mundos.
+     *
+     * A janela vai ate o proximo registro de ouvinte: e o alcance do bloco, e
+     * nao o arquivo inteiro. E preciso parar ali — sem parar, um `message` sem
+     * guarda no fim do arquivo seria absolvido pela guarda de outro, que e
+     * exatamente o defeito que a regra existe para pegar. */
+    precisaDe: /\borigin\b[^\n]*\b(?:self\.)?location\.origin\b|\b(?:self\.)?location\.origin\b[^\n]*\borigin\b/,
+    janela: 8,
   },
   {
     nome: 'aba nova com acesso a quem abriu',
@@ -171,11 +183,21 @@ const REGRAS = [
 for (const regra of REGRAS) {
   const achados = [];
   for (const arq of alvos) {
-    fs.readFileSync(arq, 'utf8').split('\n').forEach((l, i) => {
+    const linhas = fs.readFileSync(arq, 'utf8').split('\n');
+    linhas.forEach((l, i) => {
       if (!linhaDeCodigo(l)) return;
       if (!regra.re.test(l)) return;
       if (regra.ok && regra.ok(l.trim())) return;
       if (regra.precisaDe && regra.precisaDe.test(l)) return;
+      /* A guarda pode estar nas linhas seguintes: e o corpo do ouvinte que a
+       * contem, e e a-la que pertence. A janela para no proximo registro de
+       * ouvinte — o alcance do bloco, e nao o arquivo inteiro. */
+      if (regra.precisaDe && regra.janela) {
+        for (let k = i + 1; k < Math.min(i + 1 + regra.janela, linhas.length); k++) {
+          if (/addEventListener\s*\(/.test(linhas[k])) break;
+          if (regra.precisaDe.test(linhas[k])) return;
+        }
+      }
       achados.push({ rel: rel(arq), linha: i + 1, texto: l.trim() });
     });
   }

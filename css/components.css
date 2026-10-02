@@ -343,7 +343,11 @@
    faixa continua — como os marcadores de um cabecalho de partitura. */
 .regua {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Cinco colunas, e nao quatro. A quinta e o 3D do instrumento: com quatro, o
+     quinto botao caia numa segunda fileira e o cartão — que tem borda e raio de
+     uma faixa so — virava duas faixas com um canto redondo no meio. Cinco
+     divide 390px em 78px, e o rotulo cabe. */
+  grid-template-columns: repeat(5, 1fr);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-2);

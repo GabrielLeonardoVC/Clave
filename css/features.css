@@ -1624,6 +1624,15 @@
   -webkit-backdrop-filter: blur(6px);
 }
 .traste3d-vistas .btn:hover { border-color: var(--primary); }
+/* A vista escolhida se anuncia pelo `aria-pressed`, e o destaque visual sai
+   DELE, e nao de uma classe. Uma classe seria uma segunda copia do mesmo
+   estado, capaz de divergir do atributo que o leitor de tela le. */
+.traste3d-vistas .btn[aria-pressed="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink, #fff);
+  font-weight: 700;
+}
 
 .traste3d-dica {
   position: absolute;

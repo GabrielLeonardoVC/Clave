@@ -483,15 +483,41 @@ secao('7. O que este app NAO tem');
   const naoTem = [
     ['eval ou new Function', /(^|[^.\w])eval\s*\(|new\s+Function\s*\(/],
     ['document.write', /document\.write\s*\(/],
-    ['postMessage', /postMessage\s*\(/],
+    /* `postMessage` nao e proibido em si: e proibido o uso que VAZA DADO.
+     *
+     * A proibicao geral era `postMessage\s*\(`, e ela barrou uma coisa legitima
+     * que o app passou a fazer: a pagina mandar uma ordem para o service worker
+     * que esta esperando. Nao existe outra via — nem `fetch`, nem evento, nem
+     * outra API do padrao chega num worker instalado. Sem essa ordem, o worker
+     * novo nunca assume e o app continua servindo a versao antiga para sempre.
+     *
+     * Entao o que vale proibir sao as DUAS formas que vazam:
+     *
+     *   1. mandar para OUTRA JANELA (`window`, `parent`, `opener`, `top`,
+     *      `frames`) — quem abriu a aba recebe o conteudo;
+     *   2. mandar sem conferir a origem de destino (`'*'`) — qualquer pagina
+     * *      que estiver esperando no caminho recebe a mensagem.
+     *
+     * As duas valem para a pagina E para o worker. O que nao vale e o medo do
+     * `postMessage` em si: e o unico canal com o proprio worker, e o worker
+     * confere `ev.origin` antes de obedecer — regra do `check-seguranca`,
+     * conferida arquivo a arquivo. */
+    ['postMessage para outra janela',
+      /\b(?:window|parent|opener|top|frames)\s*\.\s*postMessage\s*\(/],
+    ['postMessage para origem qualquer',
+      /postMessage\s*\([^)]*['"]\*['"]/],
     ['execCommand com texto do usuario', /execCommand\((?!['"]copy)/],
     ['setTimeout com string', /setTimeout\s*\(\s*['"]/],
     ['importacao dinamica de script', /importScripts\s*\(/],
     ['document.write de origem externa', /outerHTML\s*=\s*(?!['"]{2})/],
   ];
-  for (const [nome, re] of naoTem) {
+  for (const [nome, re, excecao] of naoTem) {
     const achados = [];
     for (const arq of JS) {
+      /* A excecao e por ARQUIVO, e o `testar` diz se ela cobre este. Uma
+       * excecao sem motivo e um buraco; um motivo sem excecao que o exercite e
+       * uma regra que ninguem testou. */
+      if (excecao && excecao.test(arq)) continue;
       const codigo = semComentario(fonte[arq]);
       const L = codigo.split('\n');
       L.forEach((linha, i) => {

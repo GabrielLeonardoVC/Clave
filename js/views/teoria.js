@@ -34,6 +34,13 @@
   let estEscala = { root: 0, scale: 'major', inst: bracoEscolhido ? bracoEscolhido.id : 'violao' };
   let estCifra = { texto: '', semis: 0 };
 
+  /* O instrumento desta aba. E estado proprio, e nao `estAcorde.inst`, porque
+   * as duas telas nao precisam concordar: em Acordes o instrumento escolhe
+   * quais formas desenhar, e aqui ele escolhe o braco inteiro a mostrar. Se
+   * compartilhassem, trocar de aba trocaria o braco de surpresa — e a pessoa
+   * acharia que o app trocou o violao debaixo da mao dela. */
+  let estInst = { inst: bracoEscolhido ? bracoEscolhido.id : 'violao' };
+
   const QUALIDADES = [
     { q: '', nome: 'Maior' }, { q: 'm', nome: 'Menor' }, { q: '7', nome: 'Dominante 7' },
     { q: 'maj7', nome: 'Maior 7' }, { q: 'm7', nome: 'Menor 7' }, { q: 'sus2', nome: 'Sus 2' },
@@ -51,7 +58,8 @@
       el('div', { class: 'sub' }, 'Acordes, escalas e o que você precisa na hora'),
     ]));
     const abas = [['acordes', 'Acordes', 'music-2'], ['escalas', 'Escalas', 'waves'],
-      ['circulo', 'Círculo', 'circle-dot'], ['transpor', 'Transpor', 'shuffle']];
+      ['circulo', 'Círculo', 'circle-dot'], ['transpor', 'Transpor', 'shuffle'],
+      ['instrumento', 'Instrumento', 'guitar']];
     root.appendChild(el('div', { class: 'tabs' }, abas.map(function (a) {
       return el('button', { 'aria-selected': String(aba === a[0]), onclick: function () { aba = a[0]; recarregar(); } },
         [el('i', { 'data-lucide': a[2] }), a[1]]);
@@ -60,6 +68,7 @@
     if (aba === 'acordes') box.appendChild(painelAcordes());
     else if (aba === 'escalas') box.appendChild(painelEscalas());
     else if (aba === 'circulo') box.appendChild(painelCirculo());
+    else if (aba === 'instrumento') box.appendChild(painelInstrumento());
     else box.appendChild(painelTranspor());
     root.appendChild(box);
     UI.icons(root);
@@ -419,6 +428,139 @@
   /* =======================
      CIRCULO DAS QUINTAS
      ======================= */
+/** O INSTRUMENTO INTEIRO, EM 3D
+   *
+   * Por que esta tela existe.
+   *
+   * O violão em 3D já era desenhado, e funcionava: aparecia no fim da aba de
+   * acordes, embaixo de seis cartões de forma, só depois de escolher um acorde e
+   * rolar a tela até o fim. Isso é quase o mesmo que não ter — o que importa
+   * para quem toca não é "o 3D existe", é "quando eu chego no ensaio, o braço
+   * está na minha frente em dois toques".
+   *
+   * Aqui o braço inteiro aparece logo de cara, com o número de trastes que o
+   * instrumento de verdade tem (`INSTRUMENTOS[].trastes`: o violão tem 22, o
+   * ukulele 12) e não um número escolhido só porque enquadrava na tela. E o
+   * violino entra sem trastes, porque a tabela diz que não tem — um violino com
+   * trastes marcados parece errado para quem sabe, do mesmo jeito que parece
+   * certo para quem nunca viu um.
+   *
+   * O tom e a qualidade vêm de `estAcorde`, o MESMO estado da aba de acordes. É
+   * de propósito: quem estava olhando um acorde e toca aqui continua vendo o
+   * mesmo acorde. Um estado novo seria uma segunda verdade sobre a mesma coisa,
+   * e as duas divergiriam assim que a pessoa trocasse de aba.
+   */
+function painelInstrumento() {
+    const wrap = el('div', {});
+    const I = M.instrumento(estInst.inst) || M.INSTRUMENTOS[0];
+    const flat = M.useFlatsFor(estAcorde.root);
+
+    wrap.appendChild(el('div', { class: 'card' }, [
+      el('p', { class: 'fs-sm muted' },
+        'O ' + I.nome.toLowerCase() + ' inteiro, do cabo ao fim da escala. '
+        + 'Toque numa corda para ouvir a nota.'),
+    ]));
+
+    /* ---- o instrumento ---- */
+    wrap.appendChild(el('div', { class: 'section-title mt-4' },
+      [el('i', { 'data-lucide': 'guitar' }), 'Instrumento']));
+    const insts = el('div', { class: 'chips mb-4' });
+    M.INSTRUMENTOS.forEach(function (it) {
+      insts.appendChild(el('button', {
+        class: 'chip', 'aria-pressed': String(estInst.inst === it.id),
+        onclick: function () { estInst.inst = it.id; recarregar(); },
+      }, it.nome + ' · ' + it.cordas + ' cordas'));
+    });
+    wrap.appendChild(insts);
+
+    /* ---- o tom e a qualidade ---- */
+    // O mesmo seletor da aba de acordes, pelo mesmo motivo: dois seletores de
+    // tom no mesmo app sao dois lugares para a resposta divergir.
+    wrap.appendChild(R.seletorDeTons({
+      pc: estAcorde.root,
+      aoEscolher: function (pc) { estAcorde.root = pc; recarregar(); },
+    }));
+    const qual = el('div', { class: 'chips mb-4' });
+    QUALIDADES.forEach(function (q) {
+      qual.appendChild(el('button', {
+        class: 'chip', 'aria-pressed': String(estAcorde.quality === q.q),
+        onclick: function () { estAcorde.quality = q.q; recarregar(); },
+      }, q.nome));
+    });
+    wrap.appendChild(qual);
+
+    /* ---- o braço inteiro ---- */
+    /* O número de trastes vem do instrumento, e `criar` limita a 24. Nenhum dos
+     * seis chega a 24, e o limite existe para que um instrumento futuro com 30
+     * trastes seja desenhado ate onde o motor alcanca, em vez de o numero ser
+     * cortado para caber na tela e parecer outro instrumento. */
+    const trastes = Math.min(24, I.trastes || 12);
+    const g = global.Violao3D && global.Violao3D.GEOMETRIA
+      ? global.Violao3D.GEOMETRIA[I.id] : null;
+    const temTraste = !g || g.trastes !== false;
+
+    wrap.appendChild(el('div', { class: 'section-title mt-4' }, [
+      el('i', { 'data-lucide': 'move-3d' }),
+      I.nome + ' em 3D · ' + trastes + (trastes === 1 ? ' traste' : ' trastes')
+        + (temTraste ? '' : ', sem traste como no ' + I.nome.toLowerCase() + ' de verdade'),
+    ]));
+
+    wrap.appendChild(global.Views.traste3d.mostrar({
+      pcs: [],
+      rootPc: estAcorde.root,
+      flat: flat,
+      frets: trastes,
+      inst: estInst.inst,
+      rotulo: 'Traste',
+      acordes: [{ pc: estAcorde.root, quality: estAcorde.quality }],
+      aoTocar: function (pc, dur) {
+        if (!global.Nota) return;
+        const hz = global.Views.traste3d.frequenciaDe(pc);
+        if (hz) global.Nota.tocarNota(hz, dur);
+      },
+    }));
+
+    /* ---- as cordas soltas ----
+     * A afinação é a primeira coisa que se perde quando o aparelho estraga ou
+     * muda de dono, e a primeira dúvida de quem está começando. Ouvir a
+     * afinação no lugar — sem precisar saber qual tom chamar de "certo" — é o
+     * que resolve. */
+    wrap.appendChild(el('div', { class: 'section-title mt-5' }, [
+      el('i', { 'data-lucide': 'music' }), 'Cordas soltas',
+    ]));
+    const cordas = el('div', { class: 'note-ring' });
+    I.openPc.forEach(function (pc, i) {
+      const hz = hzDaCorda(I, i);
+      const b = el('button', {
+        class: 'note-pill', type: 'button',
+        onclick: function () { if (hz && global.Nota) global.Nota.tocarNota(hz, 2.2); },
+      }, M.noteName(pc, flat) + ' · ' + Math.round(hz || 0) + ' Hz');
+      if (i === 0) b.classList.add('root');
+      cordas.appendChild(b);
+    });
+    wrap.appendChild(cordas);
+    wrap.appendChild(el('p', { class: 'd mt-2' },
+      I.cordas + (I.cordas === 1 ? ' corda' : ' cordas')
+      + ', afinação ' + I.afinacao.toLowerCase() + '. '
+      + 'O número ao lado de cada nota é a frequência real daquela corda.'));
+
+    return wrap;
+  }
+
+  /** A frequência de uma corda solta, na oitava em que ela soa.
+   *
+   * `notaParaHz` recebe a classe e a oitava, e a frequência de uma corda não
+   * sai da classe sozinha: a corda mais grave de um violão (Mi2, 82 Hz) e a
+   * mais aguda (Mi4, 330 Hz) são a MESMA classe. Por isso a oitava vem de
+   * `openMidi`, que é a parte dos dados que guarda a altura e não só o nome. */
+  function hzDaCorda(I, i) {
+    const Tuner = global.Tuner;
+    if (!Tuner || typeof Tuner.notaParaHz !== 'function') return null;
+    const midi = I.openMidi && I.openMidi[i];
+    if (typeof midi !== 'number') return null;
+    return Tuner.notaParaHz(I.openPc[i], Math.floor(midi / 12) - 1);
+  }
+
   function painelCirculo() {
     const wrap = el('div', {});
     let selPc = estEscala.root;
@@ -639,6 +781,9 @@
     acordes: function () { aba = 'acordes'; ir(); },
     escalas: function () { aba = 'escalas'; ir(); },
     circulo: function () { aba = 'circulo'; ir(); },
+    // A entrada que faltava: o 3D do instrumento inteiro, em um toque, sem
+    // passar por nenhum acorde.
+    instrumento: function () { aba = 'instrumento'; ir(); },
     metronome: abrirMetronomo,
   };
   function ir() {

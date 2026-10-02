@@ -238,7 +238,27 @@
     const dpr = Math.min(global.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(dpr);
     renderer.outputColorSpace = three.SRGBColorSpace;
-    if ('useLegacyLights' in renderer) renderer.useLegacyLights = false;
+
+    /* A iluminacao fisicamente correta.
+     *
+     * Isto era escrito como `if ('useLegacyLights' in renderer)`, e o teste
+     * era o defeito. A propriedade EXISTE justamente nas versoes em que
+     * escrever nela avisa: ela foi depreciada no r155 e so sumiu no r165. Ou
+     * seja, o teste passava justamente nos casos que deviam ser pulados, e o
+     * navegador confirmava: `THREE.WebGLRenderer: The property
+     * .useLegacyLights has been deprecated` — um aviso a cada cena montada.
+     *
+     * Um aviso por cena nao quebra nada hoje e quebra amanha: na r165 a
+     * atribuicao deixa de existir, e ai o 3D inteiro cai no "nao consegui
+     * abrir" sem que ninguem saiba por que.
+     *
+     * O que decide e a VERSAO, e nao a existencia da propriedade. Antes do
+     * r155 o padrao era `true` (luz fraca, aresta dura); do r155 em diante o
+     * padrao ja e `false` e nao ha nada a fazer. */
+    const rev = Number(three.REVISION) || 0;
+    if (rev > 0 && rev < 155 && 'useLegacyLights' in renderer) {
+      renderer.useLegacyLights = false;
+    }
 
     vivos.push(renderer);
     return renderer;

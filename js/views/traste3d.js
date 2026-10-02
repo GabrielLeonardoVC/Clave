@@ -442,21 +442,62 @@
       /* ---- os botoes de vista ----
          Girar com o dedo e bom, mas quem esta com as duas maos ocupadas usa
          isto. Tres botoes, tres angulos em que alguem realmente olha. */
+      /* Qual botao esta ligado.
+       *
+       * Sem isto os tres botoes eram iguais para quem usa leitor de tela: nao
+       * havia `aria-pressed` em nenhum, e a unica pista de onde a camera
+       * estava era o desenho. A vista inicial e a de `segurando` (a chamada
+       * `girarPara('segurando')` acima), e e ela que precisa comecar marcada —
+       * tres `aria-pressed` falsos e pior que nenhum, porque announce que
+       * nada esta escolhido quando um esta.
+       *
+       * `vistaAtual` e declarado ANTES de `vistas`, e nao depois. Os botoes sao
+       * construidos dentro do literal que cria `vistas`, e cada um deles le
+       * `vistaAtual` enquanto se constroi: declarado depois, o `let` estaria
+       * ainda na zona morta e a tela do 3D cairia num `ReferenceError` — um
+       * erro que so apareceria com o three carregado, nunca nos testes. */
+      let vistaAtual = 'segurando';
+      const botoesDeVista = [];
+      /* Só `setAttribute`, e nada de `classList`.
+       *
+       * A marcação da vista é o atributo `aria-pressed`, e o CSS tira o
+       * destaque DELE (`.traste3d-vistas [aria-pressed="true"]`). Uma classe
+       * seria uma segunda cópia do mesmo estado, com o risco de as duas
+       * divergirem — e dependeria de `classList.toggle`, que os DOMs de teste
+       * deste projeto não têm todos: com ele, a tela do 3D caía no "não
+       * consegui abrir" num navegador de verdade que funciona. */
+      function marcarVistas() {
+        botoesDeVista.forEach(function (par) {
+          par.botao.setAttribute('aria-pressed', String(par.nome === vistaAtual));
+        });
+      }
+
       const vistas = el('div', { class: 'traste3d-vistas' }, [
         botao('De cima', 'de cima'),
         botao('Segurando', 'segurando'),
         botao('De lado', 'de lado'),
       ]);
+
       function botao(rotulo, nome) {
-        return el('button', { class: 'btn btn-secondary btn-sm', type: 'button',
+        /* A referência ao botao fica guardada, e `marcarVistas` percorre a
+         * lista. A primeira versao procurava os botoes com
+         * `vistas.querySelectorAll`, o que e uma consulta ao DOM para chegar em
+         * botoes que ESTA funcao acabou de criar e que ela ja tem na mao. */
+        const b = el('button', { class: 'btn btn-secondary btn-sm', type: 'button',
+          'aria-pressed': String(nome === vistaAtual),
           onclick: function () {
             // `!mover` vai direto: quem pediu para nao ter movimento nao deve
             // ver o violao atravessando o caminho todo, nem que sejam 30
             // quadros de uma vez.
+            vistaAtual = nome;
+            marcarVistas();
             v3.girarPara(nome, !mover);
             if (laco) laco.acordar();
           } }, rotulo);
+        botoesDeVista.push({ botao: b, nome: nome });
+        return b;
       }
+      marcarVistas();
       caixa.appendChild(vistas);
 
       /* ---- a dica ---- */

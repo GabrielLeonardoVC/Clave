@@ -93,11 +93,36 @@ function restaurar(caminho) {
   A_RESTAURAR.splice(i, 1);
 }
 
-process.on('exit', () => {
+function restaurarTudo() {
   while (A_RESTAURAR.length) {
     const x = A_RESTAURAR.pop();
     try { fs.writeFileSync(x.caminho, x.conteudo, 'utf8'); } catch (e) { /* nada a fazer */ }
   }
+}
+
+process.on('exit', restaurarTudo);
+
+/* `exit` SO roda no fim normal e no `process.exit()`. Nao roda em sinal, e nao
+ * roda com seguranca obrigatoria. E o provador foi morto justamente assim:
+ * `Select-Object -First 30` fecha o pipe, o processo morre por EPIPE/SIGPIPE, e
+ * o `js/core/utils.js` ficou com a mutacao dentro — o verificador acusou
+ * `HTML escrito a mao no no` numa linha que ninguem tinha escrito.
+ *
+ * A mutacao vazada e pior que o provador ter falhado: ela sobrevive a sessao,
+ * aparece num `git diff` que ninguem entendeu, e faz o proximo rodar a
+ * procurar um buraco de seguranca que nao existe. Por isso os tres caminhos.
+ */
+process.on('uncaughtException', function (erro) {
+  restaurarTudo();
+  console.error(erro && erro.stack ? erro.stack : erro);
+  process.exit(1);
+});
+
+['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'].forEach(function (sinal) {
+  process.on(sinal, function () {
+    restaurarTudo();
+    process.exit(130);
+  });
 });
 
 let falhas = 0;

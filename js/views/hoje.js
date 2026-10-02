@@ -122,10 +122,19 @@
 
     /* ---- a régua ---- */
     root.appendChild(el('div', { class: 'regua mt-5' }, [
-      rapido('calendar-plus', 'Novo evento', 'gold', function () { global.App.ir('agenda', { nova: true }); }),
-      rapido('music-4', 'Nova cifra', 'green', function () { V.repertorio && V.repertorio.novo(); }),
+      rapido('calendar-plus', 'Evento', 'gold', function () { global.App.ir('agenda', { nova: true }); }),
+      rapido('music-4', 'Cifra', 'green', function () { V.repertorio && V.repertorio.novo(); }),
       rapido('audio-lines', 'Afinador', 'blue', function () { V.afinador && V.afinador.abrir(); }),
       rapido('clipboard-paste', 'Colar', '', function () { V.repertorio && V.repertorio.colar(); }),
+      /* O 3D do instrumento, na regua da tela inicial.
+       *
+       * Antes o unico caminho era Teoria -> Acordes -> escolher um acorde -> rolar
+       * ate o fim da tela. Quatro passos para ver o braco, num ensaio, com o
+       * celular na mao. Este e o quinto botao, e o que resolve isso. */
+      rapido('guitar', 'Braco', '', function () {
+        if (V.teoria && typeof V.teoria.instrumento === 'function') V.teoria.instrumento();
+        else global.App.ir('teoria', { aba: 'instrumento' });
+      }),
     ]));
 
     /* ---- os números ---- */

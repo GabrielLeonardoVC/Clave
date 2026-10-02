@@ -102,6 +102,18 @@
       [el('i', { 'data-lucide': 'shuffle' }), el('span', { class: 'grow' }, 'Transpor')]));
     painel.appendChild(el('button', { class: 'drawer-item', onclick: function () { fechar(); vistas.teoria.metronome(); } },
       [el('i', { 'data-lucide': 'timer' }), el('span', { class: 'grow' }, 'Metrônomo')]));
+    /* O instrumento em 3D fica aqui, e nao so no fim da aba de acordes.
+     *
+     * O 3D ja existia, e funcionava — mas so aparecia depois de escolher um
+     * acorde e rolar a tela ate o fim. Quem abre o app no ensaio para ver o
+     * braco tinha de fazer quatro coisas antes de chegar nele. Este e o atalho
+     * que faltava. */
+    painel.appendChild(el('button', { class: 'drawer-item', onclick: function () {
+      fechar();
+      if (vistas.teoria && typeof vistas.teoria.instrumento === 'function') vistas.teoria.instrumento();
+      else UI.toast('Instrumento indisponível', { tipo: 'err' });
+    } },
+      [el('i', { 'data-lucide': 'guitar' }), el('span', { class: 'grow' }, 'Instrumento em 3D')]));
     painel.appendChild(el('h4', {}, 'Ajuda'));
     painel.appendChild(el('button', { class: 'drawer-item', onclick: function () { fechar(); sobre(); } },
       [el('i', { 'data-lucide': 'info' }), el('span', { class: 'grow' }, 'Sobre o ' + global.Identidade.NOME)]));
@@ -358,6 +370,7 @@
     const cheio = tipo === 'cota' || causa === 'cheio';
     if (cheio) {
       // O aviso de espaco cheio ja cobre este caso, e repetir seria barulho.
+
       vigiarCota();
       return;
     }
@@ -376,6 +389,42 @@
   }
 
   let avisouCota = false;
+
+  /** Deixa o worker novo assumir, mesmo com esta aba aberta.
+   *
+   * Este e o lado da pagina de uma troca de versao, e ele nao e opcional.
+   *
+   * O `sw.js` chama `skipWaiting()` na instalacao — e a verificacao no
+   * navegador mostrou que a promessa RESOLVE e o worker novo continua esperando.
+   * A razao e o worker velho: enquanto ele tiver uma aba viva, o navegador
+   * mantem a versao antiga servindo o app. Como este app abre numa aba e fica
+   * aberto no ensaio, essa aba e exatamente o que prende a atualizacao.
+   *
+   * O que a pagina pode fazer e dizer isso ao worker que esta esperando. E
+   * por isso que este comentario existe: `skipWaiting` sozinho, no install, nao
+   * e suficiente, e parece suficiente — que e a pior forma de nao funcionar.
+   *
+   * Sem rede, sem worker, ou sem `waiting`, nao ha nada a fazer: sao casos
+   * normais, e todos eles terminam em silencio, sem `throw` no console.
+   */
+  function atualizarServiceWorker() {
+    if (!navigator.serviceWorker || !navigator.serviceWorker.getRegistration) return;
+    Promise.resolve(navigator.serviceWorker.getRegistration())
+      .then(function (reg) { if (!reg) return null; return reg.update(); })
+      .then(function () { return navigator.serviceWorker.getRegistration(); })
+      .then(function (reg) {
+        if (reg && reg.waiting) {
+          // Sem porta: o worker so precisa da ordem, e `postMessage` em um
+          // worker em espera e aceito.
+          reg.waiting.postMessage({ tipo: 'assumir' });
+          if (global.console && console.log) {
+            console.log(global.Identidade.prefixo('há uma versão nova esperando'), 'o app atualizou na próxima abertura');
+          }
+        }
+      })
+      .catch(function () { /* sem rede, ou sem service worker: segue */ });
+  }
+
   function vigiarCota() {
     if (avisouCota) return;
     const info = S.storageInfo();
@@ -432,6 +481,7 @@
     UI.icons(document.body);
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
       navigator.serviceWorker.register('sw.js').catch(function () { /* opcional */ });
+      atualizarServiceWorker();
     }
     vigiarCota();
 
