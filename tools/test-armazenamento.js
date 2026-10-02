@@ -520,11 +520,26 @@ function carregar() {
     const st = instalarStore();
     const Arm = carregar();
 
+    /* O que o `carregar()` ja deixou registrado, antes do `aoAbrir`.
+     *
+     * Este teste conta quantos `appinstalled` o boot escuta, e antes media o
+     * total. Isso quebrou quando o modulo passou a escutar o evento tambem no
+     * carregamento, para poder oferecer o botao de instalar — e o total deixou
+     * de ser a pergunta.
+     *
+     * A pergunta e "o `aoAbrir` registra um?", e a resposta se mede pela
+     * diferenca. Um teste que conta o total acusa quem liga um botao, e nao o
+     * que ele queria vigiar. */
+    const antes = ouvintes.length;
     await Arm.aoAbrir();
     igual(Arm.persistente(), false, 'ainda negado');
 
-    const instalou = ouvintes.filter(function (o) { return o.nome === 'appinstalled'; });
+    const instalou = ouvintes.slice(antes).filter(function (o) { return o.nome === 'appinstalled'; });
     igual(instalou.length, 1, 'o boot ficou de olho na instalacao');
+
+    /* E o que o modulo escuta no carregamento, sem depender do `aoAbrir`. */
+    igual(ouvintes.filter(function (o) { return o.nome === 'beforeinstallprompt'; }).length, 1,
+      'e ja escuta a oferta de instalar, para o botao poder existir');
 
     /* A instalacao e a prova de que o app vai ficar. E o melhor momento para
      * pedir de novo — e o navegador costuma dizer sim aqui. */
@@ -862,6 +877,100 @@ function carregar() {
     igual(r.nivel, 'perigo', 'e continua sendo perigo: instalar nao traz o dado de volta');
     nav3();
     st.restaurar();
+  }
+
+  console.log('\n-- instalar: o botao existe, e no iPhone ele nao pode existir --');
+  {
+    /* O `beforeinstallprompt` e o navegador oferecendo a instalacao, e o
+     * `prompt()` dele e a unica forma de o app pedir a propria instalacao sem
+     * que a pessoa precise saber o caminho.
+     *
+     * O evento e escutado no carregamento do modulo, e nao dentro do `aoAbrir`:
+     * o `aoAbrir` roda no `DOMContentLoaded`, e o evento chega depois. Escutar
+     * la dentro era o jeito de o botao nunca aparecer em lugar nenhum. */
+    const comProposta = async function (ua, comEvento) {
+      const nav = instalarNavegador(undefined, ua, 5);
+      const ouvintes = {};
+      const anterior = global.addEventListener;
+      global.addEventListener = function (nome, fn) { ouvintes[nome] = fn; };
+
+      const Arm = carregar();
+      /* A presenca do ouvinte e verificada COM ASSERTION, e nao em silencio.
+       *
+       * A primeira versao chamava `ouvintes.beforeinstallprompt(...)` direto.
+       * Sem o ouvinte — que e o que acontece quando o registro volta para
+       * dentro do `aoAbrir` — isso lanca `TypeError`, o teste inteiro morre com
+       * "O TESTE QUEBROU" e nao mostra qual assercao caiu. Um verificador que
+       * quebra no caminho errado nao diz o que esta vigiando. */
+      ok(typeof ouvintes.beforeinstallprompt === 'function',
+        'o modulo escuta a oferta de instalar ja no carregamento, e nao so no `aoAbrir`');
+      let evitado = 0;
+      let pedidos = 0;
+      if (comEvento && ouvintes.beforeinstallprompt) {
+        ouvintes.beforeinstallprompt({
+          preventDefault: function () { evitado++; },
+          prompt: function () { pedidos++; return Promise.resolve(); },
+        });
+      }
+      const antes = { pode: Arm.podeInstalar(), evitado: evitado };
+      const primeira = await Arm.instalar();
+      const meio = { pode: Arm.podeInstalar(), pedidos: pedidos };
+      const segunda = await Arm.instalar();
+
+      global.addEventListener = anterior;
+      nav();
+      return { antes: antes, meio: meio, primeira: primeira, segunda: segunda,
+        pedidos: pedidos, evitado: evitado };
+    };
+
+    const comBotao = await comProposta(CHROME, true);
+    igual(comBotao.antes.pode, true, 'o navegador que ofereceu: o botao pode existir');
+    igual(comBotao.antes.evitado, 1,
+      'e o banner do navegador foi segurado, para instalar no toque e nao sozinho');
+    igual(comBotao.primeira, true, 'o botao instala');
+    igual(comBotao.meio.pedidos, 1, 'e chama o prompt uma vez');
+    igual(comBotao.meio.pode, false, 'a proposta so serve uma vez: o botao some');
+    igual(comBotao.segunda, false, 'e um segundo toque nao finge que instalou de novo');
+
+    const semOferta = await comProposta(IPHONE, false);
+    igual(semOferta.antes.pode, false,
+      'no Safari do iPhone nao ha proposta: o `beforeinstallprompt` nao existe la');
+    igual(semOferta.primeira, false, 'e pedir sem proposta nao finge que instalou');
+    igual(semOferta.pedidos, 0, 'e nada foi chamado');
+
+    /* Sem `addEventListener` nenhum, o modulo nem deve quebrar — e o caso de um
+     * `require` puro, que e como os testes carregam. */
+    igual(typeof carregar().podeInstalar(), 'boolean', 'instalar responde mesmo fora do navegador');
+
+    /* E o texto, no iPhone, tem que dar o CAMINHO. Um aviso que manda "instale
+     * na tela de inicio" para quem esta no iPhone, onde nao ha botao nenhum, e
+     * meio aviso: a pessoa nao sabe o que tocar. */
+    const bom = storageBom({ persiste: false });
+    const nav = instalarNavegador(bom.api, IPHONE, 5);
+    const st = instalarStore({ ultimoUso: diasAtras(8) },
+      function () { return { escalas: 2, cifras: 5 }; });
+    const Arm = carregar();
+    await Arm.aoAbrir();
+    const r = Arm.risco();
+    ok(/Compartilhar/i.test(r.texto), 'no iPhone o aviso diz o primeiro passo: Compartilhar');
+    ok(/Adicionar/i.test(r.texto), 'e diz o nome exato do item de menu');
+    ok(/tela de in[ií]cio/i.test(r.texto), 'e onde o app vai parar');
+    nav();
+    st.restaurar();
+
+    /* Ja instalado, o aviso nao fica pedindo a mesma coisa. */
+    const nav2 = instalarNavegador(bom.api, IPHONE, 5);
+    global.navigator.standalone = true;
+    const st2 = instalarStore({ ultimoUso: diasAtras(8) },
+      function () { return { escalas: 2, cifras: 5 }; });
+    const Arm2 = carregar();
+    await Arm2.aoAbrir();
+    const r2 = Arm2.risco();
+    ok(!/Compartilhar/i.test(r2.texto),
+      'instalado, o aviso nao repete o caminho que a pessoa ja fez');
+    ok(/Instalado/i.test(r2.texto), 'e diz que o prazo ja nao corre');
+    nav2();
+    st2.restaurar();
   }
 
   console.log('\n=================================================');

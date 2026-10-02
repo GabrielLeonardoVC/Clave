@@ -186,6 +186,64 @@
     return !/Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|OPiOS|Android|Firefox/.test(ua);
   }
 
+  /* ------------------------------------------------------------
+     INSTALAR
+
+     O `beforeinstallprompt` e o navegador oferecendo a instalacao, e o
+     `prompt()` dele e o unico jeito de o app pedir a propria instalacao sem que
+     a pessoa precise saber o caminho.
+
+     E aqui tem uma limitacao importante, que muda o desenho: o SAFARI DO IPHONE NAO
+     DISPARA ESSE EVENTO. Nao ha botao possivel no iPhone. Como o iPhone e
+     justamente onde o relogio de sete dias existe, o botao nao serve para o
+     caso que mais dói — ele serve para o Chrome e o Android, onde instalar
+     tambem protege.
+
+     No iPhone, entao, a unica via e o texto, e ele precisa dizer O CAMINHO
+     (Compartilhar, Adicionar a Tela de Inicio), nao apenas o nome do destino.
+     Um aviso que diz "instale na tela de inicio" para quem nao tem o botao e
+     meio aviso.
+     ------------------------------------------------------------ */
+
+  let propostaDeInstalacao = null;
+
+  if (global.addEventListener) {
+    global.addEventListener('beforeinstallprompt', function (e) {
+      /* `preventDefault` segura o navegador de mostrar o proprio banner, para
+       * que a Installacao aconteca no momento em que a pessoa tocar no botao e
+       * nao sozinha, no meio da tela. */
+      try { if (e && typeof e.preventDefault === 'function') e.preventDefault(); } catch (x) { /* sem defase: deixa o banner */ }
+      propostaDeInstalacao = e;
+    });
+    global.addEventListener('appinstalled', function () { propostaDeInstalacao = null; });
+  }
+
+  /** O navegador esta oferecendo a instalacao agora? */
+  function podeInstalar() {
+    return !!propostaDeInstalacao
+      && typeof propostaDeInstalacao.prompt === 'function';
+  }
+
+  /** Pede a instalacao. Devolve promessa com `true` quando ela aconteceu. */
+  function instalar() {
+    const p = propostaDeInstalacao;
+    if (!p || typeof p.prompt !== 'function') return Promise.resolve(false);
+    // A proposta so serve uma vez. Depois do toque, o navegador e que decide
+    // se concedeu — e um "nao" dele e resposta legitima, nao defeito.
+    propostaDeInstalacao = null;
+    try {
+      return Promise.resolve(p.prompt())
+        .then(function () { return true; })
+        .catch(function () { return false; });
+    } catch (e) {
+      return Promise.resolve(false);
+    }
+  }
+
+  /** O caminho que a pessoa precisa fazer no iPhone, onde nao ha botao. */
+  const CAMINHO_IOS = 'No iPhone: toque em Compartilhar e depois em '
+    + '“Adicionar à Tela de Início”.';
+
   /** O app esta instalado na tela de inicio?
    *
    * E a unica defesa que remove o relogio de sete dias de vez, e ela e de
@@ -380,6 +438,30 @@
      * de um prazo que VENCE, e quando vence nao sobra nem parte do repertorio.
      * Alem disso ele e o unico que a pessoa nao consegue resolver sozinha
      * entendendo: ela nao tem como "dar mais espaco" para um relogio. */
+    /* O caminho manual so entra no texto quando NAO ha botao. Dizer "toque em
+     * Compartilhar" para quem esta vendo o botao e ruido; omitir para quem so tem
+     * o texto e deixar a pessoa sem como fazer. */
+    const installar = function () {
+      if (instalado()) return 'Instalado na tela de início, esse prazo não existe.';
+      if (podeInstalar()) return 'Instalar na tela de início tira esse prazo de cena.';
+      return 'Coloque o Clave na tela de início e esse prazo deixa de existir.';
+    };
+
+    /* O caminho manual so entra no texto quando NAO ha botao. Dizer "toque em
+     * Compartilhar" para quem esta vendo o botao e ruido; omitir para quem so tem
+     * o texto, e deixar a pessoa sem como fazer.
+     *
+     * O nome e o mesmo da funcao de instalar do modulo, e a variavel local vence
+     * porque vive dentro de `risco()`. Sem este `const`, as chamadas abaixo
+     * pegavam a funcao de verdade, e o texto saia com "[object Promise]" no meio
+     * da frase — que e o jeito mais feio de um aviso vazar implementacao. */
+    const instalar = function () {
+      if (instalado()) return 'Instalado na tela de início, esse prazo não existe.';
+      if (podeInstalar()) return 'Instalar na tela de início tira esse prazo de cena.';
+      return 'Coloque o Clave na tela de início e esse prazo deixa de existir. '
+        + CAMINHO_IOS;
+    };
+
     const relogio = relogioPerigoso();
     if (relogio !== null) {
       return {
@@ -388,10 +470,7 @@
         texto: 'Faziam ' + relogio + (relogio === 1 ? ' dia' : ' dias')
           + ' que você não abria o app. O Safari apaga tudo o que o app guardou '
           + 'no sétimo dia sem uso, sem aviso e sem sobrar parte — e foi quase '
-          + 'esse o prazo. ' + (instalado()
-            ? 'Baixe um backup agora: é o que sobrevive a isso.'
-            : 'Coloque o Clave na tela de início: instalado, esse prazo não existe. '
-              + 'E baixe um backup agora — leva um segundo.'),
+          + 'esse o prazo. ' + instalar() + ' E baixe um backup agora: leva um segundo.',
       };
     }
 
@@ -422,9 +501,8 @@
         texto: soSafari()
           ? 'Seu último backup foi há ' + dias + (dias === 1 ? ' dia' : ' dias')
             + '. O Safari apaga tudo o que o app guardou depois de sete dias sem uso, '
-            + 'sem aviso. ' + (instalado()
-              ? 'Como o app está na tela de início, esse prazo não corre; o backup é o resto da segurança.'
-              : 'Coloque o Clave na tela de início e esse prazo deixa de existir. O backup é o resto da segurança.')
+            + 'sem aviso. ' + instalar()
+              + ' O backup é o resto da segurança.'
           : 'Seu último backup foi há ' + dias + (dias === 1 ? ' dia' : ' dias')
             + '. Este navegador pode limpar este espaço sem avisar; o backup é o que sobrevive a isso.',
       };
@@ -515,6 +593,7 @@
     diasSemBackup: diasSemBackup, temTrabalho: temTrabalho,
     soSafari: soSafari, diasDesdeUso: diasDesdeUso, registrarUso: registrarUso,
     relogioPerigoso: relogioPerigoso, instalado: instalado,
+    podeInstalar: podeInstalar, instalar: instalar,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = global.Armazenamento;

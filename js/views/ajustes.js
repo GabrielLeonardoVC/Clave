@@ -358,20 +358,43 @@ const TAMANHOS = [
 
       /* Se o espaco puder ser apagado, o botao de pedir deixa de ser interno.
        * E o que a pessoa pode fazer que o app nao pode. */
+      const acoes = [];
+
       if (!Arm.persistente() && Arm.suporta()) {
-        cartaoRisco.appendChild(el('div', { class: 'stack gap-2 mt-3' }, [
-          el('button', {
-            class: 'btn btn-soft btn-block', type: 'button',
-            onclick: function () {
-              Arm.pedir().then(function (concedido) {
-                if (concedido) UI.toast('Este espaço agora é seu. O navegador não apaga.', { tipo: 'ok' });
-                else UI.toast('O navegador ainda não Liberou. Baixar um backup é o que resolve.', { tipo: 'warn' });
-                recarregar();
-              });
-            },
-          }, [el('i', { 'data-lucide': 'lock' }), 'Pedir para o navegador não apagar isto']),
-        ]));
+        acoes.push(el('button', {
+          class: 'btn btn-soft btn-block', type: 'button',
+          onclick: function () {
+            Arm.pedir().then(function (concedido) {
+              if (concedido) UI.toast('Este espaço agora é seu. O navegador não apaga.', { tipo: 'ok' });
+              else UI.toast('O navegador ainda não liberou. Baixar um backup é o que resolve.', { tipo: 'warn' });
+              recarregar();
+            });
+          },
+        }, [el('i', { 'data-lucide': 'lock' }), 'Pedir para o navegador não apagar isto']));
       }
+
+      /* Instalar e a acao que DEMAIS tira o prazo de sete dias, e nao e so uma
+       * boa ideia: e o que o proprio texto do aviso manda fazer.
+       *
+       * O botao so aparece quando o navegador oferece a instalacao. No iPhone
+       * ele nunca oferece — o `beforeinstallprompt` nao existe no Safari de
+       * iOS — e la o caminho e manual, feito no menu Compartilhar. Sem este
+       * botao, o aviso estaria mandando a pessoa fazer uma coisa que o app nem
+       * oferece o caminho. */
+      if (Arm.podeInstalar() && !Arm.instalado()) {
+        acoes.push(el('button', {
+          class: 'btn btn-soft btn-block', type: 'button',
+          onclick: function () {
+            Arm.instalar().then(function (aceitou) {
+              if (aceitou) UI.toast('Instalado. Agora o prazo de sete dias não corre.', { tipo: 'ok' });
+              else UI.toast('O navegador não instalou agora. Dá para tentar de novo depois.', { tipo: 'warn' });
+              recarregar();
+            });
+          },
+        }, [el('i', { 'data-lucide': 'smartphone' }), 'Instalar na tela de início']));
+      }
+
+      if (acoes.length) cartaoRisco.appendChild(el('div', { class: 'stack gap-2 mt-3' }, acoes));
       root.appendChild(cartaoRisco);
     }
 
