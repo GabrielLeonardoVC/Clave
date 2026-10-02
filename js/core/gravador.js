@@ -33,9 +33,39 @@
      existe em navegador moderno; onde falta, cai para WebM puro, e depois
      para qualquer coisa que o navegador aceitar.
      ------------------------------------------------------------ */
+  /* A ordem desta lista e o que decide o que a pessoa leva para dentro do
+   * aparelho. Nao e "do melhor para o mais fraco": e a ordem que faz o iPhone
+   * funcionar sem piorar o que o Chrome ja fazia.
+   *
+   * O iPhone e a razao do MP4 estar aqui. O Safari nao sabe gravar WebM, nem
+   * Opus, nem Ogg — so `audio/mp4` com AAC. Antes do MP4 entrar na lista, os
+   * tres primeiros formatos falhavam todos no `isTypeSupported` e o gravador
+   * caia no ultimo item, o de mime VAZIO. E ai a coisa ficava silenciosamente
+   * errada:
+   *
+   *   - `MediaRecorder` sem `mimeType` escolhe MP4 por conta propria, e grava.
+   *   - mas `gravador.mimeType` volta vazio, e o `|| 'audio/webm'` do `parar()`
+   *     declarava WebM sobre bytes que eram MP4.
+   *
+   * O `data:audio/webm;base64,...` chegava ao `<audio src>`, o Safari recebia
+   * MP4 declarado como WebM, e a gravacao nao tocava. Sem erro, sem aviso, sem
+   * caso: a pessoa gravava a faixa, ela nao reproduzia, e a unica pista era o
+   * bloco dizer que havia audio.
+   *
+   * MP4 fica NO MEIO, e nao na frente, por um motivo que a primeira versao
+   * deste conserto errou: colocando o MP4 primeiro, o Chrome passou a gravar
+   * AAC em vez de Opus, e o arquivo cresceu. O Opus cabe em cerca de 1 KB por
+   * segundo de fala; o AAC nao chega perto. Consertei o iPhone e piora o Chrome
+   * sem nenhum dos dois avisar.
+   *
+   * A ordem que serve: primeiro o que e MENOR onde existe (Opus, WebM — o
+   * Chrome, o Firefox e o Edge param no primeiro), depois o MP4 para o Safari,
+   * que pula os tres primeiros e para no quarto. */
   const FORMATOS = [
     { mime: 'audio/webm;codecs=opus', nome: 'opus' },
     { mime: 'audio/webm', nome: 'webm' },
+    { mime: 'audio/mp4;codecs=mp4a.40.2', nome: 'mp4-aac' },
+    { mime: 'audio/mp4', nome: 'mp4' },
     { mime: 'audio/ogg;codecs=opus', nome: 'ogg' },
     { mime: '', nome: 'padrão' },
   ];
@@ -49,6 +79,23 @@
           MediaRecorder.isTypeSupported(f.mime)) return f;
     }
     return null;
+  }
+
+  /** O tipo que o gravador esta gravando DE VERDADE.
+   *
+   * Nunca adivinhar aqui. O gravador sabe, e `mimeType` responde: quando ele
+   * devolve vazio, o aparelho escolheu por conta propria e o honesto e dizer que
+   * nao sabemos — nao declarar um formato que pode ser outro.
+   *
+   * A versao anterior devolvia `'audio/webm'` nesse caso, e era um palpite
+   * assassino: em qualquer aparelho que escolhesse por conta propria, o blob
+   * saia rotulado errado. */
+  function tipoDoGravador(g) {
+    try {
+      return (g && g.mimeType) || '';
+    } catch (e) {
+      return '';
+    }
   }
 
   /** O app pode gravar? E o que a pessoa ve antes de mexer em botao. */
@@ -124,7 +171,7 @@
       /** Quanto tempo ja fala. */
       segundos: () => (Date.now() - inicio) / 1000,
       /** As faixas de audio ja gravadas, enquanto ainda grava. */
-      parcial: () => new Blob(partes, { type: gravador.mimeType || 'audio/webm' }),
+      parcial: () => new Blob(partes, { type: tipoDoGravador(gravador) }),
       /** Encerra e entrega o audio como data-URL. */
       async parar() {
         if (gravador.state !== 'inactive') gravador.stop();
@@ -134,7 +181,7 @@
         // parar — e em alguns aparelhos o microfone fica travado para outro
         // uso ate a aba fechar.
         fluxo.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(partes, { type: gravador.mimeType || 'audio/webm' });
+        const blob = new Blob(partes, { type: tipoDoGravador(gravador) });
         if (!blob.size) throw new Error('Nada foi gravado.');
         return { dataUrl: await blobParaDataUrl(blob), bytes: blob.size, segundos: (Date.now() - inicio) / 1000 };
       },
@@ -185,6 +232,7 @@
     relogio: relogio,
     tamanhoDe: tamanhoDe,
     FORMATOS: FORMATOS,
+    tipoDoGravador: tipoDoGravador,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = global.Gravador;
