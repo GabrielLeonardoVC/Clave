@@ -693,15 +693,88 @@ function normAnotacao(a) {
       escalas: db.escalas, cifras: db.cifras, ajustes: db.ajustes,
     }, null, 2);
   }
+  /** Garante que nenhum `id` apareca duas vezes numa lista.
+   *
+   * O `id` e a chave com que o registro e encontrado. `cifraPorId` devolve a
+   * PRIMEIRA ocorrencia, entao a segunda fica sem porta: ela aparece na lista,
+   * pode ser editada, e a edicao e gravada por cima da primeira. Isso e perda de
+   * dado silenciosa — o sintoma e "minha cifra sumiu" sem nenhum aviso.
+   *
+   * A CORRECAO MANTEM O ID DA PRIMEIRA E SO RENUMERA AS SEGUINTES
+   *
+   * Nao e uma escolha estetica: e a unica que nao quebra referencia. A ficha de
+   * ensaio aponta para a cifra por `musica.cifraId`, e essa referencia ja
+   * resolvia para a primeira ocorrencia. Se a primeira perdesse o id, toda
+   * ficha passaria a apontar para o nada — e trocar a segunda seria trocar a
+   * ficha de outra musica.
+   *
+   * Os ids unicos nao sao tocados. So muda o registro que ja estava
+   * inacessivel, e o que muda e ele GANHAR uma chave, o que nunca quebra nada.
+   *
+   * POR QUE SO NO CAMINHO "SUBSTITUIR"
+   *
+   * O modo mesclar ja faz isso, e faz certo: ele semeia um `Set` com os ids que
+   * ja existem e vai acrescentando conforme aceita, entao duas linhas com o
+   * mesmo id na entrada caem fora. O `substituir` recebia a lista como veio —
+   * e e por ai que um backup com id repetido chegava ao app inteiro.
+   *
+   * `normCifra` e `normEscala` ja geram um id quando o de entrada vem vazio, e
+   * por isso o `!r.id` aqui e apenas uma rede: sem ele, um registro sem id
+   * entraria como `undefined` e a checagem seguinte o trataria como duplicado
+   * de todos os outros sem id.
+   */
+  function unicosPorId(lista, prefixo) {
+    const vistos = new Set();
+    return lista.map(function (r) {
+      if (r.id && !vistos.has(r.id)) {
+        vistos.add(r.id);
+        return r;
+      }
+      const copia = Object.assign({}, r);
+      copia.id = U.uid(prefixo);
+      return copia;
+    });
+  }
+
   function importar(json, modo) {
     let d;
     try { d = typeof json === 'string' ? JSON.parse(json) : json; }
     catch (e) { throw new Error('Arquivo inválido: não e um backup JSON válido.'); }
     if (!d || typeof d !== 'object') throw new Error('Arquivo inválido.');
+
+    /* O arquivo tem de CONTER dados antes de qualquer substituicao.
+     *
+     * A guarda de cima aceitava `[]`, `{}` e `{"cifras": {}}`: sao objetos, e
+     * `migrar` devolvia uma base vazia — porque ela le `Array.isArray(...) ? ...
+     * : []`. No modo mesclar isso e inofensivo: nada entra, nada sai. No modo
+     * `substituir` e o oposto: `db.cifras` virava lista vazia, e o repertorio
+     * inteiro da pessoa sumia ao restaurar um arquivo estragado — sem erro, sem
+     * aviso, e com um "Restaurado: 0 eventos e 0 cifras" na tela.
+     *
+     * Sao recusados aqui: array vazio, objeto vazio, e qualquer coisa em que
+     * `escalas` e `cifras` nao sejam listas.
+     *
+     * Continuam aceitos, porque sao backups de verdade:
+     *
+     *   - `{"escalas": [], "cifras": []}` — quem apagou tudo e exportou. E uma
+     *     intencao legitima, e substituir por ela e o que a pessoa pediu;
+     *   - `{"cifras": [...]}`  — so um dos dois;
+     *   - `{"2026-03-08": [ ... ]}` — o backup v1, que nao tem nenhuma das duas
+     *     chaves e tem data como chave. Por isso a segunda condicao: um objeto
+     *     cujas TODAS as chaves apontam para listas e um backup antigo.
+     */
+    const temLista = Array.isArray(d.escalas) || Array.isArray(d.cifras);
+    const chavesLegadas = temLista ? [] : Object.keys(d);
+    const temLegado = chavesLegadas.length > 0
+      && chavesLegadas.every(function (k) { return Array.isArray(d[k]); });
+    if (!temLista && !temLegado) {
+      throw new Error('Arquivo inválido: não tem nem escalas nem cifras para restaurar.');
+    }
+
     const inc = migrar(d);
     if (modo === 'substituir') {
       db = vazio();
-      db.escalas = inc.escalas; db.cifras = inc.cifras;
+      db.escalas = unicosPorId(inc.escalas, 'esc'); db.cifras = unicosPorId(inc.cifras, 'cif');
       db.ajustes = copiarCampos(db.ajustes, inc.ajustes, CAMPOS_AJUSTES);
     } else {
       const eids = new Set(db.escalas.map(function (e) { return e.id; }));

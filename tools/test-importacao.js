@@ -155,10 +155,37 @@ erro = null;
 try { S.importar('123', 'substituir'); } catch (ex) { erro = ex; }
 ok(erro !== null, 'numero solto e recusado');
 
+/* Array e objeto vazios sao RECUSADOS, e o motivo nao e cosmético: no modo
+ * `substituir` eles limpavam o repertorio inteiro sem dar erro. A recusa e o que
+ * segura isso.
+ *
+ * A primeira versao desta verificacao era `ok(erro === null || erro !== null)` —
+ * que e verdade para qualquer valor do mundo, e portanto nunca falha. Um
+ * verificador que nao pode falhar nao verifica nada: ele so ocupa linha. */
 erro = null;
 try { S.importar('[]', 'substituir'); } catch (ex) { erro = ex; }
-// Array e objeto: entra e resulta vazio, sem derrubar nada.
-ok(erro === null || erro !== null, 'array nao quebra a leitura');
+ok(erro !== null, 'array vazio e recusado em vez de limpar o repertorio');
+
+erro = null;
+try { S.importar('{}', 'substituir'); } catch (ex) { erro = ex; }
+ok(erro !== null, 'objeto vazio e recusado');
+
+erro = null;
+try { S.importar('{"cifras":{}}', 'substituir'); } catch (ex) { erro = ex; }
+ok(erro !== null, 'cifras que nao e lista e recusado');
+
+erro = null;
+try { S.importar('{"cifras":"texto"}', 'substituir'); } catch (ex) { erro = ex; }
+ok(erro !== null, 'cifras como texto e recusado');
+
+/* E o backup de verdade que nao tem nada dentro continua entrando: quem apagou
+ * tudo e exportou quis justamente trocar o app por uma lista vazia.
+ *
+ * Sem `S.apagar()` aqui de proposito: o que importa e o `importar` aceitar, e a
+ * secao seguinte ja comeca do zero do jeito dela. */
+erro = null;
+try { S.importar('{"escalas":[],"cifras":[]}', 'substituir'); } catch (ex) { erro = ex; }
+ok(erro === null, 'backup legitimamente vazio ainda e aceito');
 
 console.log('\n=== mesclar nao duplica ===');
 
