@@ -1,4 +1,4 @@
-﻿/* =========================================================
+/* =========================================================
    ACORDE - views/emergencia.js
    O botao de emergencia: o que se precisa na hora, num toque.
 

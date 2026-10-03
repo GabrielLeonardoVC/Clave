@@ -65,7 +65,7 @@
 
           Este `meta-data` aponta para o arquivo que declara o dominio. O
           Android so abre a janela se o endereco estiver na lista — e, para
-         ，alem de abrir, ainda exige que o proprio endereco prove, por
+          alem de abrir, ainda exige que o proprio endereco prove, por
           `assetlinks.json`, que este aplicativo android e dono dele.
 
           A ordem importa e a intuição errada: primeiro o android confere a lista

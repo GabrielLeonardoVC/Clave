@@ -1,4 +1,4 @@
-﻿// Scan all Acorde files for non-Latin / suspicious characters
+// Scan all Acorde files for non-Latin / suspicious characters
 const fs = require('fs');
 const { arquivosDe } = require('./arquivos');
 const bad = [];

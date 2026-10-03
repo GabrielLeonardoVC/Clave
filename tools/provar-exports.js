@@ -8,7 +8,7 @@
    do projeto reclamou: sintaxe correta, grafia correta, ASCII correto.
 
    Um verificador que nunca falha e um verificador que e ignorado. Por isso cada
-   regra aqui e testada nos dois sentidos: os defeitos tem de ser]。acusados, e
+   regra aqui e testada nos dois sentidos: os defeitos tem de ser acusados, e
    os aliases legítimos nao podem ser.
 
    UMA ARMADILHA QUE JA CUSTOU TEMPO NESTE ARQUIVO

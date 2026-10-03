@@ -148,7 +148,7 @@ secao('2. Nenhum texto solto entra num atributo com aspas');
    * A excecao esta DECLARADA aqui, com nome e motivo, em vez de estar escondida
    * dentro de um padrao que ninguem vai ler. Quem acrescentar uma variavel
    * nova nesse lugar tem de vir ate aqui, e a lista mostra o que foi
-   *放手 sem esc(). Uma lista que cresce sozinha e uma lista que ninguem
+   * sem esc(). Uma lista que cresce sozinha e uma lista que ninguem
    * atualizou. */
   const ESCAPADOS = {
     corpoHtml: 'share.js monta a lista de musicas com U.esc em cada campo antes',

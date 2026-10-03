@@ -1,4 +1,4 @@
-﻿/* =========================================================
+/* =========================================================
    Cifras e Escalas Pro — core/render.js
    Blocos de visualização reutilizáveis: acordes, tablatura,
    círculo das quintas, escalas e cifras formatadas.

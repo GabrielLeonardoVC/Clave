@@ -187,7 +187,7 @@ nossos.forEach((p) => {
 /* Isso e uma resposta boa, e nao um defeito: um app que nao depende de fonte */
 /* nem de imagem externa nao quebra quando a CDN cai. Mas a affirmacao estava */
 /* errada, e uma affirmacao errada num verificador e pior que nenhuma: ela */
-/* obriga a、K原[o codigo a inventar um arquivo para satisfazer o teste. */
+/* obriga aK[o codigo a inventar um arquivo para satisfazer o teste. */
 /* ------------------------------------------------------------------ */
 
 secao('3. Os arquivos que o CSS pede');

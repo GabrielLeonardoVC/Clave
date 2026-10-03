@@ -1,4 +1,4 @@
-﻿/* =========================================================
+/* =========================================================
    Cifras e Escalas Pro — core/music.js
    Motor de teoria musical: notas, acordes, transposição,
    escalas, graus, círculo das quintas, voicer de guitarra.

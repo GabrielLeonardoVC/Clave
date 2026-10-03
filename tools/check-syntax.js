@@ -1,4 +1,4 @@
-﻿// Verifica sintaxe de todos os .js do Acorde.
+// Verifica sintaxe de todos os .js do Acorde.
 //
 // O Acorde e JS classico, entao compilar com vm.Script e o teste certo. A
 // varredura e fechada pelo modulo arquivos.js, para nao passar por cima de

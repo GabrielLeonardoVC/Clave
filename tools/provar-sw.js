@@ -39,7 +39,7 @@ const swOriginal = fs.readFileSync(SW, 'utf8');
 const appOriginal = fs.readFileSync(APP, 'utf8');
 
 /* Cada mutacao diz qual arquivo mexe, o que troca por o que, e o que a troca
- * QUEBRA — porque uma mutacao sem defeito穿 nao é uma mutacao. */
+ * QUEBRA — porque uma mutacao sem defeito nao é uma mutacao. */
 const MUTACOES = [
   {
     nome: 'o worker voltou a responder pelo cache primeiro',

@@ -1,4 +1,4 @@
-﻿// Confere quais icones do Lucide o Acorde usa.
+// Confere quais icones do Lucide o Acorde usa.
 //
 // A varredura e fechada pelo modulo arquivos.js. Antes ela percorria
 // node_modules e o outro projeto que morava no repositorio, e a lista saia com

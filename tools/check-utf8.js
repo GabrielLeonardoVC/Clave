@@ -1,4 +1,4 @@
-﻿// Valida UTF-8 estrito em todos os arquivos de texto do Acorde
+// Valida UTF-8 estrito em todos os arquivos de texto do Acorde
 const fs = require('fs');
 const { arquivosDe } = require('./arquivos');
 const decoder = new TextDecoder('utf-8', { fatal: true });
