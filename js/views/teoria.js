@@ -319,6 +319,11 @@
     const flat = M.useFlatsFor(estEscala.root);
     const notas = M.scaleNotes(estEscala.root, estEscala.scale, flat);
     const sc = M.SCALES[estEscala.scale];
+    /* A grafia de cada grau vem do motor musical, e nao de um interruptor de
+     * bemol ou sustenido. A diferenca aparece em quase toda menor: com o
+     * interruptor, a menor de Do saia "C D D# F G G# A#" — duas letras
+     * repetidas e nenhum acorde da menor natural. */
+    const nomes = M.nomesDaEscala(estEscala.root, estEscala.scale);
 
     wrap.appendChild(el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'key-round' }), 'Tônica']));
     wrap.appendChild(R.seletorDeTons({
@@ -334,7 +339,7 @@
       R.botaoTom(estEscala.root, 'major',
         'tônica: ' + M.noteName(estEscala.root, flat), { oitava: 3 }),
       R.botaoTom(M.mod12(estEscala.root + 7), 'major',
-        'dominante: ' + M.noteName(M.mod12(estEscala.root + 7), flat), { oitava: 3 }),
+        'dominante: ' + (nomes[4] || M.noteName(M.mod12(estEscala.root + 7), flat)), { oitava: 3 }),
     ]));
 
     // Ouvir a escala inteira. O botao de tom responde "qual e a tonica";
@@ -376,13 +381,13 @@
       el('div', { class: 'big-key' }, nome),
       el('div', { class: 'big-scale' }, sc.name),
       el('div', { class: 'note-ring' }, notas.map(function (pc, i) {
-        return el('span', { class: 'note-pill' + (i === 0 ? ' root' : ''), title: sc.degrees[i] || '' }, M.noteName(pc, flat));
+        return el('span', { class: 'note-pill' + (i === 0 ? ' root' : ''), title: sc.degrees[i] || '' }, nomes[i] || M.noteName(pc, flat));
       })),
     ]));
 
     wrap.appendChild(el('div', { class: 'section-title mt-5' }, [el('i', { 'data-lucide': 'music-2' }), 'Acordes de cada grau']));
     const grade = el('div', { class: 'grid-auto' });
-    M.scaleChords(estEscala.root, estEscala.scale, flat).forEach(function (c) {
+    M.scaleChords(estEscala.root, estEscala.scale).forEach(function (c) {
       grade.appendChild(el('button', {
         class: 'card card-tap', style: { textAlign: 'center', padding: '12px' },
         onclick: function () {
@@ -587,9 +592,9 @@ function painelInstrumento() {
         ]),
         el('div', { style: { flex: '1 1 200px' } }, [
           el('div', { class: 'fs-xs muted mb-1' }, 'Escala maior'),
-          el('div', { class: 'fs-sm mono' }, M.scaleNames(selPc, 'major', flat).join(' ')),
+          el('div', { class: 'fs-sm mono' }, M.scaleNames(selPc, 'major').join(' ')),
           el('div', { class: 'fs-xs muted mt-2 mb-1' }, 'Escala menor relativa'),
-          el('div', { class: 'fs-sm mono' }, M.scaleNames(relM, 'minor', M.useFlatsFor(relM)).join(' ')),
+          el('div', { class: 'fs-sm mono' }, M.scaleNames(relM, 'minor').join(' ')),
         ]),
       ])));
       // Ouvir o par escolhido. A roda e um mapa; o som e a confirmacao.
@@ -599,7 +604,7 @@ function painelInstrumento() {
       ]));
       wrap.appendChild(el('div', { class: 'card mt-3' }, [
         el('div', { class: 'section-title' }, [el('i', { 'data-lucide': 'music-2' }), 'Acordes de ' + M.noteName(relM, M.useFlatsFor(relM)) + 'm']),
-        el('div', { class: 'row gap-2 wrap' }, M.scaleChords(relM, 'minor', M.useFlatsFor(relM)).map(function (c) {
+        el('div', { class: 'row gap-2 wrap' }, M.scaleChords(relM, 'minor').map(function (c) {
           return el('span', { class: 'chip-acorde', title: c.degree }, c.name);
         })),
       ]));

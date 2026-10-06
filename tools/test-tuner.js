@@ -290,9 +290,35 @@ console.log('\n-- o custo, porque isto roda a cada quadro --');
   const buf = sujar(corda(JANELA, 48000, 110), 999, 0.05);
   T.detectar(buf, 48000);   // aquece
   const REPS = 20;
-  const t0 = Date.now();
-  for (let i = 0; i < REPS; i++) T.detectar(buf, 48000);
-  const ms = (Date.now() - t0) / REPS;
+  /* POR QUE ISSO ERA INSTAVEL, MEDIDO E NAO ADIVINHADO
+   *
+   * A versao anterior media uma unica rodada de 20 repeticoes, no fim de um
+   * arquivo que ja rodou 124 assercoes. Em processo isolado o algoritmo leva
+   * 1,6 ms de forma consistente; dentro da suite inteira ele subia para 5-6 ms
+   * — nao porque o codigo ficou lento, mas porque o processo carrega lixo das
+   * outras 124 e o coletor pode entrar no meio da janela medida.
+   *
+   * Medido em 12 rodadas de cada jeito (ver `mede-tuner`): cru, min=1,60 e
+   * max=2,15; com aquecimento, min=1,60 e max=1,70. O limite de 2,5 ms estava
+   * CORRETO — o que media era o barulho da casa.
+   *
+   * A correcao e' a do benchmark, e nao a do limite:
+   *
+   *   1. AQUECER antes: o JIT precisa compilar `detectar` antes de contar.
+   *   2. MEDIR VARIAS VEZES e guardar o MINIMO. Ruido so ADICIONA tempo, entao
+   *      o minimo de N rodadas e o estimador que sobra da interferencia — e ele
+   *      continua sendo uma medida real do custo.
+   *   3. O LIMITE CONTINUA 2,5 ms. Se o algoritmo regredir para 3 ms, o
+   *      minimo tambem sera 3 ms e o teste reprova. Nenhum verde comprado.
+   */
+  for (let w = 0; w < 5; w++) T.detectar(buf, 48000);
+  let ms = Infinity;
+  for (let r = 0; r < 5; r++) {
+    const t0 = Date.now();
+    for (let i = 0; i < REPS; i++) T.detectar(buf, 48000);
+    const rodada = (Date.now() - t0) / REPS;
+    if (rodada < ms) ms = rodada;
+  }
   ok(ms < 2.5, 'uma leitura leva ' + ms.toFixed(2) + ' ms (limite 2,5 ms)');
 }
 

@@ -153,6 +153,65 @@ if (fs.existsSync(icone)) {
     r ? r[1] : '(sem)', I.NOME);
 }
 
+/* 8. OS PONTOS DE MARCA DA TELA — o furo que sobrou.
+ *
+ * A regra 6 confere que certos ARQUIVOS carregam o nome. A regra 7, um icone.
+ * Nenhuma das duas olha as FRASES que escrevem o nome na tela, e aí é onde o
+ * nome antigo sobreviveu: a tela de boas-vindas dizia "BEM-VINDO AO ACORDE",
+ * o texto de compartilhamento assinava "Feito no Acorde", e os dois cartões de
+ * "sobre" se chamavam "acorde" — enquanto o verificador passava dizendo que o
+ * nome batia em todos os lugares.
+ *
+ * A causa é a que o próprio arquivo descreve na regra 6: procurar o nome
+ * antigo só funciona na primeira troca. Depois não existe mais "nome antigo"
+ * para procurar, e o verificador deixa de olhar.
+ *
+ * A SAÍDA É OUTRA: em vez de caçar o nome velho, declara-se ONDE o nome é
+ * escrito e exige-se que o nome declarado apareça lá. É teste de presença, como
+ * as regras 6 e 7, e por isso não depende de saber o que o nome usava antes.
+ *
+ * A lista é curta e nomeada de propósito. Um verificador que varre o arquivo
+ * inteiro procurando "acorde" acusaria a palavra musical em hundreds de
+ * lugares — "acorde", "acordes", "sustenido do acorde" — e ninguém ia querer
+ * mantê-lo ligado. Cada entrada aqui é uma posição de marca, e são todas.
+ */
+const MARCAS = [
+  {
+    arq: 'js/views/hoje.js',
+    contem: "'BEM-VINDO AO ' + global.Identidade.NOME.toUpperCase()",
+    rotulo: 'a faixa de boas-vindas',
+  },
+  {
+    arq: 'js/core/share.js',
+    contem: "'_Feito no ' + (global.Identidade ? global.Identidade.NOME",
+    rotulo: 'a assinatura do compartilhamento',
+  },
+  {
+    arq: 'js/views/ajustes.js',
+    contem: "class: 'fs-md fw-8' }, global.Identidade.NOME)",
+    rotulo: 'o titulo do cartao "Sobre"',
+  },
+  {
+    arq: 'js/app.js',
+    contem: 'title: global.Identidade.NOME, sub:',
+    rotulo: 'o titulo da folha "Sobre"',
+  },
+];
+const marcasErradas = [];
+for (const marca of MARCAS) {
+  const caminho = path.join(RAIZ, marca.arq);
+  if (!fs.existsSync(caminho)) { marcasErradas.push(marca.arq + ' (nao existe)'); continue; }
+  const texto = fs.readFileSync(caminho, 'utf8');
+  if (texto.indexOf(marca.contem) < 0) {
+    marcasErradas.push(marca.rotulo + ' nao le o nome de ' + I.NOME
+      + ' — ou escreve um literal, ou a frase mudou');
+  }
+}
+conferir(!marcasErradas.length,
+  'nenhum texto de tela escreve o nome no lugar do nome declarado',
+  marcasErradas.join(' | ') || 'os 4 pontos leem Identidade.NOME',
+  'os 4 pontos');
+
 console.log('');
 console.log('=================================================');
 console.log(problemas

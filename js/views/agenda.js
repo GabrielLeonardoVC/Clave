@@ -421,6 +421,42 @@
         el('button', { class: 'btn btn-soft btn-sm', onclick: function () { addMusica(base, renderLista); } },
           [el('i', { 'data-lucide': 'plus' }), 'Nova música']),
       ]));
+      /* COMECAR O REPERTORIO
+       *
+       * Ate aqui o evento so se editava. Para tocar as musicas em ordem era
+       * preciso voltar a esta folha, rolar ate a proxima e abrir a mesa — quatro
+       * passos por musica, no meio de uma missa.
+       *
+       * O botao so aparece quando ha musica: um repertorio vazio nao tem o que
+       * comecar, e um botao que abre um aviso de erro ensina a pessoa a ignorar
+       * o botao. E o rotulo diz COMECAR, nao TOCAR — porque quem abre isto ainda
+       * esta arrumando, e a execucao e' a outra coisa.
+       *
+       * Ele chama `ExecucaoView.iniciar`, que abre o palco da primeira musica.
+       * O `editor` fecha antes: as duas folhas nao podem ficar empilhadas, e a
+       * de execucao precisa ser a unica coisa na tela enquanto a musica toca. */
+      if (base.musicas && base.musicas.length) {
+        listaBox.appendChild(el('div', { class: 'mt-2' }, [
+          el('button', {
+            class: 'btn btn-primary btn-block',
+            type: 'button',
+            onclick: function () {
+              /* `coletar` primeiro: quem tipou o titulo e o local e clicou
+               * COMECAR quer tocar AGORA, com o que acabou de escrever. Sem
+               * isto, a execucao mostraria o titulo velho — e a pessoa so
+               * descobriria quando voltasse ao editor. */
+              coletar();
+              const Exec = global.Views && global.Views.execucao;
+              if (!Exec || typeof Exec.iniciar !== 'function') {
+                UI.toast('Execução indisponível', { tipo: 'err' });
+                return;
+              }
+              h.close();
+              Exec.iniciar(base);
+            },
+          }, [el('i', { 'data-lucide': 'play' }), 'Começar o repertório']),
+        ]));
+      }
       UI.icons(listaBox);
     }
     renderLista();

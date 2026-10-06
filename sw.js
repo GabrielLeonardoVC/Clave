@@ -71,6 +71,7 @@ const RECURSOS = [
   './js/views/violao3d.js',
   './js/views/traste3d.js',
   './js/views/palco.js',
+  './js/views/execucao.js',
   './js/views/cancao.js',
   './js/app.js',
 ];

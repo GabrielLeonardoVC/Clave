@@ -112,11 +112,27 @@
       ]));
     } else {
       root.appendChild(el('div', { class: 'capa plain' }, [
-        el('div', { class: 'k' }, 'BEM-VINDO AO ACORDE'),
-        el('div', { class: 't' }, 'Monte seu primeiro evento'),
-        el('div', { class: 'm' }, 'Escolha a data, arraste as músicas e mande pro time.'),
-        el('div', { class: 'cta' }, el('button', { class: 'btn', onclick: function () { global.App.ir('agenda', { nova: true }); } },
-          [el('i', { 'data-lucide': 'plus' }), 'Criar escala'])),
+        el('div', { class: 'k' }, 'BEM-VINDO AO ' + global.Identidade.NOME.toUpperCase()),
+        /* O primeiro gesto estava errado, e nao por omissao: a tela dizia
+         * "monte seu primeiro evento" e oferecia only one button to create a
+         * date. Quem abre o app no ensaio nao tem evento nenhum — tem uma
+         * musica na cabeça e quer ela aberta. evento e a segunda coisa que a
+         * pessoa monta, nao a primeira.
+         *
+         * Aqui a ordem e a do uso: guardar a cifra, achar a que ja tem, e so
+         * entao organizar o evento. Os tres botoes cabem; o de evento continua
+         * la, porque o conceito nao foi apagado — so deixou de ser a porta de
+         * entrada. */
+        el('div', { class: 't' }, 'Comece pela música'),
+        el('div', { class: 'm' }, 'Cole a cifra, ache a que você já tem, e monte o repertório quando precisar.'),
+        el('div', { class: 'cta' }, el('div', { class: 'row gap-2 wrap' }, [
+          el('button', { class: 'btn btn-primary', onclick: function () { V.repertorio && V.repertorio.novo(); } },
+            [el('i', { 'data-lucide': 'music-4' }), 'Nova música']),
+          el('button', { class: 'btn', onclick: function () { global.App.ir('repertorio'); } },
+            [el('i', { 'data-lucide': 'library' }), 'Minhas músicas']),
+          el('button', { class: 'btn', onclick: function () { global.App.ir('agenda', { nova: true }); } },
+            [el('i', { 'data-lucide': 'calendar-plus' }), 'Criar evento']),
+        ])),
       ]));
     }
 

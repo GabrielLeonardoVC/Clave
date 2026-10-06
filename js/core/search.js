@@ -271,7 +271,48 @@
     { chave: 'categoria', peso: PESO_CATEGORIA, nome: 'categoria' },
     { chave: 'tom', peso: PESO_TOM, nome: 'tom' },
     { chave: 'obs', peso: 1.0, nome: 'obs' },
+    /* Onde e o que. Quem procura o repertório da missa costuma lembrar do
+     * lugar antes do nome: "aquela da paróquia", "o show do Crist[o] Redentor".
+     * Sem estes dois campos no índice, a busca respondia que o evento não
+     * existia — e ele estava ali, com o nome inteiro na tela. */
+    { chave: 'local', peso: 1.4, nome: 'local' },
+    { chave: 'tipo', peso: 1.2, nome: 'tipo' },
   ];
+
+  var MESES = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+  /**
+   * As formas de escrever a mesma data que a pessoa realmente digita.
+   *
+   * A data guardada e "AAAA-MM-DD" — a unica ordem que ordena sem ambiguidade.
+   * Quem digita escreve de outro jeito. Estas sao as formas que a busca aceita
+   * como equivalencia, todas normalizadas em minuscula:
+   *
+   *   2026-10-25   o que esta guardado
+   *   25-10        dia e mes, com traco
+   *   25/10        dia e mes, com barra  (e o mesmo, normalizado)
+   *   25-10-2026   dia, mes e ano
+   *   25102026     so numeros
+   *   outubro      o nome do mes
+   *   10-2026      mes e ano, para quem procura o mes inteiro
+   *
+   * O dia sem o mes NAO entra: "25" sozinho aparece em todo evento do mes e
+   * devolveria tudo, que e o mesmo de nao devolver nada.
+   */
+  function variantesDeData(data) {
+    var iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(data || ''));
+    if (!iso) return [];
+    var ano = iso[1], mes = iso[2], dia = iso[3];
+    var nomeMes = MESES[parseInt(mes, 10) - 1] || '';
+    var saida = [ano + '-' + mes + '-' + dia, dia + '-' + mes, dia + '-' + mes + '-' + ano];
+    saida.push(dia + mes + ano, mes + '-' + ano);
+    if (nomeMes) saida.push(nomeMes);
+    /* O mesmo dia escrito com barra vira "dia-mes" depois de normalizado; a
+     * variante com barra entra tambem, porque a busca normaliza o termo com a
+     * mesma regra e as duas precisam coincidir. */
+    return saida;
+  }
 
   function buildIndex(item) {
     var entradas = [];
@@ -300,6 +341,22 @@
           if (partes[j]) entradas.push({ palavra: partes[j], peso: PESO_TAGS, nome: 'tag' });
         }
       }
+    }
+
+    /* A data de um evento e o que a pessoa mais digita para achar o repertório
+     * que ela vai tocar. Ela nunca digita "2026-10-25": digita "25/10", ou
+     * "25 de outubro", ou o nome do mês. Guardada como texto, nenhuma dessas
+     * formas casa — e a busca respondia que não existia repertório nenhum.
+     *
+     * As variantes entram como entradas de indice comuns, com o mesmo peso da
+     * observação. Não é lógica nova de busca: é o mesmo índice, com o mesmo
+     * mecanismo, sabendo que "25/10" e "2026-10-25" são a mesma data.
+     *
+     * Só entra o que dá para desambiguar. "25" sozinho entraria em quase todo
+     * evento do mês e não distinguiria nada; o dia com o ano, sim. */
+    var variantes = variantesDeData(item && item.data);
+    for (i = 0; i < variantes.length; i++) {
+      entradas.push({ palavra: variantes[i], peso: 1.0, nome: 'data' });
     }
 
     // Ordem decrescente de peso: o laco de busca depende disso para poder

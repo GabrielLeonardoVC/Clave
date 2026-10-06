@@ -348,6 +348,21 @@ function normAnotacao(a) {
     // como `src`, e o campo vem de um arquivo de backup — que e entrada nao
     // confiavel. A verificacao e no prefixo, nao no nome do mime.
     if (v.indexOf('data:audio/') !== 0) return '';
+    /* O prefixo sozinho nao basta. "data:audio/" sem subtipo e
+     * "data:audio/webm;base64," sem carga nenhuma passavam, e o que a tela
+     * mostrava nesse caso e um player quebrado — sem audio e sem explicacao.
+     *
+     * Nao e burro de seguranca: os dois continuam começando com "data:audio/",
+     * entao nenhum dos dois vira script. E burro de conteudo: um audio gravado
+     * de verdade sempre chega com subtipo e com carga, porque vem de
+     * `blobParaDataUrl`, que monta "data:audio/webm;base64,....".
+     */
+    const corte = v.indexOf(',');
+    if (corte < 0) return '';
+    const cabecalho = v.slice(0, corte);
+    const temSubtipo = /^data:audio\/[a-z0-9.+-]+/i.test(cabecalho);
+    const temCarga = v.length > corte + 1;
+    if (!temSubtipo || !temCarga) return '';
     return v.slice(0, 4194304);
   }
 
@@ -450,10 +465,29 @@ function normAnotacao(a) {
     try {
       const json = JSON.stringify(db);
       if (U.byteLen(json) > MAX_BYTES) {
-        ultimoErro = 'cheio';
-        try { localStorage.setItem(STORAGE_KEY, json); } catch (e) { /* ignora */ }
-        emitir('cota', {});
-        return false;
+        /* Passou do NOSSO teto, e o nosso e' conservador. Tentamos assim mesmo:
+         * o navegador pode ter mais espaco, e recusar sem tentar seria jogar
+         * fora uma gravacao que caberia.
+         *
+         * O que estava errado era o que se contava depois. O `setItem` era
+         * envolvido num `catch` que ignorava, e o `salvar` devolvia `false` com
+         * `cheio` — de qualquer jeito. Num desktop cuja cota passa de 4,5 MB, a
+         * escrita passava, o audio FICAVA no disco, e a tela dizia "nao salvou,
+         * espaco cheio". A pessoa repetia a acao, abria backup, e a folha de
+         * gravacao continuava pedindo para tentar de novo um audio que ja
+         * estava guardado. O aviso mentira ao contrario do defeito antigo.
+         *
+         * O que aconteceu agora e' a unica informacao que importa. */
+        try {
+          localStorage.setItem(STORAGE_KEY, json);
+          ultimoErro = null;        /* coube no navegador: salvou mesmo */
+          return true;
+        } catch (e) {
+          ultimoErro = (e && e.name === 'QuotaExceededError') ? 'cheio' : 'erro';
+          emitir('cota', {});
+          emitir('erro', { err: e });
+          return false;
+        }
       }
       localStorage.setItem(STORAGE_KEY, json);
       ultimoErro = null;
@@ -805,6 +839,56 @@ function normAnotacao(a) {
     return { used, limit: MAX_BYTES, pct: Math.min(100, Math.round((used / MAX_BYTES) * 100)) };
   }
 
+  /**
+   * Quanto espaço ainda resta, em uma frase que a pessoa entende.
+   *
+   * EXISTEM TRÊS NÚMEROS, E A TELA MISTURAVA DOIS
+   *
+   *   1. a cota que o NAVEGADOR diz (uns 5 MB no iPhone, dezenas de GB no desktop)
+   *   2. o limite que o CLAVE impõe (MAX_BYTES, 4,5 MB)
+   *   3. o que sobra para uma gravação nova
+   *
+   * O cartão de Ajustes chamava a barra de "Armazenamento no aparelho" e
+   * mostrava, logo abaixo, "de 9,8 GB disponíveis neste aparelho". Os dois
+   * números eram verdadeiros e se contradiam: a barra media o limite do Clave,
+   * e o texto media a cota do aparelho. Quem lê entende que tem gigabytes
+   * livres e descobre o contrário na hora de gravar.
+   *
+   * Por isso aqui os três vêm separados, e o que interessa — o que SOBRA —
+   * vem em bytes de verdade. Porcentagem não serve para decidir se a pessoa
+   * grava dois minutos ou vinte.
+   *
+   * OS TRÊS ESTADOS
+   *
+   *   normal    sobra mais que um terço: ninguém precisa ser avisado
+   *   atencao   sobra pouco: a gravação longa pode não caber
+   *   cheio     o que resta é menor que o menor VS útil (30 s de áudio)
+   *
+   * O corte não é arbitrário: 30 segundos é a gravação mais curta que serve
+   * para alguma coisa — marcar uma contagem de bateria. Abaixo disso o espaço
+   * já não comporta uso real.
+   */
+  const VS_MINIMO_UTIL = Math.ceil(30 * 1024 * 4 / 3);   // 30 s de áudio, já em base64
+  function espacoParaGravacao() {
+    const info = storageInfo();
+    const livre = Math.max(0, info.limit - info.used);
+    const estado = livre <= VS_MINIMO_UTIL ? 'cheio'
+      : livre < info.limit / 3 ? 'atencao'
+        : 'normal';
+    return {
+      usado: info.used,
+      limite: info.limit,
+      livre: livre,
+      pct: info.pct,
+      estado: estado,
+      /* Quantos segundos de áudio cabem no que sobrou. É a mesma matemática do
+       * base64 que o `salvar` vai encontrar quando a pessoa apertar parar:
+       * quatro caracteres guardados por três de áudio. Não é promessa de
+       * qualidade — é a conta que vai acontecer. */
+      segundosQueCabem: Math.max(0, Math.floor((livre * 3 / 4) / 1024)),
+    };
+  }
+
   const Store = {
     STORAGE_KEY, SCHEMA,
     carregar, salvar, salvarLogo, gravar, assinar, emitir, mudou,
@@ -819,7 +903,7 @@ function normAnotacao(a) {
     cifras, cifraPorId, filtrarCifras, categorias, tons,
     metricas, ajuste, setAjuste,
     fichaDe, fichaDaCifra, fichasDeEscala,
-    exportar, importar, apagar, storageInfo,
+    exportar, importar, apagar, storageInfo, espacoParaGravacao,
     normEscala, normMusica, normCifra, normEstudo, normAnotacao, normAnotacoes,
     normVsCapitulo, normVsCapitulos,
   };

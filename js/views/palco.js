@@ -274,9 +274,120 @@
     corpo.appendChild(blocoVS);
 
     let audioVS = null;
+
+    /* ESTA GRAVAÇÃO ESTÁ NO DISCO, OU SÓ NESTA FOLHA?
+     *
+     * `f.vs` respondia as duas perguntas com o mesmo campo. Depois de uma
+     * recusa de cota, `salvarFicha` tinha colocado o audio no objeto da Store,
+     * o armazenamento recusou a escrita — e `f.vs` continuava preenchido. A
+     * mesa abria, `montarVS` via no mesmo ramo de sempre e escrevia "Narração
+     * gravada", com so o botão de regravar. A tela afirmava uma coisa que o
+     * armazenamento nao tinha aceito, e a pessoa ficava sem caminho para tentar
+     * salvar, para descartar, ou para tentar de novo.
+     *
+     * A pergunta certa nao e "o campo esta cheio?", e "o disco tem isto?".
+     * Por isso a resposta sai de `localStorage` e nao de um sinalizador: um
+     * sinalizador seria uma segunda verdade para manter em dia, e duas
+     * verdades sempre divergem na hora que importa.
+     *
+     * Se a leitura falhar, a resposta e' "salvo". Nao inventar alarme: quem
+     * mostra "so nesta tela" sem evidencia esta gritando com a pessoa errada,
+     * e o custo de avisar a toa e' maior que o de nao avisar. */
+    function vsEstaSalvo() {
+      try {
+        const cru = JSON.parse(localStorage.getItem(S.STORAGE_KEY) || 'null');
+        if (!cru) return !f.vs;
+        if (f.cifraId) {
+          const c = (cru.cifras || []).filter(function (x) { return x.id === f.cifraId; })[0];
+          return !!(c && c.vs);
+        }
+        if (f.escalaId) {
+          const esc = (cru.escalas || []).filter(function (x) { return x.id === f.escalaId; })[0];
+          if (esc) {
+            const m = (esc.musicas || []).filter(function (x) { return x.id === f.musicaId; })[0];
+            return !!(m && m.vs);
+          }
+        }
+      } catch (e) { /* leitura impossivel: sem alarme */ }
+      return !f.vs;
+    }
+
+    /* Salva o audio que ja esta em memoria, sem tocar no microfone.
+     *
+     * Mesma regra da retentativa dentro da folha de gravacao: quem pede o
+     * microfone de novo nao recupera nada, cobra minutos de voz e apaga o que
+     * deu trabalho. Aqui so a escrita acontece. */
+    function tentarSalvarNaMesa() {
+      salvarFicha({ vs: f.vs, vsSeg: f.vsSeg, vsTexto: f.vsTexto });
+      S.gravar();
+      const erro = S.ultimoErro();
+      if (erro === 'cheio' || erro === 'erro') {
+        UI.toast(erro === 'cheio'
+          ? 'A narração continua sem ser salva: o espaço do Clave está cheio. Apague uma gravação antiga em Ajustes.'
+          : 'A narração continua sem ser salva agora.',
+        { tipo: 'err', dur: 6000, acao: function () { if (global.App) global.App.ir('ajustes'); }, acaoTexto: 'Abrir Ajustes' });
+        return false;
+      }
+      UI.toast('Narração salva — ' + Gravador.tamanhoDe(f.vs) + '.', { tipo: 'ok' });
+      return true;
+    }
+
     function montarVS() {
       U.clear(blocoVS);
       const voz = f.vs ? String(f.vs) : '';
+      const soNaMemoria = !!voz && !vsEstaSalvo();
+
+      if (soNaMemoria) {
+        /* O estado verdadeiro: existe audio, e ele NAO esta guardado.
+         *
+         * As acoesoffered sao as tres que fazem sentido aqui — salvar, ouvir o
+         * que se gravou, e descartar. Regravar WOULD erase the audio not saved,
+         * entao ela nao aparece: seria o jeito mais rapido de perder tres
+         * minutos de voz, e a pessoa nao teria como saber. */
+        audioVS = el('audio', { src: voz, preload: 'metadata', class: 'sr-only' });
+        blocoVS.appendChild(audioVS);
+        mistura.definirAudio(audioVS);
+        blocoVS.appendChild(el('div', { class: 'pl-vs-topo' }, [
+          el('i', { 'data-lucide': 'triangle-alert', style: { width: '17px', height: '17px', color: 'var(--warn-500)' } }),
+          el('span', { class: 'fs-sm fw-7 grow' }, 'Narração só nesta tela'),
+          el('span', { class: 'fs-xs muted' }, P.tempo(f.vsSeg)),
+        ]));
+        blocoVS.appendChild(el('p', { class: 'fs-xs muted mt-1' },
+          'Não foi possível guardar esta narração. Ela some se você sair sem salvar — '
+          + 'um backup leva embora ela não caiba.'));
+        blocoVS.appendChild(el('div', { class: 'row gap-2 wrap mt-2' }, [
+          el('button', {
+            class: 'btn btn-primary btn-sm', onclick: function () {
+              if (tentarSalvarNaMesa()) montarVS();
+            },
+          }, [el('i', { 'data-lucide': 'save' }), 'Tentar salvar']),
+          el('button', {
+            class: 'btn btn-soft btn-sm', onclick: function () {
+              const nome = 'clave-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+              try {
+                Utils.download(nome, S.exportar(), 'application/json');
+                UI.toast('Backup feito — a narração está no arquivo baixado.', { tipo: 'ok' });
+              } catch (e) {
+                UI.toast('Não consegui fazer o backup agora.', { tipo: 'err' });
+              }
+            },
+          }, [el('i', { 'data-lucide': 'download' }), 'Fazer backup']),
+          el('button', {
+            class: 'btn btn-secondary btn-sm', onclick: function () {
+              /* Passa por `salvarFicha` como o dialogo: o objeto da Store
+               * precisa esquecer o audio junto, senao a mesa que reabrir
+               * mostra a mesma narracao que a pessoa acabou de descartar. */
+              f.vs = ''; f.vsSeg = 0;
+              salvarFicha({ vs: '', vsSeg: 0 });
+              S.gravar();
+              montarVS();
+              UI.toast('Narração descartada.', { tipo: 'ok' });
+            },
+          }, [el('i', { 'data-lucide': 'trash-2' }), 'Descartar']),
+        ]));
+        return;
+      }
+
       if (!voz) {
         blocoVS.appendChild(el('div', { class: 'row gap-2 wrap' }, [
           el('i', { 'data-lucide': 'mic', style: { width: '17px', height: '17px', color: 'var(--ink-4)' } }),
@@ -373,6 +484,16 @@
 
       let fluxo = null;
       let conta = null;
+      /* Onde o aviso de "nao salvou" aparece.
+       *
+       * O toast some em uns segundos. Esta frase fica enquanto a folha estiver
+       * aberta, que e' quanto tempo o audio continua ali. Se a unica aviso
+       * fosse o toast, bastava a pessoa desviar o olho por um instante para o
+       * verde "Narração salva" ser a ultima coisa que ela viu. */
+      const dicaFalha = el('p', { class: 'fs-xs muted' }, '');
+      /* A gravacao que o armazenamento recusou. Ver a nota no ramal de
+       * retentativa, abaixo: sem este sinalizador, o botao regrava por cima. */
+      let pendenteDeSalvar = false;
       const btnGravar = el('button', { class: 'btn btn-primary' }, [el('i', { 'data-lucide': 'mic' }), 'Gravar']);
 
       btnGravar.addEventListener('click', function () {
@@ -382,6 +503,52 @@
             f.vs = r.dataUrl; f.vsSeg = Math.round(r.segundos);
             f.vsTexto = area.value;
             salvarFicha({ vs: r.dataUrl, vsSeg: f.vsSeg, vsTexto: f.vsTexto });
+
+            /* O MESMO DEFEITO QUE A V5.6 CORRIGIU NO CANCAO, AINDA VIVO AQUI
+             *
+             * Esta e a gravacao que a pessoa ALCANCA: musica -> Abrir a mesa ->
+             * "Gravar a narração". O caminho corrigido na rodada anterior ficava
+             * no `cancao.js`, atras de um bloco que so aparece depois de uma
+             * gravacao existir. Duas implementacoes, uma delas nunca corrigida,
+             * e a errada e a que a pessoa usa.
+             *
+             * O codigo antigo era:
+             *
+             *     salvarFicha(...);              // o resultado, descartado
+             *     UI.toast('Narração salva');    // verde, sempre
+             *     h.close();                     // e a folha fechava
+             *
+             * Quando o armazenamento recusa, `f.vs` fica so na memoria, o
+             * armazenamento nao tem o audio, e a pessoa recebe "Narração
+             * salva" em verde. Sai da tela e o audio some — tendo sido dito que
+             * estava guardado.
+             *
+             * `salvarFicha` usa `S.mudou()`, que e' adiado: no fim da linha o
+             * save ainda NAO aconteceu, e o `ultimoErro` seria o da tentativa
+             * anterior. Por isso o `S.gravar()` explicito logo abaixo — ele
+             * força a escrita agora e devolve a verdade. Sem ele, esta
+             * verificacao seria uma leitura de resultado velho, que e'
+             * exatamente o tipo de meia-solucao que engana. */
+            S.gravar();
+            const erro = S.ultimoErro();
+
+            if (erro === 'cheio' || erro === 'erro') {
+              const cheio = erro === 'cheio';
+              /* A folha fica ABERTA. O audio esta em `f.vs` agora, e e o que a
+               * pessoa precisa para nao perder tres minutos de voz. */
+              pendenteDeSalvar = true;
+              dicaFalha.textContent = cheio
+                ? 'O espaço do Clave está cheio e esta narração NÃO foi salva. Ela continua aqui enquanto esta folha estiver aberta: faça backup em Ajustes para guardar, ou apague uma gravação antiga e grave de novo.'
+                : 'Esta narração NÃO foi salva, mas continua aqui enquanto esta folha estiver aberta.';
+              UI.toast(cheio
+                ? 'A narração ficou pronta, mas NÃO foi salva: o espaço do Clave está cheio. Faça backup antes de sair daqui.'
+                : 'A narração ficou pronta, mas não foi salva agora.',
+              { tipo: 'err', dur: 9000, acao: function () { if (global.App) global.App.ir('ajustes'); }, acaoTexto: 'Fazer backup' });
+              resetar();   /* o botao passa a dizer "Tentar salvar de novo" */
+              return;   /* a folha NAO fecha */
+            }
+
+            pendenteDeSalvar = false;
             montarVS();
             UI.toast('Narração salva', { tipo: 'ok' });
             h.close();
@@ -390,10 +557,63 @@
           });
           fluxo = null;
           clearInterval(conta);
+          /* O BOTAO DIZIA "Parar" COM NADA GRAVANDO.
+           *
+           * A linha original escrevia ' Parar' no fim do `parar()` — em sucesso
+           * E em falha. Com `fluxo` ja nulo, apertar esse "Parar" caia no ramo
+           * de gravar de novo: o microfone abria e a voz da pessoa era gravada
+           * por cima dos tres minutos que acabavam de ficar sem espaco. O
+           * rotulo dizia uma coisa e o botao fazia a outra.
+           *
+           * `resetar()` vive AQUI, dentro do `then`, e nao depois dele: fora do
+           * `then`, ele rodava na hora da CHAMADA, com a promessa ainda em
+           * andamento e `pendenteDeSalvar` ainda falso. O botao voltava para
+           * "Gravar" mesmo depois da recusa — e a retentativa, que existe, ficava
+           * inalcancavel. A ordem do `quando` importa tanto quanto a ordem do
+           * `onde`. */
+          fluxo = null;
+          clearInterval(conta);
+          resetar();
+          return;
+        }
+
+        function resetar() {
           U.clear(btnGravar);
-          btnGravar.appendChild(el('i', { 'data-lucide': 'mic' }));
-          btnGravar.appendChild(document.createTextNode(' Parar'));
-          btnGravar.className = 'btn btn-secondary';
+          const esperando = pendenteDeSalvar;
+          btnGravar.appendChild(el('i', { 'data-lucide': esperando ? 'save' : 'mic' }));
+          btnGravar.appendChild(document.createTextNode(
+            esperando ? ' Tentar salvar de novo' : ' Gravar'));
+          btnGravar.className = esperando ? 'btn btn-primary' : 'btn btn-secondary';
+        }
+        /* HA UM AUDIO ESPERANDO: SALVAR, NAO GRAVAR DE NOVO.
+         *
+         * Depois de uma recusa, `f.vs` tem a narração e nada no armazenamento.
+         * Abrir o microfone de novo não recupera nada: apaga o trabalho da
+         * pessoa e ainda cobra minutos de voz. O que resolve é tentar o save
+         * outra vez — e a pessoa resolve o motivo antes, apagando uma gravação
+         * antiga em Ajustes.
+         *
+         * É a MESMA distinção que a folha do `cancao.js` faz, pelo mesmo
+         * motivo: dois caminhos de gravação precisam da mesma resposta ao mesmo
+         * defeito. */
+        if (pendenteDeSalvar) {
+          salvarFicha({ vs: f.vs, vsSeg: f.vsSeg, vsTexto: f.vsTexto });
+          S.gravar();
+          const erro2 = S.ultimoErro();
+          if (erro2 === 'cheio' || erro2 === 'erro') {
+            dicaFalha.textContent = erro2 === 'cheio'
+              ? 'Ainda não coube. Apague uma gravação antiga em Ajustes e aperte "Tentar salvar de novo" — esta narração continua aqui.'
+              : 'Ainda não salvou. Aperte "Tentar salvar de novo".';
+            UI.toast('A narração continua sem ser salva: o espaço do Clave ainda não cabe.',
+              { tipo: 'err', dur: 6000 });
+            return;
+          }
+          pendenteDeSalvar = false;
+          dicaFalha.textContent = '';
+          resetar();
+          montarVS();
+          UI.toast('Narração salva — ' + Gravador.tamanhoDe(f.vs) + '.', { tipo: 'ok' });
+          h.close();
           return;
         }
         Gravador.iniciar().then(function (fl) {
@@ -413,14 +633,127 @@
         });
       });
 
-      const h = UI.sheet({
+      /* ================================================================
+       A PERGUNTA QUANDO A GRAVACAO AINDA NAO ESTA SALVA
+
+       Quatro respostas, e nao duas. Quem responde "sim" a "sair?" pode querer
+       salvar, pode querer fazer backup, e pode estar dispossto a perder. Uma
+       confirmacao de sim ou nao obrigaria a escolher entre salvar e sair — e o
+       backup, que e a acao que nao perde nada, ficaria fora da conversa.
+
+       A ordem e o argumento: salvar, preservar, e so no fim descartar. Quem
+       perde trabalho costuma precisar chegar ate o fim da lista para fazer
+       isso, e isso e proposital — nao e acidente de layout.
+       ================================================================ */
+    function perguntarAoSair() {
+      if (!pendenteDeSalvar) return true;      /* nada em risco: sai direto */
+      return UI.confirmar({
+        title: 'A narração ainda não foi salva',
+        message: 'Ela está só nesta tela. Se você sair agora, pode perdê-la. '
+          + 'Você pode tentar salvar de novo, fazer um backup para não perder, '
+          + 'ou sair e descartar.',
+        acoes: [
+          { texto: 'Tentar salvar de novo', valor: 'salvar', classe: 'btn-primary' },
+          { texto: 'Fazer backup', valor: 'backup', classe: 'btn-secondary' },
+          { texto: 'Continuar aqui', valor: 'continuar', classe: 'btn-secondary' },
+          { texto: 'Sair e descartar', valor: 'descartar', classe: 'btn-danger' },
+        ],
+      }).then(function (resposta) {
+        if (resposta === 'continuar' || resposta === false) return false;   /* fica */
+        if (resposta === 'descartar') {
+          /* Descarte EXPLICITO, e no objeto certo.
+           *
+           * A primeira versao fazia `f.vs = ''` e achava que tinha descartado.
+           * Nao tinha: `salvarFicha` escreve no objeto da Store
+           * (`Object.assign`), e `f` e' a ficha local. O `Store` continuava com
+           * os 27 KB de audio — a tela seguinte abriria a mesa, `montarVS`
+           * leria o mesmo campo, e a narracao "descartada" voltaria inteira.
+           *
+           * Descartar e' tambem uma ESCRITA: precisa passar por `salvarFicha`,
+           * senao os dois lados divergem e um deles volta a mentir. E por isso
+           * ela ignora a recusa de cota — apagar e' sempre possivel. */
+          f.vs = ''; f.vsSeg = 0;
+          salvarFicha({ vs: '', vsSeg: 0 });
+          S.gravar();
+          pendenteDeSalvar = false;
+          dicaFalha.textContent = '';
+          resetar();
+          h.semGuarda();
+          return true;
+        }
+        if (resposta === 'backup') {
+          /* O backup e' feito ANTES de qualquer fechamento, e so entao a folha
+           * sai. O `exportar()` le o estado em memoria, entao o audio que nao
+           * coube no armazenamento vai junto — e e por isso que este botao
+           * existe: e a acao que NAO perde nada. */
+          try {
+            const conteudo = S.exportar();
+            /* `download` e' (filename, content, mime) — o NOME primeiro. A
+             * chamada anterior passava o JSON como nome, e o arquivo baixado
+             * chamava-se "{" e nao ".json": um backup que nem o sistema
+             * operacional reconhece. */
+            const nome = 'clave-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+            Utils.download(nome, conteudo, 'application/json');
+            pendenteDeSalvar = false;
+            dicaFalha.textContent = 'Backup feito — a narração está no arquivo baixado.';
+            h.semGuarda();
+            return true;
+          } catch (e) {
+            dicaFalha.textContent = 'Não consegui fazer o backup agora. Tente de novo.';
+            return false;
+          }
+        }
+        /* 'salvar': tenta o MESMO audio, sem reabrir o microfone. */
+        if (btnGravar) btnGravar.click();
+        return false;   /* a folha fica ate o save responder */
+      });
+    }
+
+    /* PROTEÇÃO CONTRA RECARREGAR E FECHAR A ABA (FASE 10)
+     *
+     * O `beforeunload` e' a unica defesa contra o F5 e contra o dedo acidental
+     * na barra do navegador. Ele nao garante nada: o navegador mostra uma frase
+     * sua, a pessoa pode sair sem ler, e em alguns navegadores o `returnValue`
+     * e' ignorado. Por isso o texto daqui NAO promete nada — ele existe para dar
+     * chance, e o que garante mesmo e o backup. */
+    const avisaAntesDeSair = function (ev) {
+      if (!pendenteDeSalvar) return undefined;
+      ev.preventDefault();
+      ev.returnValue = '';
+      return '';
+    };
+    global.addEventListener('beforeunload', avisaAntesDeSair);
+
+    const h = UI.sheet({
         title: 'Gravar a narração', sub: 'a voz que guia o ensaio',
-        body: el('div', { class: 'stack gap-3' }, [aviso, status, area]),
+        body: el('div', { class: 'stack gap-3' }, [aviso, status, dicaFalha, area]),
+        /* O PORTAO DE SAIDA
+         *
+         * Toda gravacao nao salva e um trabalho que existe na tela e em nenhum
+         * outro lugar. `pendenteDeSalvar` e a condicao: existe audio em
+         * memoria que o armazenamento recusou. Nao ha segundo sistema para
+         * isto — e o mesmo sinalizador que decide se o botao diz "Tentar
+         * salvar de novo".
+         *
+         * O guarda entra em `UI.sheet`, que e o unico portao de saida. Por
+         * isso cobre X, Escape, backdrop, `closeAllSheets()` e qualquer botao
+         * que chame `h.close()` — sem que este arquivo precise saber quais
+         * existem. */
+        aoFechar: function () { return perguntarAoSair(); },
         foot: [
           el('button', { class: 'btn btn-secondary', onclick: function () { if (fluxo) { fluxo.cancelar(); clearInterval(conta); } h.close(); } }, 'Cancelar'),
           btnGravar,
         ],
-        onClose: function () { if (fluxo) { try { fluxo.cancelar(); } catch (e) { /* ja parou */ } clearInterval(conta); } },
+        onClose: function () {
+          /* O `beforeunload` sai junto com a folha.
+           *
+           * Registrado uma vez e nunca removido, ele ficaria asking "tem
+           * gravacao nao salva?" para sempre — inclusive depois de a gravacao
+           * estar salva, porque a propria variavel `pendenteDeSalvar` e' da
+           * folha que ja morreu. Listener vazado e' aviso que mente. */
+          global.removeEventListener('beforeunload', avisaAntesDeSair);
+          if (fluxo) { try { fluxo.cancelar(); } catch (e) { /* ja parou */ } clearInterval(conta); }
+        },
       });
     }
 

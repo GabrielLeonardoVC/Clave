@@ -337,6 +337,96 @@ ok(/ultimoErro:\s*function/.test(store) && /S\.ultimoErro\s*\(/.test(app),
   + 'com espaco. Sem a causa exportada, a tela so sabe que algo deu errado.');
 
 /* ------------------------------------------------------------------ */
+/* ---- E O LADO QUE NINGUEM OLHAVA ---- */
+
+/* ESTA REGRA EXISTE PORQUE A ANTERIOR PASSOU COM O DEFEITO
+ *
+ * As tres regras acima verificam o assinante GLOBAL: existe alguem em
+ * `app.js` que escuta 'erro' e 'cota' e vira frase. Isso e verdade, e estava
+ * verdade quando a gravacao da faixa se perdia em silencio.
+ *
+ * O que elas nao olhavam era o CAMINHO DA GRAVACAO, em `cancao.js`, que e um
+ * outro arquivo e nao passa por `avisarFalhaAoSalvar`. La, o codigo era:
+ *
+ *     aoMudar();                 // o retorno e' ignorado
+ *     h.close();                 // a folha fecha
+ *     UI.toast('Faixa gravada')  // verde: sucesso
+ *
+ * O armazenamento recusava, `ultimoErro` virava 'cheio' no Store, e o toast
+ * verde dizia "Faixa gravada" para um audio que existia so na memoria. Quem
+ * perdia nao era o app: era a pessoa, que falou tres minutos e recebeu um
+ * "gravado". E o aviso verde era pior que a perda — era o oposto da verdade.
+ *
+ * O que a regra exige, entao, e o que o DEFEITO tinha:
+ *
+ *   1. o resultado do save e' lido ANTES do aviso de sucesso;
+ *   2. existe um caminho que diz que NAO foi salva;
+ *   3. existe uma retentativa que nao regrava por cima do audio. */
+const cancao = semComentario(ler('js/views/cancao.js'));
+const iSave = cancao.indexOf('aoMudar();');
+const iOk = cancao.indexOf("'Faixa gravada — ");
+
+ok(iSave >= 0 && iOk > iSave,
+  'a folha de gravacao mostra sucesso DEPOIS de tentar salvar',
+  'Sem este par na ordem certa na ha como exigir que o resultado foi olhado antes do aviso.');
+
+/* A REGRA PRECISA LER O RESULTADO — E "PRECISA" AQUI E LITERAL
+ *
+ * A primeira versao desta regra aceitava qualquer `ultimoErro(` que aparecesse
+ * entre o save e o toast. A janela entre os dois tem cerca de 7 KB e cabe mais
+ * do que um `ultimoErro`; a regra passava com o defeito de volta no lugar, que
+ * e o jeito mais facil de uma regra nao ver nada.
+ *
+ * A versao que pegou o defeito exige o PAR: o erro lido de `S.ultimoErro()`,
+ * guardado num `erro`, e um `naoSalvou` derivado dele. Apaga esse par — como o
+ * codigo antigo fazia, com `const naoSalvou = false` — e a regra acusa. */
+ok(/const\s+erro\s*=\s*typeof\s+S\.ultimoErro/.test(cancao)
+  && /const\s+naoSalvou\s*=\s*erro\s*===\s*'cheio'\s*\|\|\s*erro\s*===\s*'erro'/.test(cancao)
+  && /if\s*\(\s*naoSalvou\s*\)/.test(cancao),
+  'o resultado do save e lido antes do "Faixa gravada"',
+  'O codigo antigo chamava aoMudar(), ignorava o retorno, e mostrava "Faixa gravada" em verde. '
+  + 'A pessoa via sucesso para um audio que o armazenamento tinha recusado — e o aviso verde '
+  + 'era mais danoso que a perda, porque dizia o oposto da verdade.');
+
+/* A retentativa precisa ser uma RETENTATIVA.
+ *
+ * A primeira versao procurava o IDENTIFICADOR `pendenteDeSalvar`, e ele aparece
+ * na declaracao e em duas atribuicoes — de modo que apagar a guarda do botao nao
+ * derrubava a regra. A mutacao de teste provou isso. A regra agora exige a
+ * guarda que faz o trabalho. */
+ok(/function\s+tentarSalvar/.test(cancao)
+  && /if\s*\(\s*pendenteDeSalvar\s*\)\s*\{\s*tentarSalvar\(\);/.test(cancao),
+  'o botao de retentativa nao regrava por cima do audio',
+  'Depois de falhar, o botao ficava com o texto "Tentar salvar de novo" e, com o microfone livre, '
+  + 'caia em comecar() — abria o microfone e GRAVAVA POR CIMA dos tres minutos recem-falados. '
+  + 'O aviso estava certo e o botao mentia.');
+
+/* E a retentativa tem que LER o erro DEPOIS de tentar salvar.
+ *
+ * `ultimoErro` e' definido pelo proprio `aoMudar`. Ler antes — ou nao ler —
+ * faz a retentativa dizer que deu certo sem nunca ter tentado nada. A ordem
+ * importa, e por isso a regra compara as duas posicoes dentro do corpo da
+ * funcao, em vez de procurar a palavra solta pelo arquivo. */
+const corpoTentar = /function\s+tentarSalvar\(\)\s*\{([\s\S]*?)\n {4}\}/.exec(cancao);
+const iTenta = corpoTentar ? corpoTentar[1].indexOf('aoMudar();') : -1;
+const iLeErro = corpoTentar ? corpoTentar[1].indexOf('ultimoErro') : -1;
+ok(!!corpoTentar && iTenta >= 0 && iLeErro > iTenta,
+  'a retentativa sobrescreve o que o save respondeu',
+  'O erro de gravacao e' + ' definido pelo proprio save. Lido antes, ele descreve a tentativa '
+  + 'anterior: a retentativa anunciava sucesso sem ter tentado nada.');
+
+/* E precisa existir uma frase que diga que NAO salvou.
+ *
+ * Um caminho de erro que nao diz nada nao e caminho de erro — e a pessoa so ve
+ * o verde. Esta e a unica regra do arquivo que olha o texto da tela, e e
+ * deliberada: o contrato com a pessoa e' "esta gravacao ficou guardada ou nao",
+ * e nao ha como provar isso olhando o codigo ao redor. */
+ok(/NÃO foi salva|Não foi salva|nao foi salva/.test(cancao),
+  'a tela diz, com palavras, que a gravacao nao foi salva',
+  'Sem essa frase, o unico aviso que a pessoa ve e o verde de sucesso, e ela acredita que o '
+  + 'audio esta guardado quando nao esta.');
+
+/* ------------------------------------------------------------------ */
 secao('5. O manifesto, que e o que protege o dado no iPhone');
 
 const m = JSON.parse(manifest);

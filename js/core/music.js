@@ -39,6 +39,197 @@
   }
 
   /* =======================================================
+     1b. GRAFIA — QUAL NOME A NOTA TEM
+
+     POR QUE ESTA PARTE EXISTE
+
+     `noteName(pc, flat)` acima responde "como se escreve o SOM", e essa
+     pergunta tem duas respostas legitimas: o semitom 1 e C# e Db ao mesmo
+     tempo. O que decide entre elas nao e o som, e o CONTEXTO.
+
+     A regra da teoria, que e a mesma em qualquer manual de leitura
+     musical, tem tres passos:
+
+       1. PRENDE-SE A TONICA. A escala parte da letra que o músico leu.
+       2. CADA GRAU SOBE UMA LETRA. C-D-E-F-G-A-B-C. Uma letra por grau,
+          sempre. Nenhuma letra se repete dentro da escala.
+       3. O ACIDENTE E O QUE SOBRAR. Depois que a letra esta marcada, o
+          acidente nao se escolhe: ele e o que faz aquela letra cair
+          exatamente na altura pedida.
+
+     Sem o passo 2, a escala de Sol maior com bemóis sai "G A B C D E Gb" —
+     e ai esta o defeito: sol maior nao tem Gb, tem F#. O som estava certo e
+     a letra errada, que e o pior tipo de erro musical, porque o musico le
+     "Gb", afina Gb e sobe meio tom.
+
+     COMO SE ESCOLHE A LETRA DA TONICA
+
+     Quando o mesmo semitom tem dois nomes, a teoria manda usar o que
+     precisa de MENOS acidenteais. Entre 7 sustenidos (Dó sustenido maior) e
+     5 bemóis (Ré bemol maior), vence Ré bemol. E no empate, vence o bemol,
+     porque e o que existe de verdade na pratica.
+
+     Isso aqui e o que `useFlatsFor` tenta fazer pelo circulo das quintas, e
+     funciona para as tonalidades maiores de um lado e de outro do circulo —
+     mas a regra do circulo e uma regra de TONALIDADE MAIOR. Ela nao
+     descreve menor, nem dorio, nem locrio. Por isso `useFlatsFor` continua
+     valendo para nome de acorde, que e o uso que ele tem, e a grafia das
+     escalas passou a ser derivada daqui.
+     ======================================================= */
+  const LETRAS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+  const PC_DA_LETRA = [0, 2, 4, 5, 7, 9, 11];
+  const SIMBOLO_ACCIDENTE = {
+    '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##',
+  };
+
+  /**
+   * Quantos Tons uma LETRA precisa de deslocamento para cair em `pc`.
+   *
+   * A conta e a distancia entre a letra e o semitom pedido, trazida para a
+   * faixa de um meio tom: -1 e bemol, +1 e sustenido. O `while` existe porque
+   * B e semitom 11 e a letra seguinte (C) e semitom 0: a distancia crua seria
+   * +11, e o que o musica ve e -1.
+   */
+  function acentoDaLetra(pc, letra) {
+    const i = LETRAS.indexOf(letra);
+    if (i < 0) return null;
+    let d = mod12(pc) - PC_DA_LETRA[i];
+    if (d > 6) d -= 12;
+    if (d < -6) d += 12;
+    return d;
+  }
+
+  /** Escreve uma letra com o acidente pedido: "F" + 1 vira "F#". */
+  function letraComAcidente(letra, acento) {
+    const s = SIMBOLO_ACCIDENTE[String(acento)];
+    return s === undefined ? letra : letra + s;
+  }
+
+  /** Quantos accidentais uma escala inteira gasta com a tonica `letra`. */
+  function custoDaEscala(pc, iv, letra) {
+    const primeiro = LETRAS.indexOf(letra);
+    let soma = 0;
+    for (let g = 0; g < iv.length; g++) {
+      const letraGrau = LETRAS[(primeiro + g) % 7];
+      const a = acentoDaLetra(mod12(pc + iv[g]), letraGrau);
+      /* Um acidente fora de -2..+2 significa que o par letra/altura nao
+       * pertence a nenhum tom de verdade — e o sinal de que a tônica escolhida
+       * nao serve para esta escala. A conta soma 99 para nao ganhar. */
+      if (a === null || a < -2 || a > 2) return 99;
+      soma += Math.abs(a);
+    }
+    return soma;
+  }
+
+  /**
+   * A letra da tônica que esta musical correta para `pc` nesta escala.
+   *
+   * Testa as 7 letras e fica com a que gasta menos acidenteais; no empate,
+   * com a de bemol. É a regra de "use o menor numero de alteracoes", com o
+   * desempate que a pratica musical usa.
+   */
+  function letraDaTonica(pc, iv) {
+    let melhor = null;
+    let melhorCusto = Infinity;
+    let melhorBemol = false;
+    for (const letra of LETRAS) {
+      const custo = custoDaEscala(pc, iv, letra);
+      if (custo === 99) continue;
+      const bemol = acentoDaLetra(pc, letra) < 0;
+      if (custo < melhorCusto || (custo === melhorCusto && bemol && !melhorBemol)) {
+        melhor = letra; melhorCusto = custo; melhorBemol = bemol;
+      }
+    }
+    return melhor || 'C';
+  }
+
+  /**
+   * A GRAVIA de uma escala, com uma letra por grau.
+   *
+   * Devolve um objeto por grau com o nome escrito, a letra, o acidente e a
+   * classe de altura. Quem so quiser os nomes usa `nomesDaEscala`.
+   *
+   * `opts.tonica` fixa a letra da tônica quando o chamador sabe qual é — por
+   * exemplo quando a pessoa digitou "Db" e não "C#". Sem isso, a letra é
+   * escolhida por `letraDaTonica`.
+   *
+   * Escala com mais de 7 notas (cromática, por exemplo) NÃO cabe na regra das
+   * 7 letras: são 12 notas e só 7 letras. Nesses casos a função desiste e
+   * devolve a grafia simples por sustenido ou bemol, que é a única que
+   * funciona sem repetir letra.
+   */
+  function escalaComGravacao(rootPc, scaleKey, opts) {
+    opts = opts || {};
+    const sc = SCALES[scaleKey] || SCALES.major;
+    const iv = sc.iv;
+    const pc = mod12(rootPc);
+    /* A regra das sete letras é das escalas de sete notas, e SÓ delas.
+     *
+     * Numa pentatônica maior os graus são 1 2 3 5 6, e as letras que a
+     * prática usa pulam: a de F# pentatônica maior é F# A# C# E G#. Se a
+     * função subisse uma letra por grau sairia F# G# A# B C#, que tem as
+     * alturas erradas — e o teste de altura lê cada nome de volta e pega.
+     *
+     * Por isso o desvio vale para QUALQUER contagem diferente de sete, e não
+     * só para as maiores que sete. Nessas escalas volta a grafia simples por
+     * sustenido ou bemol, que é a convenção de grau de escala (1, 2, b3, b5)
+     * e é o que o app já mostrava. */
+    if (iv.length !== 7) {
+      const flat = opts.flat === undefined ? useFlatsFor(pc) : !!opts.flat;
+      return iv.map(function (i) {
+        const p = mod12(pc + i);
+        return { pc: p, letra: null, acento: null, nome: noteName(p, flat) };
+      });
+    }
+    /* A letra da tônica tem de ser a MESMA LETRA do nome que a tela mostra.
+     *
+     * Sem esta amarração o app se contradiz: o seletor de tons chama o semitom
+     * 6 de "F#" (porque o círculo o põe do lado dos sustenidos) e a escala,
+     * escolhida pela regra dos menos accidentais, sairia "Gb Ab Bb Cb Db Eb F".
+     * Duas letras para o mesmo tom, na mesma tela, é pior que o defeito que
+     * esta função corrige.
+     *
+     * A letra sai do próprio nome canônico — a primeira letra de "F#" é F, e a
+     * de "Db" é D. A partir dai tudo o mais e consequência: os graus sobem uma
+     * letra e o acidente é o que sobrar. */
+    const nomeDaTonica = opts.tonica || noteName(pc, useFlatsFor(pc));
+    const letra0 = LETRAS.indexOf(nomeDaTonica.charAt(0));
+    const inicio = letra0 < 0 ? 0 : letra0;
+    return iv.map(function (i, g) {
+      const letra = LETRAS[(inicio + g) % 7];
+      const p = mod12(pc + i);
+      const acento = acentoDaLetra(p, letra);
+      return {
+        pc: p,
+        letra: letra,
+        acento: acento,
+        nome: letraComAcidente(letra, acento),
+      };
+    });
+  }
+
+  /** Só os nomes, na grafia correta. Equivalente a `scaleNames`, e certo. */
+  function nomesDaEscala(rootPc, scaleKey, opts) {
+    return escalaComGravacao(rootPc, scaleKey, opts).map((g) => g.nome);
+  }
+
+  /**
+   * Escolhe a grafia de UM acorde isolado.
+   *
+   * Um acorde fora de contexto não tem grafia certa: F# e Gb são o mesmo som e
+   * os dois nomes são legítimos. A regra que decide é a mesma do tom: se o
+   * acorde pertence a alguma tonalidade cujo lado do círculo prefere bemóis,
+   * escreve com bemol. `notaDeAcorde` deixa isso explícito para quem quiser
+   * a outra escolha.
+   */
+  function nomeDeAcorde(pc, contextoPc) {
+    const flat = contextoPc === undefined || contextoPc === null
+      ? useFlatsFor(pc)
+      : useFlatsFor(mod12(contextoPc));
+    return noteName(mod12(pc), flat);
+  }
+
+  /* =======================================================
      2. QUALIDADES DE ACORDE
      ======================================================= */
   const QUALITIES = {
@@ -130,6 +321,63 @@
     // "sus" sem numero = sus4 (convenção universal)
     s = s.replace(/^sus$/, 'sus4');
 
+    /* =======================================================
+       5b. AS GRAFIA NUMERICA
+
+       O QUE ESTE BLOCO CORRIGE, E POR QUE ELE EXISTE
+
+       Antes desta regra, qualquer sufixo que o motor nao conhecesse voltava
+       como vazio — e vazio significa "maior". O efeito era o pior tipo de
+       defeito musical: NAO ERA ERRO, era acorde errado, e o musiciano ouvia
+       e acreditava.
+
+         "C4"  virava C maior      (C4 e C sus 4)
+         "C0"  virava C maior      (C0 e C diminuto)
+         "C2"  virava C maior      (C2 e C sus 2)
+         "C7/9" virava C maior     (o /9 era engolido pela regra de extensao)
+
+       O caso do "C7/9" e o mais traiçoeiro, porque o padrao do proprio motor
+       aceita barra como separador de extensao e nao fazia nada com ela: o
+       sufixo chegava inteiro, "7/9", nao casava com nada e voltava vazio.
+
+       POR QUE "0", "4" E "2" ESTAVO LIVRES
+
+       Nenhuma das tres existe como chave em QUALITIES, entao nenhum acorde do
+       mundo estava usando esses sufixos com outro sentido. "5" ja era quinta
+       e continua sendo; e o precedente do caso: o motor ja tratava o numero
+       como nome de qualidade, so nao tinha o caso "4".
+
+       A ancora ^...$ e o que impede dano colateral. "C4/4" continua nao
+       sendo acorde, porque o sufixo inteiro "4/4" nao casa com /^4$/ — e
+       assim um compasso escrito ao lado de uma letra nao vira acorde sozinho.
+
+       O que NAO esta aqui de proposito: nenhuma regra que aceite texto
+       desconhecido como maior. Aceitar "Cxyz" como C maior continua sendo o
+       comportamento antigo, e o teste musical mede e declara esse limite.
+       ======================================================= */
+
+    /* extensao com barra: "C7/9" e o mesmo acorde que "C9".
+     *
+     * O primeiro digito e 7 e SO 7 de proposito. "C6/9" e um acorde de verdade
+     * — maior com sexta e nona, [0,2,4,7,9] — e ele tem nome proprio em
+     * QUALITIES. Uma regra que aceptasse qualquer digito antes da barra
+     * transformava "C6/9" em "C9", que e outro acorde, e perdia a sexta. */
+    s = s.replace(/^7\/(9|11|13)$/, '$1')
+      .replace(/^7\/5$/, '7')
+      .replace(/^7\/3$/, '7')
+      .replace(/^7\/4$/, '7sus4');
+
+    // numero solto: 0 = diminuto, 4 = suspensa de 4, 2 = suspensa de 2
+    s = s.replace(/^0$/, 'dim')
+      .replace(/^4$/, 'sus4')
+      .replace(/^2$/, 'sus2');
+
+    // "C5+" e o quinta Aumentada; o "+" acima ja virou a palavra "aug"
+    s = s.replace(/^5aug$/, 'aug');
+
+    // "Cm-5b5" e "Cm-5(b5)": o travessao antes do 5 marca a quinta baixa
+    s = s.replace(/-5b5$/, '7b5');
+
     s = s.toLowerCase();
     if (!s) return '';
     if (s === 'm') return 'm';
@@ -174,15 +422,40 @@
     const m = CHORD_RE.exec(s);
     if (!m) return null;
     const root = pcFromAccidental(m[1].toUpperCase(), m[2]);
-    const quality = matchQuality(m[3]);
-    // O baixo vem do regex como um grupo so, letra junto com o acidente. Passar
-    // o grupo inteiro como se fosse so a letra fazia a busca na tabela de
-    // letras devolver undefined, e o undefined virava NaN na conta. Daí um
-    // acorde como "F#/A#" ter o baixo lido como NaN e a cifra impressa sair
-    // com a palavra "undefined" no lugar da nota. A letra e o acidente sao
-    // separados aqui, como ja era feito com a fundamental.
+    const sufixo = m[3] || '';
+    const quality = matchQuality(sufixo);
+    /* O baixo vem do regex como um grupo so, letra junto com o acidente. Passar
+     * o grupo inteiro como se fosse so a letra fazia a busca na tabela de
+     * letras devolver undefined, e o undefined virava NaN na conta. Daí um
+     * acorde como "F#/A#" ter o baixo lido como NaN e a cifra impressa sair
+     * com a palavra "undefined" no lugar da nota. A letra e o acidente sao
+     * separados aqui, como ja era feito com a fundamental. */
     const bass = m[4] ? pcFromAccidental(m[4][0].toUpperCase(), m[4].slice(1)) : null;
-    return { root, quality, bass, text: s };
+
+    /* =======================================================
+       SUFIXO QUE O MOTOR NAO CONHECE
+
+       `matchQuality` devolve vazio em dois casos que nao podem ser confundidos:
+
+         "C"     -> vazio, e tríade maior. É a resposta certa.
+         "C69"   -> vazio, e o motor NÃO sabe o que é 69. A resposta seria
+                     outra coisa, e não "maior".
+
+       O texto "69" é uma grafia usada de verdade para C6/9, e "C10", "C44" e
+       "C4/4" chegam do mesmo jeito: o padrão do regex diz que a forma é de um
+       acorde, e a lista de qualidades não tem a entrada. Sem esta distinção,
+       o app affirmava uma certeza que não tinha — e o preço era caro, porque
+       `transposeLine` reconstrói o nome do acorde a partir da qualidade: o
+       "69" sumia e C6/9 virava D maior na hora de transpor.
+
+       Então: a qualidade continua vazia, para não quebrar nenhum consumidor
+       que compara com '', mas `conhecido` diz a verdade. Quem reconstrói o
+       nome olha este sinal e devolve o texto como estava, movendo só a
+       fundamental — que é o que se sabe fazer com honestidade.
+       ======================================================= */
+    const conhecido = !(sufixo !== '' && quality === '');
+
+    return { root, quality, bass, text: s, sufixo: sufixo, conhecido: conhecido };
   }
 
   function formatChord(rootPc, quality, bassPc, flat) {
@@ -192,14 +465,27 @@
     return s;
   }
 
-  /** Formata um acorde ja parseado, deslocando fundamental e baixo. */
+  /** Formata um acorde ja parseado, deslocando fundamental e baixo.
+   *
+   * Este e o caminho que reconstrói o nome do acorde ao transpor, e ele e
+   * quem perdia o sufixo: com "C69", a qualidade vinha vazia, `formatChord`
+   * escrevia "C", e o 69 sumia. A pessoa escrevia C6/9 e recebia D maior — sem
+   * erro, sem aviso, e o acorde errado na hora de tocar.
+   *
+   * Com sufixo desconhecido, o que se sabe fazer e mover a FUNDAMENTAL e
+   * devolver o texto como estava. "C69" vira "D69": o nome segue honesto sobre
+   * o que o app não sabe, e o músico continua vendo o acorde que escreveu.
+   * Preferi isso a recusar o acorde: recusar faria a linha inteira virar letra,
+   * e o sufixo sobreviver intacto é melhor do que o texto sumir. */
   function formatChordTransposed(chord, semis, flat) {
-    return formatChord(
-      mod12(chord.root + semis),
-      chord.quality,
-      chord.bass === null || chord.bass === undefined ? null : mod12(chord.bass + semis),
-      flat
-    );
+    if (!chord) return '';
+    const bass = chord.bass === null || chord.bass === undefined ? null : mod12(chord.bass + semis);
+    if (chord.conhecido === false) {
+      let s = noteName(mod12(chord.root + semis), flat) + (chord.sufixo || '');
+      if (bass !== null) s += '/' + noteName(bass, flat);
+      return s;
+    }
+    return formatChord(mod12(chord.root + semis), chord.quality, bass, flat);
   }
 
   function chordInfo(rootPc, quality, flat) {
@@ -403,7 +689,12 @@
     const t = line.trim();
     const m = /^\[([^\]]{1,6})\]$/.exec(t);
     if (!m) return null;
-    return parseChord(m[1]);
+    const c = parseChord(m[1]);
+    /* Um titulo de tom que o motor não entende não vira tom maior. "[C999]"
+     * é lixo digitado, e tratar como Do maior faria a cifra inteira ser
+     * transposta a partir de um tom inventado. Sem tom, a linha é só linha. */
+    if (c && c.conhecido === false) return null;
+    return c;
   }
 
   /**
@@ -769,6 +1060,18 @@ function apenasAcordes(linha) {
       const c = parseChord(core);
       if (!c) return raw;
 
+      /* Sufixo que o motor não conhece não pode ser "harmonizado" nem
+       * "rebatido" como um acorde conhecido: os dois caminhos de baixo
+       * reconstruem o nome a partir da qualidade, e o texto se perde. Um
+       * "C69" passaria a ser D maior, que é outro acorde e soa outro.
+       *
+       * O caminho honesto é o ultimo dos tres — o que desloca a fundamental e
+       * devolve o texto como estava. Ele já existe e já foi corrigido; aqui
+       * basta não contorná-lo. */
+      if (c.conhecido === false) {
+        return raw.replace(core, formatChordTransposed(c, reserva, pref));
+      }
+
       const indice = grauDe(c.root, origemPc, origemModo);
       let novo;
 
@@ -1129,20 +1432,87 @@ function apenasAcordes(linha) {
     const sc = SCALES[scaleKey] || SCALES.major;
     return sc.iv.map((i) => mod12(rootPc + i));
   }
-  function scaleNames(rootPc, scaleKey, flat) {
-    return scaleNotes(rootPc, scaleKey, flat).map((pc) => noteName(pc, flat));
+  /* Os nomes da escala.
+   *
+   * Passando um BOOLEANO no terceiro argumento, o comportamento e o de sempre:
+   * `noteName` de cada classe com bemol ou sustenido do jeito que se pediu.
+   * Quem dependia desse caminho continua dependendo.
+   *
+   * Sem o terceiro argumento — ou com um objeto — a grafia vem do contexto, e
+   * e a que a teoria manda. E o caminho que a tela usa depois da correcao: com
+   * o booleano, a menor de Do saia "C D D# F G G# A#", com duas letras
+   * repetidas e nenhum acorde da menor natural. */
+  function scaleNames(rootPc, scaleKey, opts) {
+    if (typeof opts === 'boolean') {
+      return scaleNotes(rootPc, scaleKey, opts).map((pc) => noteName(pc, opts));
+    }
+    return nomesDaEscala(rootPc, scaleKey,
+      (opts && typeof opts === 'object') ? opts : undefined);
   }
-  function scaleChords(rootPc, scaleKey, flat) {
+  /**
+   * O rótulo do grau, com a caixa que a qualidade real pede.
+   *
+   *.Numeral romano maiúsculo é tríade MAIOR e minúsculo é menor: é a
+   * convenção de escrita, e é o que o músico lê. Um "II" em cima de um acorde
+   * menor não é disagreement de estilo — está affirmando que o acorde é maior,
+   * e está errado.
+   *
+   * A caixa vem da qualidade que `triadFor` calculou a partir dos INTERVALOS,
+   * e não de um texto escrito à mão. Foi exatamente esse texto que produzia
+   * "Grau II" em cima de Dm, "Grau III" em cima de Em e "Grau VI" em cima de
+   * Am — as três_accountsvendo maior em Do. O motor sabia a verdade o tempo
+   * todo; só o rótulo mentia.
+   *
+   * `analyzeChords` já fazia essa conta do mesmo jeito, olhando os intervalos do
+   * próprio acorde. Aqui a fonte é a tríade montada sobre o grau.
+   */
+  function rotuloDoGrau(indice, qualidade, sc) {
+    const heptatonica = sc.iv.length === 7;
+    /* Escala com outra contagem de notas não tem numeral romano: os rótulos do
+     * quadro ("1", "♭3", "♭5") são GRAUS DA ESCALA, e dizem outra coisa — que
+     * nota da escala é aquela. Não são função harmônica, então não têm caixa
+     * para escolher, e não se mexem. */
+    if (!heptatonica) return sc.degrees[indice] || String(indice + 1);
+    const numeral = ROMAN[indice % 7];
+    if (qualidade === 'm') return numeral.toLowerCase();
+    if (qualidade === 'dim') return numeral.toLowerCase() + '°';
+    if (qualidade === 'aug') return numeral + '+';
+    return numeral;
+  }
+
+  function scaleChords(rootPc, scaleKey, opts) {
     const sc = SCALES[scaleKey] || SCALES.major;
+    const pc0 = mod12(rootPc);
+    /* A assinatura antiga passing um booleano — `scaleChords(pc, escala, flat)`
+     * — continua valendo, e é o que a tela e os testes usam. Quem passa objeto
+     * recebe a grafia por contexto; quem passa `true`/`false` recebe bemol ou
+     * sustenido do jeito antigo, sem mudança de comportamento. */
+    const flatAntigo = typeof opts === 'boolean' ? opts : undefined;
+    const graf = escalaComGravacao(pc0, scaleKey,
+      (opts && typeof opts === 'object') ? opts : undefined);
     const out = [];
     for (let i = 0; i < sc.iv.length; i++) {
-      const pc = mod12(rootPc + sc.iv[i]);
+      const pc = mod12(pc0 + sc.iv[i]);
       const q = triadFor(sc.iv, i);
+      /* O nome da fundamental é a MESMA letra que a nota desse grau na escala
+       * acima. Por isso o acorde de Dó menor na tela de menor harmônica de Dó
+       * sai "Ebmaj" e não "D#maj": a escala acima mostra Eb, e o acorde não
+       * pode responder D#. */
+      const fundamental = flatAntigo !== undefined
+        ? noteName(pc, flatAntigo)
+        : (graf[i] && graf[i].nome) || noteName(pc, useFlatsFor(pc0));
+      const sufixo = q === 'm' ? 'm' : q === 'dim' ? 'dim' : q === 'aug' ? 'aug' : '';
+      /* `triadFor` devolve '?' quando a nota não é uma tríade — o que acontece
+       * nas escalas sem terça, como a pentatônica e o blues. Escrever "C" ali
+       * está inventando uma qualidade que a escala não tem. O nome sai SEM
+       * sufixo e `conhecido:false` avisa quem for mostrar. */
       out.push({
-        degree: sc.degrees[i] || String(i + 1),
+        degree: rotuloDoGrau(i, q, sc),
         pc,
         quality: q,
-        name: formatChord(pc, q === 'm' ? 'm' : q === 'dim' ? 'dim' : q === 'aug' ? 'aug' : '', null, flat),
+        conhecido: q !== '?',
+        nome: graf[i] ? graf[i].nome : null,
+        name: fundamental + sufixo,
       });
     }
     return out;
@@ -1653,6 +2023,9 @@ function instrumentoOuPadrao(inst) {
     // notas
     LETTER_PC, SHARP_NAMES, FLAT_NAMES, PRETTY, SOLFEGE,
     mod12, noteName, notePretty, noteSolfege, pcFromAccidental,
+    // grafia por contexto
+    LETRAS, PC_DA_LETRA, acentoDaLetra, letraComAcidente,
+    letraDaTonica, escalaComGravacao, nomesDaEscala, nomeDeAcorde,
     // acordes
     QUALITIES, parseChord, formatChord, chordInfo, matchQuality, isChordWord, PT_STOPWORDS,
     // cifra

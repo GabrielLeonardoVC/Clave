@@ -263,7 +263,7 @@
      ======================= */
   function sobre() {
     UI.sheet({
-      title: 'acorde', sub: 'escalas, cifras e ensaio',
+      title: global.Identidade.NOME, sub: 'escalas, cifras e ensaio',
       body: el('div', { class: 'stack gap-3' }, [
         el('div', { class: 'row gap-3' }, [
           el('img', { src: 'assets/logo.svg', width: '46', height: '46', alt: '' }),

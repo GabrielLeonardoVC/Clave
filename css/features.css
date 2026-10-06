@@ -560,11 +560,30 @@
 }
 .mbpm-btn svg { width: 15px; height: 15px; }
 .mbpm-btn.ligado { background: var(--signal-600); }
-.mbpm-ajuste { display: flex; align-items: center; gap: 2px; }
+.mbpm-ajuste { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; }
+/* O ALVO DE TOQUE, E NAO A FIGURA
+ *
+ * Estes botoes tinham 26x26 px. Sao os controles de andamento, e quem mexe
+ * neles e a pessoa no ensaio, com um instrumento na mao e o outro lado do
+ * corpo fazendo outra coisa. Um alvo de 26 px exige mirar; nesse contexto, mira
+ * e tempo gasto, e o erro vai para o andamento errado na hora errada.
+ *
+ * O numero nao subiu em todo lugar por indolencia: o resto do app tem botoes
+ * de 32 px que NAO sao tocados em movimento rapido. Estes sao.
+ *
+ * 44 px e o alvo com folga que a WCAG 2.5.5 pede para alvo por toque. O
+ * espaco entre eles tambem subiu de 2 para 4 px, porque a area clicavel de um
+ * nao pode invadir a do vizinho: dois botoes de 44 px colados com gap de 2
+ * deixariam uma faixa ambigua entre os dois, e o erro de 2 px seria ir para o
+ * lado oposto do que a pessoa queria.
+ *
+ * `flex-wrap` nao e enfeite: sem ele, em tela estreita o trio nao cabe e
+ * transborda em vez de quebrar. */
 .mbpm-ajuste button {
-  width: 26px; height: 26px; border-radius: var(--r-1);
+  width: 44px; height: 44px; border-radius: var(--r-1);
   background: var(--surface-2); border: 1px solid var(--line);
   color: var(--ink-2); font-weight: 800; cursor: pointer;
+  font-size: 1.125rem; line-height: 1;
 }
 .mbpm-ajuste button:active { background: var(--surface-3); }
 .mbpm-num {
@@ -1659,3 +1678,48 @@
   border-left: 2px solid var(--line-2);
 }
 .traste3d-aviso.visivel { display: block; }
+
+/* ---- a execucao do repertorio: a barra que fica acima do palco ----
+ *
+ * Nao e' uma tela nova. E' uma faixa no topo da folha que ja existe, com o
+ * minimo para a pessoa saber onde esta e sair: nome, posicao, anterior,
+ * proxima, sair. Tudo o mais -- video, voz, BPM, anotacoes -- continua sendo do
+ * palco, e continua abaixo dela, sem mudanca.
+ *
+ * A posicao aparece em tres lugares de proposito: no texto grande (quem toca
+ * olha), no aria-label dos botoes (quem usa leitor de tela precisa saber para
+ * onde vai) e no subtitulo. Um so deixaria alguem de fora.
+ *
+ * Os botoes tem 44 px porque e' a unica barra que existe DURANTE o toque, e
+ * quem segura o celular com uma mao tem a outra ocupada com o instrumento. */
+.ex-bar {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.ex-topo { display: flex; align-items: flex-start; gap: 8px; }
+.ex-titulo { font-weight: 800; font-size: 1rem; line-height: 1.2; color: var(--ink); }
+.ex-meta { margin-top: 2px; font-size: 0.8125rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ex-botoes { display: flex; gap: 8px; margin-top: 10px; }
+.ex-botoes .btn { flex: 1; min-height: 44px; justify-content: center; }
+.ex-botoes .btn[disabled] { opacity: 0.45; }
+/* Em tela estreita os dois botoes continuam lado a lado: empilhar empurraria o
+ * titulo para fora da vista, e o titulo e' o que diz onde a pessoa esta. */
+@media (max-width: 360px) {
+  .ex-botoes .btn { font-size: 0.875rem; padding: 10px 8px; }
+}
+
+/* o tom da musica atual, durante a execucao */
+.ex-tom { display: flex; gap: 6px; margin-top: 8px; align-items: stretch; }
+.ex-tom .btn { min-height: 44px; min-width: 52px; justify-content: center; }
+.ex-tom-valor {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: var(--r-1);
+  background: var(--surface-2); color: var(--ink);
+  font-weight: 800; font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums; text-align: center;
+}
+/* O tom movido diz que foi mexido. Quem afina no escuro precisa ver que o
+ * numero mudou, e nao so que a cifra mudou. */
+.ex-tom-valor.movido { color: var(--brand-600); border-color: var(--brand-400); }

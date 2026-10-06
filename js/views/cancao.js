@@ -414,6 +414,44 @@
       ]),
     ]));
 
+    /* ESPAÇO ANTES DE GRAVAR, E NÃO DEPOIS
+     *
+     * A pessoa abre esta folha, segura o celular por três minutos falando, e
+     * só descobre que não coube quando a gravação já foi feita e o áudio
+     * some. O aviso de espaço cheio existe — mas chega tarde, e depois do
+     * trabalho.
+     *
+     * Aqui a pessoa vê quanto sobra, em segundos de áudio, antes de apertar
+     * qualquer coisa. É a mesma conta que o `salvar` vai fazer: quatro
+     * caracteres guardados por três de áudio.
+     *
+     * O texto muda com o estado, e o estado não é porcentagem arbitrária:
+     * "normal" com mais de um terço livre, "atenção" com pouco, "cheio" quando
+     * nem 30 segundos cabem — que é a gravação mais curta que serve para
+     * alguma coisa. */
+    const espaco = S.espacoParaGravacao ? S.espacoParaGravacao() : null;
+    if (espaco) {
+      const minutos = Math.floor(espaco.segundosQueCabem / 60);
+      const segundos = espaco.segundosQueCabem % 60;
+      const duracao = minutos ? minutos + ' min ' + segundos + ' s' : segundos + ' s';
+      if (espaco.estado === 'cheio') {
+        corpo.appendChild(el('div', { class: 'aviso-perm', role: 'alert' }, [
+          el('div', { class: 'linha' }, [
+            el('i', { 'data-lucide': 'hard-drive' }),
+            el('span', {}, 'O espaço do Clave está cheio. Apague uma gravação antiga em Ajustes '
+              + 'antes de gravar — senão esta gravação não vai caber.'),
+          ]),
+        ]));
+      } else if (espaco.estado === 'atencao') {
+        corpo.appendChild(el('p', { class: 'fs-xs muted' },
+          'Cabe agora cerca de ' + duracao + ' de gravação. Apagar uma gravação antiga '
+          + 'libera espaço em Ajustes.'));
+      } else {
+        corpo.appendChild(el('p', { class: 'fs-xs muted' },
+          'Espaço para gravações: cerca de ' + duracao + '.'));
+      }
+    }
+
     const dica = el('p', { class: 'fs-xs muted' },
       'Fale no ritmo: e a sua voz que marca o tempo. "Refrao em 1,2,3,4", '
       + '"virada da bateria, para tudo", "voltou" — na contagem, como você canta.');
@@ -438,6 +476,20 @@
     let capitulos = S.normVsCapitulos(musica.vsCap);
     let fluxo = null;
     let conta = null;
+
+    /* A gravação que o armazenamento recusou.
+     *
+     * Sem isto, o botão depois de uma falha ficava com o texto "Tentar salvar
+     * de novo" e, ao ser apertado, chamava `comecar()` — abria o microfone e
+     * GRAVAVA POR CIMA dos três minutos que a pessoa acabara de falar. O texto
+     * prometia uma coisa e o botão fazia outra, e a segunda era a que apagava
+     * o trabalho.
+     *
+     * Com o sinalizador, o botão sabe que há áudio esperando: ele tenta salvar
+     * de novo em vez de gravar de novo. E `musica.vs` — que já recebeu o áudio
+     * — é o que se tenta gravar. Nada precisa ser copiado nem guardado duas
+     * vezes. */
+    let pendenteDeSalvar = false;
 
     /* O aviso fica no painel, e nao dentro da lista.
      *
@@ -513,7 +565,99 @@
     ]);
     desenharCaps();
 
+    /**
+     * Tenta gravar de novo o audio que ja esta em `musica.vs`.
+     *
+     * Nao ha microfone aqui: o audio ja foi capturado e convertido em data URL.
+     * O que falta e o armazenamento aceitar — e a pessoa resolve isso apagando
+     * uma gravacao antiga e voltando para apertar o botao.
+     *
+     * `ultimoErro` e lido DEPOIS do `aoMudar`, nunca antes: e o proprio save que
+     * o define. Ler antes seria olhar o erro da tentativa anterior e dizer que
+     * deu certo quando nao deu — que e exatamente o defeito que esta rodada
+     * conserta. */
+    function tentarSalvar() {
+      aoMudar();
+      const erro = typeof S.ultimoErro === 'function' ? S.ultimoErro() : null;
+      if (erro === 'cheio' || erro === 'erro') {
+        /* `aoMudar` chama `montar()`, que redesenha o bloco e joga fora o `dica`
+         * e o `rotuloGravar` que esta folha está segurando. Escrever neles aqui
+         * seria escrever em nós soltos: o texto novo nunca apareceria, e o
+         * código pareceria funcionar. A folha continua aberta por causa do
+         * `return`, que é o que importa — o aviso vai pelo toast. */
+        UI.toast('A gravação continua sem ser salva. O espaço do Clave ainda não cabe: '
+          + 'apague uma gravação antiga em Ajustes e volte aqui.',
+        { tipo: 'err', dur: 6000 });
+        return;
+      }
+      pendenteDeSalvar = false;
+      h.close();
+      /* `byteLen` e não `length`: o áudio é base64 (ASCII, um byte por
+       * caractere), mas a diferença entre contar caracteres e contar bytes é
+       * exatamente o tipo de coisa que fica errada quando alguém copia a linha. */
+      UI.toast('Faixa gravada e guardada — ' + U.fmtBytes(U.byteLen(musica.vs)) + '.',
+        { tipo: 'ok' });
+    }
+
+    /* A MESMA PERGUNTA DO `palco.js`, com a MESMA ordem de acoes.
+ *
+ * Deliberadamente nao extraida para um modulo comum: as duas folhas nao
+ * compartilham estado, e um helper que recebe a folha, o sinalizador e a
+ * funcao de retentativa acabaria com quatro parametros e nenhuma garantia de
+ * que as duas evoluem juntas. O texto e o mesmo porque a situacao e a mesma —
+ * e porque dois dialogos diferentes para o mesmo problema fariam a pessoa
+ * duvidar de qual deles vale. */
+    function perguntarAoSair() {
+      if (!pendenteDeSalvar) return true;
+      return UI.confirmar({
+        title: 'A gravação ainda não foi salva',
+        message: 'Ela está só nesta tela. Se você sair agora, pode perdê-la. '
+          + 'Você pode tentar salvar de novo, fazer um backup para não perder, '
+          + 'ou sair e descartar.',
+        acoes: [
+          { texto: 'Tentar salvar de novo', valor: 'salvar', classe: 'btn-primary' },
+          { texto: 'Fazer backup', valor: 'backup', classe: 'btn-secondary' },
+          { texto: 'Continuar aqui', valor: 'continuar', classe: 'btn-secondary' },
+          { texto: 'Sair e descartar', valor: 'descartar', classe: 'btn-danger' },
+        ],
+      }).then(function (resposta) {
+        if (resposta === 'continuar' || resposta === false) return false;
+        if (resposta === 'descartar') {
+          musica.vs = ''; musica.vsSeg = 0;
+          pendenteDeSalvar = false;
+          h.semGuarda();
+          return true;
+        }
+        if (resposta === 'backup') {
+          try {
+            const nome = 'clave-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+            Utils.download(nome, S.exportar(), 'application/json');
+            pendenteDeSalvar = false;
+            h.semGuarda();
+            return true;
+          } catch (e) { return false; }
+        }
+        tentarSalvar();
+        return false;
+      });
+    }
+
+    const avisaAntesDeSair = function (ev) {
+      if (!pendenteDeSalvar) return undefined;
+      ev.preventDefault();
+      ev.returnValue = '';
+      return '';
+    };
+    global.addEventListener('beforeunload', avisaAntesDeSair);
+
     async function comecar() {
+      /* HA UM AUDIO ESPERANDO: tente salvar, NAO grave por cima.
+       *
+       * Este era o furo do meu proprio conserto. O botão dizia "Tentar salvar
+       * de novo" e, com o microfone livre, caia em `comecar()` — abria o
+       * microfone e gravava por cima dos três minutos que a pessoa acabara de
+       * falar. O aviso estava certo e o botão mentia. */
+      if (pendenteDeSalvar) { tentarSalvar(); return; }
       try {
         fluxo = await Gravador.iniciar();
       } catch (e) {
@@ -578,6 +722,48 @@
       musica.vsSeg = saida.segundos;
       musica.vsCap = S.normVsCapitulos(validos);
       aoMudar();
+
+      /* O save foi tentado e o RESULTADO não foi olhado.
+       *
+       * `aoMudar` chama `Store.gravar()`, que devolve `false` e marca
+       * `ultimoErro` como 'cheio' quando o armazenamento recusa — mas ninguém
+       * lia esse retorno. A folha fechava e o toast dizia "Faixa gravada", em
+       * verde, para uma gravação que existia só na memória.
+       *
+       * Quem perde não é o app: é a pessoa, que falou três minutos, viu "gravo",
+       * e só descobria que o áudio não estava ali ao fechar a tela. E o pior
+       * não é a perda — é o aviso verde dizendo que deu certo.
+       *
+       * A correção é olhar o retorno. O áudio continua em memória e a folha
+       * continua aberta, para a pessoa apagar uma gravação antiga e tentar de
+       * novo sem perder os três minutos que acabou de gravar. */
+      const erro = typeof S.ultimoErro === 'function' ? S.ultimoErro() : null;
+      const naoSalvou = erro === 'cheio' || erro === 'erro';
+
+      if (naoSalvou) {
+        const cheio = erro === 'cheio';
+        pendenteDeSalvar = true;
+        rotuloGravar.textContent = 'Tentar salvar de novo';
+        /* O texto diz a verdade sobre o botão E sobre a tela.
+         *
+         * A pessoa precisa saber duas coisas: que os três minutos estão aqui
+         * agora, e que sair desta tela os leva junto. Sem a segunda, o aviso
+         * vira isca — e uma isca que custa uma gravação. */
+        dica.textContent = cheio
+          ? 'O espaço do Clave está cheio e esta faixa NÃO foi salva. Ela continua aqui enquanto esta tela estiver aberta: faça backup em Ajustes para guardar, ou apague uma gravação antiga e aperte "Tentar salvar de novo".'
+          : 'Esta faixa NÃO foi salva, mas continua aqui enquanto esta tela estiver aberta. Aperte "Tentar salvar de novo" para tentar de novo.';
+        /* O botão oferece a saída segura: o backup do Clave é montado a partir do
+         * estado EM MEMÓRIA, então ele leva esta gravação junto — inclusive
+         * quando ela não coube no armazenamento. É o que transforma "saiu da
+         * tela e perdeu tudo" em "saiu da tela e guardou". */
+        UI.toast(cheio
+          ? 'A gravação ficou pronta, mas NÃO foi salva: o espaço do Clave está cheio. Faça backup antes de sair daqui.'
+          : 'A gravação ficou pronta, mas não foi salva agora.',
+        { tipo: 'err', dur: 9000, acao: function () { global.App.ir('ajustes'); }, acaoTexto: 'Fazer backup' });
+        return;   /* a folha NÃO fecha: o áudio está aqui e a pessoa precisa dele */
+      }
+
+      pendenteDeSalvar = false;
       h.close();
       UI.toast(
         'Faixa gravada — ' + Gravador.relogio(total)
@@ -600,6 +786,10 @@
        * achando que estava gravando. Não dava erro: o capitulo era criado com
        * `segundos()` de um fluxo morto, e ficava em 0. */
       fluxo = null;
+      /* O `beforeunload` sai junto com a folha. Registrado e nunca removido,
+       * ele perguntaria "tem gravacao nao salva?" para sempre — inclusive
+       * depois de a gravacao estar salva. Listener vazado e' aviso que mente. */
+      global.removeEventListener('beforeunload', avisaAntesDeSair);
     }
 
     // O rotulo fica num `span` proprio para poder virar "Parar" sem levar o
@@ -634,6 +824,18 @@
       // aceso, a bateria continua consumindo e, em alguns aparelhos, o
       // microfone fica travado para outro uso ate a aba fechar.
       onClose: limpar,
+        /* O MESMO PORTAO DE SAIDA DO `palco.js`
+         *
+         * As duas implementacoes de gravacao nao sao iguais — uma tem capitulos
+         * e a outra nao — mas a pergunta e a mesma, e a resposta tem de ser a
+         * mesma: existe audio em memoria que o armazenamento recusou? Se sim,
+         * perguntar antes de deixar a folha morrer.
+         *
+         * Sem isto, o `cancao.js` continuaria sendo um caminho que perde
+         * gravacao em silencio enquanto o `palco.js` pergunta. Duas respostas
+         * diferentes para o mesmo defeito e a forma mais eficiente de deixar
+         * alguem perder dados. */
+        aoFechar: function () { return perguntarAoSair(); },
     });
     UI.icons(corpo);
     return h;

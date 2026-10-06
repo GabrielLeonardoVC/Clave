@@ -154,7 +154,27 @@ let acessos = 0;
 const ruins = [];
 
 for (const arquivo of fontes) {
-  const texto = fs.readFileSync(arquivo, 'utf8');
+  /* O codigo SEM COMENTARIO, e nao o arquivo inteiro.
+   *
+   * A regra pegava acesso dentro de comentario. Aconteceu assim: um arquivo
+   * escrevia, no proprio comentario, "nao ha `Music.notePc`" para explicar por
+   * que NAO o usava — e o verificador acusou exatamente essa chamada, dentro
+   * da frase que dizia que ela nao existe.
+   *
+   * Isso e' a pior forma de falso positivo: obriga quem escreve a evitar
+   * mencionar uma API inexistente, ou seja, obriga a esconder o raciocinio. E a
+   * regra do projeto e' explicita sobre isso — regra que acusa o certo treina
+   * a pessoa a ignorar a regra.
+   *
+   * Os comprimentos sao preservados trocando cada caractere de comentario por
+   * espaco: assim `texto.slice(0, m.index)` continua apontando a linha certa. */
+function semComentario(t) {
+  return t
+    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, ' '))
+    .replace(/(^|[^:'"\\])\/\/[^\n]*/g, (b, p1) => p1 + b.slice(p1.length).replace(/[^\n]/g, ' '));
+}
+
+const texto = semComentario(fs.readFileSync(arquivo, 'utf8'));
   const mapa = apelidos(texto);
   if (mapa.size === 0) continue;
 

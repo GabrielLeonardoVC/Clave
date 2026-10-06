@@ -45,7 +45,7 @@
       });
     }
     L.push('');
-    L.push('_Feito no Acorde_');
+    L.push('_Feito no ' + (global.Identidade ? global.Identidade.NOME : 'Clave') + '_');
     return L.join('\n');
   }
 

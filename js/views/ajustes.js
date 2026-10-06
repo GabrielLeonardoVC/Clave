@@ -394,38 +394,44 @@ const TAMANHOS = [
         }, [el('i', { 'data-lucide': 'lock' }), 'Pedir para o navegador não apagar isto']));
       }
 
-      /* Instalar e a acao que DEMAIS tira o prazo de sete dias, e nao e so uma
-       * boa ideia: e o que o proprio texto do aviso manda fazer.
+      /* O botão de instalar NÃO mora aqui.
        *
-       * O botao so aparece quando o navegador oferece a instalacao. No iPhone
-       * ele nunca oferece — o `beforeinstallprompt` nao existe no Safari de
-       * iOS — e la o caminho e manual, feito no menu Compartilhar. Sem este
-       * botao, o aviso estaria mandando a pessoa fazer uma coisa que o app nem
-       * oferece o caminho. */
-      if (Arm.podeInstalar() && !Arm.instalado()) {
-        acoes.push(el('button', {
-          class: 'btn btn-soft btn-block', type: 'button',
-          onclick: function () {
-            Arm.instalar().then(function (aceitou) {
-              if (aceitou) UI.toast('Instalado. Agora o prazo de sete dias não corre.', { tipo: 'ok' });
-              else UI.toast('O navegador não instalou agora. Dá para tentar de novo depois.', { tipo: 'warn' });
-              recarregar();
-            });
-          },
-        }, [el('i', { 'data-lucide': 'smartphone' }), 'Instalar na tela de início']));
-      }
-
+       * Ele ficava neste cartão — o de risco de armazenamento — e por isso
+       * aparecia só quando o navegador estava prestes a apagar o espaço. Sem
+       * risco, a pessoa que QUERIA instalar não tinha botão nenhum: o recurso
+       * que tira o prazo de sete dias ficava escondido dentro do aviso que
+       * fala do prazo de sete dias.
+       *
+       * Ele foi para o bloco "Use o Clave como aplicativo", que é renderizado
+       * sempre que a instalação está disponível. Ver mais abaixo. */
       if (acoes.length) cartaoRisco.appendChild(el('div', { class: 'stack gap-2 mt-3' }, acoes));
       root.appendChild(cartaoRisco);
     }
 
     const dad = el('div', { class: 'card' });
+    /* O titulo dizia "Armazenamento no aparelho", e a barra logo abaixo media
+     * o limite do CLAVE — 4,5 MB. Logo mais embaixo, outra linha dizia "de
+     * 9,8 GB disponíveis neste aparelho", que e a cota do navegador. Os dois
+     * numeros eram verdadeiros e se contradiam na mesma tela.
+     *
+     * O titulo agora diz o que a barra mede, e o que SOBRA aparece em bytes:
+     * e o unico numero que a pessoa consegue usar para decidir se grava. */
+    const espaco = S.espacoParaGravacao ? S.espacoParaGravacao() : null;
     dad.appendChild(el('div', { class: 'row between mb-2' }, [
-      el('span', { class: 'fs-sm fw-7' }, 'Armazenamento no aparelho'),
-      el('span', { class: 'fs-xs muted' }, U.fmtBytes(info.used)),
+      el('span', { class: 'fs-sm fw-7' }, 'Espaço do Clave'),
+      el('span', { class: 'fs-xs muted' }, U.fmtBytes(info.used) + ' de ' + U.fmtBytes(info.limit)),
     ]));
     dad.appendChild(el('div', { class: 'progress' + (info.pct > 85 ? ' danger' : info.pct > 70 ? ' warn' : '') },
       el('i', { style: { width: Math.min(100, info.pct) + '%' } })));
+    if (espaco) {
+      const minutos = Math.floor(espaco.segundosQueCabem / 60);
+      const segundos = espaco.segundosQueCabem % 60;
+      const duracao = minutos ? minutos + ' min ' + segundos + ' s' : segundos + ' s';
+      dad.appendChild(el('p', { class: 'fs-xs muted mt-2' },
+        espaco.estado === 'cheio'
+          ? 'Sem espaço para novas gravações. Exporte um backup e apague gravações antigas para liberar espaço.'
+          : 'Sobra ' + U.fmtBytes(espaco.livre) + ' — cerca de ' + duracao + ' de gravação.'));
+    }
     const m = S.metricas();
     const ultimo = Arm && Arm.ultimoBackup ? Arm.ultimoBackup() : '';
     dad.appendChild(el('p', { class: 'fs-xs muted mt-2' },
@@ -449,6 +455,36 @@ const TAMANHOS = [
         [el('i', { 'data-lucide': 'trash-2' }), 'Apagar todos os dados']),
     ]));
     root.appendChild(dad);
+
+    /* ---------- usar o Clave como aplicativo ----------
+     *
+     * Fica aqui, logo depois do cartão de armazenamento, e não dentro do
+     * cartão de risco, por um motivo que é de produto e não de estética:
+     * quem não tem risco de espaço não tinha botão de instalar. O recurso que
+     * tira o prazo de sete dias estava escondido dentro do aviso que fala do
+     * prazo de sete dias — e a pessoa que quer instalar é justamente a que
+     * não tem pressa nenhuma.
+     *
+     * Aparece SÓ quando o navegador oferece a instalação. No iPhone ele nunca
+     * oferece: o `beforeinstallprompt` não existe no Safari de iOS, e lá o
+     * caminho é manual, pelo menu Compartilhar. Sem esta guarda, o botão
+     * seria uma promessa que o navegador não pode cumprir. */
+    if (Arm && Arm.podeInstalar() && !Arm.instalado()) {
+      const instalarAgora = function () {
+        Arm.instalar().then(function (aceitou) {
+          if (aceitou) UI.toast('Instalado. Agora o prazo de sete dias não corre.', { tipo: 'ok' });
+          else UI.toast('O navegador não instalou agora. Dá para tentar de novo depois.', { tipo: 'warn' });
+          recarregar();
+        });
+      };
+      root.appendChild(secao('smartphone', 'Use o Clave como aplicativo'));
+      root.appendChild(el('div', { class: 'card' }, [
+        el('p', { class: 'fs-sm' },
+          'Instale na tela de início para abrir rapidamente seus repertórios, teoria, afinador e ferramentas.'),
+        el('button', { class: 'btn btn-primary btn-block mt-3', type: 'button', onclick: instalarAgora },
+          [el('i', { 'data-lucide': 'smartphone' }), 'Instalar Clave']),
+      ]));
+    }
 
     /* ---------- plano (micro saas) ---------- */
     root.appendChild(secao('gem', 'Seu plano'));
@@ -475,7 +511,7 @@ const TAMANHOS = [
       el('div', { class: 'row gap-3' }, [
         el('img', { src: 'assets/logo.svg', width: '44', height: '44', alt: '' }),
         el('div', {}, [
-          el('div', { class: 'fs-md fw-8' }, 'acorde'),
+          el('div', { class: 'fs-md fw-8' }, global.Identidade.NOME),
           el('div', { class: 'fs-xs muted' }, 'escalas, cifras e ensaio  -  funciona offline'),
         ]),
       ]),
