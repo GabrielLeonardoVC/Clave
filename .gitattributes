@@ -1,0 +1,27 @@
+# Fim de linha fixo, para o mesmo repositorio dar o mesmo resultado em toda
+# maquina.
+#
+# Sem isto, o GitHub Pages quebrava a suite de verificacao em Windows sem
+# aviso nenhum. O `check-publicacao` le a lista de arquivos de `pages.yml` e
+# usa `split('\n')`; com `core.autocrlf=true` — o padrao do Git para Windows —
+# o checkout entrega CRLF, o `\r` sobra no fim de cada linha, e o parser deixa
+# de casar. O resultado era um workflow correto accusations de estar errado.
+#
+# Corrigir o parser resolve o sintoma. Isto resolve a causa: o repositorio
+# passa a ter um fim de linha unico, e o checkout em qualquer maquina entrega
+# exatamente o que esta guardado.
+#
+# Os arquivos sao texto. Os PNG nao aparecem aqui de proposito: marcar binario
+# como texto e o que corrompe arquivo, e `assets/` tem icones que nao podem ser
+# convertidos.
+
+* text=auto
+
+*.js        text eol=lf
+*.yml       text eol=lf
+*.json      text eol=lf
+*.webmanifest text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.svg       text eol=lf
+*.md        text eol=lf

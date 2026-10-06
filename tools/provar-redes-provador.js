@@ -7,7 +7,11 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 
-const RAIZ = 'C:/Users/Gilson/Documents/Micro Saas/Cifras-pro';
+/* A raiz vem do proprio repositorio, e nao de um caminho fixo.
+ *
+ * O caminho absoluto que estava aqui so resolvia na maquina em que o arquivo
+ * foi escrito. Em qualquer outra este provador nem comecava. */
+const { RAIZ } = require('./arquivos.js');
 const PROVADOR = path.join(RAIZ, 'tools', 'provar-quota-vs.js');
 const ALVO = path.join(RAIZ, 'js', 'views', 'cancao.js');
 const orig = fs.readFileSync(ALVO, 'utf8');

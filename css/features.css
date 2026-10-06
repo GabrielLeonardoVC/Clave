@@ -662,6 +662,15 @@
 
 .song-head .sh-tons { display: flex; gap: 7px; flex-wrap: wrap; width: 100%; }
 
+/* A acao de abrir a mesa, no cabecalho da musica.
+   *
+   * `width: 100%` para o botao descer para uma linha propria em vez de dividir
+   espaco com os botoes de tom: em tela estreita, "Abrir a mesa de ensaio"
+   disputando espaco com "Ouvir o tom C" fica com o rotulo quebrado em duas
+   linhas, e o botao que abre o trabalho principal acaba parecendo o
+   secundario. */
+.song-head .sh-acoes { display: flex; gap: var(--sp-2); flex-wrap: wrap; width: 100%; }
+
 /* Uma linha que mostra um tom e tem um botao de som ao lado. */
 .tom-com-ouvir {
   display: inline-flex; align-items: center; gap: 8px;
@@ -1425,6 +1434,31 @@
   color: var(--ink);
 }
 .pl-sub { font-size: 0.7813rem; color: var(--ink-3); margin-top: 2px; }
+
+/* O grupo de botoes a direita do cabecalho da mesa.
+   * `flex: none` para que o titulo encolha e os botoes nunca sejam empurrados
+   para fora da folha. */
+.pl-head-botoes { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+
+/* O botao de tela cheia.
+   *
+   * Tamanho FIXO de proposito. O icone troca entre `maximize` e `minimize`
+   * quando a tela entra e quando sai, e um botao que crescesse ou encolhesse
+   * junto com o icone faria o cabecalho pular a cada troca — bem na hora em
+   que a pessoa esta olhando para o cabecalho.
+   *
+   * Desabilitado ele nao some: some a acao, e o `title` diz por que. */
+.pl-cheia {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; flex: none;
+  border: 1px solid var(--line-2); border-radius: var(--r-2);
+  background: var(--surface-2); color: var(--ink-2);
+  cursor: pointer;
+}
+.pl-cheia svg { width: 18px; height: 18px; }
+.pl-cheia:active:not(:disabled) { transform: scale(.97); }
+.pl-cheia.ligado { background: var(--primary); border-color: var(--primary); color: var(--on-brand); }
+.pl-cheia:disabled { opacity: .4; cursor: not-allowed; }
 
 .pl-start {
   display: inline-flex; align-items: center; gap: 7px;

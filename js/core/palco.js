@@ -58,6 +58,7 @@
     let quadro = 0;           // identificador do quadro, para cancelar
     let relogio = 0;          // id do temporizador, no caminho sem quadro
     let duracao = 0;          // 0 = sem limite conhecido
+    let congelado = false;    // o documento sumiu e o passo foi cortado
     const inscritos = [];
 
     function avisar() {
@@ -81,7 +82,7 @@
      * entre a linha de acordes chegar junto com a voz e nao chegar.
      */
     function passo() {
-      if (!tocando) return;
+      if (!tocando || congelado) return;
       const t = agora();
       posicao += (t - ultimoQuadro) / 1000;
       ultimoQuadro = t;
@@ -167,6 +168,57 @@
         parar();
         avisar();
       },
+
+      /**
+       * Congela o relogio sem perder a posicao.
+       *
+       * E o que a mesa chama quando o documento fica oculto.
+       *
+       * Sem isto, o que acontece e o seguinte: o navegador corta o
+       * temporizador quando a aba some, e o proximo `passo` — quando a pessoa
+       * volta, um minuto ou uma hora depois — calcula `t - ultimoQuadro` com o
+       * tempo INTEIRO que passou. A posicao pula de uma vez. A rolagem da
+       * cifra salta para o fim, todas as anotacoes do intervalo acendem de uma
+       * vez, e a barra vai para o fim do ensaio. A pessoa volta para uma mesa
+       * que nao corresponde a nada que ela ouviu.
+       *
+       * Congelar corta o temporizador e zera `ultimoQuadro`, entao o intervalo
+       * oculto nunca entra na conta. O relogio volta de onde parou.
+       *
+       * `tocando` NAO muda. Quem estava ensaiando continua "ensaiando": o
+       * botao continua mostrando o mesmo estado, e o passo volta sozinho. Mudar
+       * `tocando` aqui faria a mesa jurar que a pessoa parou, e ela teria de
+       * apertar o botao de novo ao voltar — sem ela ter parado.
+       */
+      congelar() {
+        if (congelado) return;
+        congelado = true;
+        // Zera o intervalo acumulado ANTES de cortar, para que o instante da
+        // ocultacao tambem nao vire tempo na volta.
+        ultimoQuadro = agora();
+        parar();
+      },
+
+      /**
+       * Volta a correr do ponto em que ficou.
+       *
+       * `voltouComSalto` diz que houve tempo que nao pode ser reconstruido: o
+       * navegador nao conta o que aconteceu com a aba oculta, e inventar esse
+       * tempo seria pior que perder — a cifra andando sozinho para um lugar que
+       * ninguem escolheu. Quem chama usa isto para avisar a pessoa de que o
+       * tempo parou, em vez de fingir que o ensaio seguiu.
+       */
+      degelar(voltouComSalto) {
+        if (!congelado) return false;
+        congelado = false;
+        ultimoQuadro = agora();
+        if (voltouComSalto !== false) avisar();
+        if (tocando) agendar();
+        return true;
+      },
+
+      /** O relogio esta congelado agora? */
+      get congelado() { return congelado; },
 
       /**
        * Pula para um ponto. E o que as anotacoes fazem ao serem clicadas.

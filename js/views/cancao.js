@@ -917,6 +917,59 @@ const cabecalho = el('div', { class: 'song-head' });
           { oitava: 3 }),
       ]));
     }
+    /* ---- a mesa de ensaio, daqui ----
+     *
+     * A pagina da musica e onde a pessoa esta quando lembra "quero ensaiar esta
+     * musica agora" — e ate aqui nao havia caminho para a mesa. A biblioteca ja
+     * tinha o seu proprio atalho dentro da folha da cifra; o repertorio tem o
+     * dele, que e a sessao inteira. Faltava esta tela, que e a mais completa de
+     * todas: e a unica que mostra video, faixa narrada, compasso, observacoes e
+     * fotos da mesma musica.
+     *
+     * NADA e reimplementado aqui. O botao chama `Views.palco.abrirDeMusica`, que
+     * ja existe e chama a MESMA `abrir` usada pelo repertorio. Rolagem, BPM,
+     * anotacoes, Wake Lock, tela cheia, visibilidade e limpeza continuam sendo
+     * os da mesa — um segundo palco aqui seria dois relogios discordando na
+     * mesma musica.
+     *
+     * `escala` pode nao existir: quem cadastrou a musica direto na biblioteca
+     * nao a pendurou em nenhum evento. `S.fichaDe` trata a ausencia e devolve
+     * `escalaId: null`, e e isso que a mesa recebe — aquela musica e nada mais.
+     * Sem sessao de repertorio, sem indice, sem tocar no Store para navegar.
+     *
+     * A folha fecha ANTES de a mesa abrir. As duas sao folhas: empilhadas, o
+     * fundo escuro de uma tapa a outra e a mesa nasce escura. Este e o mesmo
+     * cuidado que `repertorio.js` toma no atalho dele.
+     *
+     * O botao fica no cabecalho, e nao no pe, porque e a acao principal de quem
+     * chegou aqui para ensaiar — e porque o `UI.icons` so alcanca o corpo: um
+     * botao no pe ficaria com o icone cru.
+     *
+     * O palco e alcancado por `Views.palco`, como em `execucao.js` e em
+     * `repertorio.js` — e nao por `PalcoView`, que e o mesmo objeto com outro
+     * nome. Duas formas de chegar a mesa em tres views e o jeito de uma delas
+     * ficar para tras quando o palco mudar.
+     *
+     * Quando a mesa nao existe, o botao aparece DESLIGADO e diz por que. Some
+     * de verdade seria pior: quem abriu a musica para ensaiar veria a tela sem
+     * a acao e nenhuma explicacao, e a unica conclusao possivel e que o app
+     * esqueceu.
+     */
+    const MesaDeEnsaio = global.Views && global.Views.palco;
+    const temMesa = !!(MesaDeEnsaio && typeof MesaDeEnsaio.abrirDeMusica === 'function');
+    cabecalho.appendChild(el('div', { class: 'sh-acoes' }, [
+      el('button', {
+        class: 'btn btn-primary', type: 'button', disabled: !temMesa,
+        title: temMesa ? 'Ensaiar esta música com vídeo, narração e compasso'
+          : 'Mesa de ensaio indisponível nesta instalação',
+        onclick: function () {
+          if (!temMesa) return;
+          if (h && typeof h.close === 'function') h.close();
+          MesaDeEnsaio.abrirDeMusica(escala, mus);
+        },
+      }, [el('i', { 'data-lucide': 'monitor-play' }), 'Abrir a mesa de ensaio']),
+    ]));
+
     corpo.appendChild(cabecalho);
 
     /* ---- os numeros ----
@@ -1076,7 +1129,13 @@ const cabecalho = el('div', { class: 'song-head' });
     ]);
   }
 
-  V.cancao = { abrir: abrir, botaoTom: botaoTom, cartaoVideo: cartaoVideo };
+  /* `blocoFoto` e publicado porque a foto de uma cifra da biblioteca tambem
+     * precisa aparecer — e a ficha da biblioteca (repertorio.js) e uma tela
+     * diferente desta. Publicar o bloco, em vez de reescreve-lo aqui, e o que
+     * impede que existam duas implementacoes da foto para divergirem com o
+     * tempo. Quem chama passa o registro de verdade: o bloco entrega o objeto
+     * ao Estudio como veio, e o Estudio escreve nele. */
+    V.cancao = { abrir: abrir, botaoTom: botaoTom, cartaoVideo: cartaoVideo, blocoFoto: blocoFoto };
 
   global.AcordMusica = V.cancao;
   if (typeof module !== 'undefined' && module.exports) module.exports = V.cancao;

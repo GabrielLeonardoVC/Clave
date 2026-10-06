@@ -150,6 +150,22 @@
 
 .sheet { background: var(--bg); width: 100%; max-width: 580px; max-height: 92dvh; border-radius: var(--r-5) var(--r-5) 0 0; box-shadow: var(--sh-4); display: flex; flex-direction: column; animation: sheetUp .3s var(--ease); padding-bottom: env(safe-area-inset-bottom); overflow: hidden; }
 .sheet.wide { max-width: 880px; }
+
+/* A folha em tela cheia: ocupa tudo, sem moldura e sem o limite de altura.
+   *
+   * O `:fullscreen` sozinho nao bastava porque o navegador poe o elemento
+   * pedido dentro de um topo que ele mesmo cria — e o tamanho continua sendo o
+   * do elemento. Sem tirar `max-height`, a folha ficaria com a mesma altura de
+   * antes, so que agora com o fundo do sistema em volta.
+   *
+   * A regra vem DEPOIS de `.sheet` e de `.sheet.wide` de proposito: precisa
+   * vencer as duas, e o `!important` nao e necessario. */
+.sheet.viva-cheia {
+  max-width: none; max-height: none; width: 100%; height: 100%;
+  border-radius: 0; box-shadow: none;
+}
+.sheet.viva-cheia .sheet-grip { display: none; }
+.sheet.viva-cheia .sheet-body { padding: var(--sp-3) var(--sp-4); }
 @media (min-width: 720px) { .sheet { border-radius: var(--r-4); max-height: 88dvh; padding-bottom: 0; } }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: none; } }
 
@@ -343,11 +359,20 @@
    faixa continua — como os marcadores de um cabecalho de partitura. */
 .regua {
   display: grid;
-  /* Cinco colunas, e nao quatro. A quinta e o 3D do instrumento: com quatro, o
-     quinto botao caia numa segunda fileira e o cartão — que tem borda e raio de
-     uma faixa so — virava duas faixas com um canto redondo no meio. Cinco
-     divide 390px em 78px, e o rotulo cabe. */
-  grid-template-columns: repeat(5, 1fr);
+  /* Seis colunas, e nao cinco: o sexto botao e "Minhas cifras", que fecha a
+     duvida que o "Nova cifra" ao lado responde. Cinco deixaria a faixa com um
+     buraco no meio, e a duvida continuaria sem resposta na tela.
+     *
+     * MEDIDO, nao presumido: com uma caixa de 390px (a largura minima que a
+     * propria regra antigo levava em conta) e seis colunas, cada botao fica com
+     * 65px e a faixa continua numa linha so — 58px de altura, sem quebra. Os
+     * rotulos cabem: "Minhas cifras" ocupa 56px e quebra em duas palavras, o
+     * que continua sendo texto, e nao icone. Com cinco colunas seriam 78px e uma
+     * linha; a faixa era 45px.
+     *
+     * Nao se add "repetir(6, 1fr)" por gosto de numero: se um dia aparecer um
+     * setimo atalho, este comentario precisa ser recontado antes. */
+  grid-template-columns: repeat(6, 1fr);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-2);

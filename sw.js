@@ -57,6 +57,7 @@ const RECURSOS = [
   './js/core/palco.js',
   './js/core/gfx.js',
   './js/core/cena.js',
+  './js/core/viva.js',
   './js/core/studio.js',
   './js/core/notify.js',
   './js/core/share.js',

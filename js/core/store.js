@@ -413,6 +413,53 @@ function normAnotacao(a) {
     return s.length > 3000000 ? '' : s;
   }
 
+  /* ---- O DOCUMENTO DA MÚSICA ----------------------------------------
+     *
+     * Um PDF ou um texto, guardado como data URL ao lado da foto. UM por
+     * música, como UM por foto: a mesma música pode estar em tres
+     * repertórios, e um array aqui seria o mesmo arquivo guardado tres
+     * vezes — que é o oposto do que este app faz.
+     *
+     * POR QUE SÓ PDF E TEXTO
+     *
+     * Os dois abrem no navegador sem que nada seja inventado: o PDF no
+     * visualizador nativo, o texto no campo de texto. DOCX, ODF e RTF não
+     * abrem em lugar nenhum sem uma biblioteca de terceiros, e guardá-los
+     * seria pagar armazenamento por um arquivo que a pessoa não consegue ver.
+     *
+     * POR QUE ESTA LISTA FECHADA É SEGURANÇA, E NÃO MODÉLIA
+     *
+     * Este app guarda o arquivo e depois o entrega de volta ao navegador. Um
+     * `data:text/html` devolvido num iframe EXECUTA script na origem do app, e
+     * um `data:image/svg+xml` idem — é o mesmo motivo que barra SVG na foto,
+     * dois locais acima. Uma lista de tipos que não executam é o filtro.
+     *
+     * O TAMANHO
+     *
+     * A foto tem 3 MB porque a foto é pequena. Um PDF chega com a partitura
+     * inteira. O armazenamento local do navegador costuma dar ~5 MB para TUDO,
+     * e a base64 come um terço a mais: 1,2 MB de texto são ~900 KB de arquivo.
+     * Passando disso, o resto do app (todas as músicas, com suas fotos) não
+     * caberia. O limite vem do armazenamento real, não de um número gostoso.
+     */
+  const DOCS_OK = /^data:(application\/pdf|text\/plain);base64,/i;
+  const DOC_MAX = 1200000;
+  function normDoc(v) {
+    if (!v || typeof v !== 'object') return null;
+    const dados = typeof v.dados === 'string' ? v.dados : '';
+    if (!DOCS_OK.test(dados)) return null;
+    if (dados.length > DOC_MAX) return null;
+    const nome = String(v.nome || 'documento').replace(/[\\/:*?"<>| -]/g, '_').slice(0, 120);
+    return {
+      nome: nome,
+      /* O tipo vem do proprio prefixo aceito, nunca do que o arquivo disse.
+       * Um arquivo que se diz `text/plain` e chega como `application/pdf`
+       * continua sendo tratado pelo que o app aceitou. */
+      tipo: DOCS_OK.exec(dados)[1].toLowerCase(),
+      dados: dados,
+    };
+  }
+
   function normCifra(c) {
     c = c || {};
     const vid = normYouTube(c.yt, c.ytId);
@@ -443,6 +490,10 @@ function normAnotacao(a) {
 
       // A foto da cifra, para desenhar por cima.
       foto: normFoto(c.foto),
+      // O documento da musica, quando houver UM. `null` e a forma de dizer que
+      // nao ha — e e a mesma que `cifraId` ja usa, para nao inventar um
+      // objeto vazio que ocupa espaco em todo backup.
+      doc: normDoc(c.doc),
 
       // A faixa narrada: "virada da bateria em 1,2,3,4", dita pela propria
       // pessoa. E o que toca junto com o video.
@@ -819,8 +870,25 @@ function normAnotacao(a) {
       });
       const cids = new Set(db.cifras.map(function (c) { return c.id; }));
       inc.cifras.forEach(function (c) {
+        /* SO O ID DECIDE QUEM E QUEM.
+         *
+         * Antes havia uma segunda porta aqui: mesmo titulo e mesmo artista. A
+         * das cifras custava musica de verdade. Tocar "O Amor Nao Falha" em Am e
+         * em Dm sao duas entradas independentes — a biblioteca guarda as duas, e
+         * a propria V6.7 tratou a duplicata como legitima. No mesclar, porem, a
+         * segunda era deixada de fora por coincidir no nome: a pessoa restaurava
+         * o backup do outro aparelho e perdia uma das tonalidades, sem erro e
+         * sem aviso.
+         *
+         * E o que a segunda porta comprava nao era nada: reimportar o mesmo
+         * backup NAO duplica por causa dela, e sim porque o registro volta com o
+         * MESMO id — que e a unica coisa que precisa casar. A porta de titulo so
+         * produzia perda.
+         *
+         * A da escala foi deixada como esta: evento repetido na mesma data, hora
+         * e titulo e, na pratica, o mesmo ensaio — e mexer nisso mudaria o
+         * comportamento de algo que nao foi reportado aqui. */
         if (cids.has(c.id)) return;
-        if (db.cifras.some(function (x) { return x.titulo === c.titulo && x.artista === c.artista; })) return;
         cids.add(c.id); db.cifras.push(c);
       });
     }

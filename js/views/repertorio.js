@@ -450,6 +450,47 @@
       ]),
     ]));
 
+    /* ---- a foto e o desenho ----
+       *
+       * A foto vivia so na pagina da musica (cancao.js). O efeito era que uma
+       * cifra da biblioteca podia ter foto gravada, passar pelo upload, o
+       * preview, a substituicao e a persistencia — e nao ter ONDE VER. Nem a
+       * foto, nem o Estudio, que so existe junto dela. O registro tinha o
+       * campo; a tela nao tinha nada com o campo.
+       *
+       * Aqui nao ha uma segunda implementacao da foto: o bloco e o de la,
+       * publicada. Uma segunda copia aqui seria mais uma coisa para consertar
+       * quando a foto mudar de lugar — e as duas ja teriam divergido.
+       *
+       * E o registro que entra aqui e o VERDEIRO, resolvido pelo id no
+       * armazenamento. `v`, logo acima, e uma copia — existe so para desenhar
+       * os campos. Passar `v` ao bloco faria o Estudio escrever num objeto que
+       * ninguem persiste: a foto trocaria na tela e voltaria no proximo
+       * carregamento, sem aviso nenhum. */
+    const registro = (c && c.id && S.db.cifras.find(function (x) { return x.id === c.id; })) || c;
+    if (registro && registro.foto && V.cancao && V.cancao.blocoFoto) {
+      body.appendChild(V.cancao.blocoFoto(registro, null, function () { S.mudou('cifra'); }));
+    }
+
+    /* O documento aparece aqui como o que e: um arquivo guardado, que se abre
+       fora. Nao ha visualizador proprio — o navegador ja sabe abrir PDF, e
+       um quadro com `data:` nao e confiavel no celular. */
+    if (c.doc) {
+      body.appendChild(el('div', { class: 'field mt-4' }, [
+        el('div', { class: 'label' }, 'Documento'),
+        el('div', { class: 'row gap-2 between wrap' }, [
+          el('div', { class: 'grow', style: { minWidth: '0' } }, [
+            el('div', { class: 'fw-7 ellipsis' }, c.doc.nome),
+            el('div', { class: 'fs-xs muted' },
+              (c.doc.tipo === 'application/pdf' ? 'PDF' : 'Texto') + ' · '
+              + U.fmtBytes(Math.round(c.doc.dados.length * 0.75))),
+          ]),
+          el('button', { class: 'btn btn-secondary btn-sm', onclick: function () {
+            U.entregarArquivo(U.dataURLParaArquivo(c.doc.dados, c.doc.nome), c.doc.nome);
+          } }, [el('i', { 'data-lucide': 'external-link' }), 'Abrir documento']),
+        ]),
+      ]));
+    }
     body.appendChild(el('div', { class: 'row gap-2 mt-4 wrap' }, [
       el('button', { class: 'btn btn-soft btn-sm', onclick: function () { dialogTranspor(c); } },
         [el('i', { 'data-lucide': 'shuffle' }), 'Transpor']),
@@ -515,7 +556,53 @@
     const v = c ? Object.assign({}, c) : S.normCifra(pre || {});
     const isNew = !c;
 
-    const fTitulo = el('input', { class: 'input', value: v.titulo, placeholder: 'Ex.: O Senhor e o Meu Pastor' });
+    /* `isNew` tira o "Sem título" do campo.
+     *
+     * `normCifra` põe "Sem título" quando o titulo vem vazio — uma rede de
+     * seguranca para um registro que chegou de fora, para que nada apareça sem
+     * nome na biblioteca. Até aqui essa rede estava boa.
+     *
+     * O problema e que o FORMULARIO pegava esse valor de guarda e botava no
+     * campo como se a pessoa tivesse digitado. Consequencia: o botao "Salvar" com o
+     * titulo vazio NAO era recusado — havia "Sem título" no lugar — e a marca de
+     * obrigatório era mentira: dava para guardar uma musica chamada "Sem
+     * título" sem escrever nada.
+     *
+     * Numa musica nova o campo nasce VAZIO, com o exemplo no placeholder. Numa
+     * musica que ja existe, o titulo guardado e valor de verdade e vai como
+     * valor. O "Sem título" continua existindo em `normCifra` para o registro
+     * importado, e as musicas antigas que o tem continuam com ele: nada aqui
+     * apaga titulo de ninguem. */
+    const fTitulo = el('input', {
+      class: 'input', value: isNew ? '' : v.titulo,
+      placeholder: 'Ex.: O Senhor e o Meu Pastor',
+      'aria-required': 'true', 'aria-describedby': 'erro-titulo-cifra',
+    });
+
+    /* O aviso do titulo.
+     *
+     * Antes, deixar o titulo vazio e salvar nao fazia nada visivel: o formulario
+     * ficava aberto e o foco ia para o campo, sem uma palavra. Para quem ve, o
+     * botao simplesmente nao funcionava — e a unica forma de descobrir o motivo
+     * era adivinhar.
+     *
+     * O aviso fica DEBAIXO do campo, e nao num `toast`: um aviso que some
+     * sozinho ainda deixa a pessoa sem motivo assim que ela voltar os olhos
+     * para o formulario. `role="alert"` e `aria-describedby` fazem o texto ser
+     * lido com o campo, e nao so visto. */
+    const erroTitulo = el('div', {
+      class: 'fs-xs mt-1', id: 'erro-titulo-cifra', role: 'alert',
+      style: { display: 'none', color: 'var(--danger-500)' },
+    });
+    function avisarTitulo() {
+      const vazio = !fTitulo.value.trim();
+      erroTitulo.textContent = vazio ? 'Informe o título da música.' : '';
+      erroTitulo.style.display = vazio ? 'block' : 'none';
+      if (vazio) fTitulo.setAttribute('aria-invalid', 'true');
+      else fTitulo.removeAttribute('aria-invalid');
+    }
+    /* O aviso some assim que a pessoa corrige, sem precisar salvar de novo. */
+    fTitulo.addEventListener('input', avisarTitulo);
     const fArtista = el('input', { class: 'input', value: v.artista, placeholder: 'Ex.: Claudio Bassés' });
     const fTom = R.selectTon({ value: v.tom, placeholder: 'Tom' });
     const fBpm = el('input', { class: 'input', type: 'number', min: '20', max: '320', value: v.bpm || '', placeholder: 'BPM' });
@@ -570,7 +657,22 @@
           foto = p; pintarFoto();
         })
         .catch(function () { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); });
+
+      arqDoc.addEventListener('change', function () {
+        const a = arqDoc.files[0];
+        if (!a) return;
+        U.readFile(a, true).then(function (d) {
+          /* Quem decide e o modelo, nao este campo. Aqui so se avisa, para a
+             pessoa nao ficar com "anexou" e nada ter acontecido. */
+          const guardado = S.normCifra({ doc: { nome: a.name, dados: d } }).doc;
+          if (!guardado) {
+            UI.toast('Só entram PDF e texto, até 1 MB', { tipo: 'err' });
+            return;
+          }
+          doc = guardado; pintarDoc();
+        });
     });
+      });
 
     const infoNar = el('div', { class: 'fs-xs muted mt-1' },
       v.vs ? 'Narração gravada (' + global.Gravador.relogio(v.vsSeg) + '). Regrave na Mesa de ensaio.' : 'Você grava a narração na Mesa de ensaio.');
@@ -590,10 +692,51 @@
     fCifra.addEventListener('input', U.debounce(analisar, 300));
     analisar();
 
+
+    /* ---- o documento ----
+    *
+    * UM documento por musica, ao lado da foto, e pela mesma razao: a mesma
+    * musica pode estar em varios repertorios. Aceita PDF e texto — os dois
+    * que o navegador abre sozinho. O resto e recusado aqui E no modelo,
+    * porque um `data:text/html` devolvido num quadro executa script na
+    * origem do app.
+    */
+    let doc = v.doc || null;
+    const infoDoc = el('div', { class: 'fs-sm' });
+    function pintarDoc() {
+    U.clear(infoDoc);
+    if (!doc) {
+    infoDoc.appendChild(el('span', { class: 'muted' }, 'Nenhum documento anexado.'));
+    return;
+    }
+    infoDoc.appendChild(el('div', { class: 'row gap-2 between wrap' }, [
+    el('div', { class: 'grow', style: { minWidth: '0' } }, [
+    el('div', { class: 'fw-7 ellipsis' }, doc.nome),
+    el('div', { class: 'fs-xs muted' },
+    (doc.tipo === 'application/pdf' ? 'PDF' : 'Texto') + ' · '
+    + U.fmtBytes(Math.round(doc.dados.length * 0.75))),
+    ]),
+    el('button', { class: 'btn btn-secondary btn-sm', onclick: function () {
+    U.entregarArquivo(U.dataURLParaArquivo(doc.dados, doc.nome), doc.nome);
+    } }, [el('i', { 'data-lucide': 'download' }), 'Abrir']),
+    el('button', { class: 'btn btn-secondary btn-sm', onclick: function () {
+    doc = null; pintarDoc();
+    } }, [el('i', { 'data-lucide': 'x' }), 'Remover']),
+    ]));
+    }
+    pintarDoc();
+    const arqDoc = el('input', {
+    type: 'file', accept: 'application/pdf,text/plain,.pdf,.txt', style: { display: 'none' },
+    });
+
     const h = UI.sheet({
       title: isNew ? 'Nova cifra' : 'Editar cifra', wide: true,
       body: el('div', { class: 'stack gap-3' }, [
-        campo('Título *', fTitulo), campo('Artista', fArtista),
+        el('div', { class: 'field' }, [
+          el('label', { class: 'label' }, 'Título *'),
+          fTitulo,
+          erroTitulo,
+        ]), campo('Artista', fArtista),
         el('div', { class: 'grid-3' }, [campo('Tom', fTom), campo('BPM', fBpm), campo('Compasso', fComp)]),
         el('div', { class: 'grid-2' }, [campo('Categoria', fCat), campo('Tags', fTags)]),
         campo('Letra', fLetra),
@@ -601,6 +744,12 @@
         el('div', { class: 'hr-label' }, 'Para o ensaio'),
         campo('Vídeo do YouTube', el('div', {}, [fYt, infoYt])),
         campo('Foto da cifra', el('div', { class: 'stack gap-2' }, [
+        el('div', { class: 'field' }, [
+          el('div', { class: 'label' }, 'Documento'),
+          infoDoc,
+          el('button', { class: 'btn btn-secondary btn-sm mt-2', onclick: function () { arqDoc.click(); } },
+            [el('i', { 'data-lucide': 'paperclip' }), 'Anexar documento']),
+        ]),
           previewFoto,
           el('div', { class: 'row gap-2' }, [
             el('button', { class: 'btn btn-secondary btn-sm', onclick: function () { arqFoto.click(); } },
@@ -616,7 +765,12 @@
         el('button', { class: 'btn btn-secondary', onclick: function () { h.close(); } }, 'Cancelar'),
         el('button', { class: 'btn btn-success', onclick: function () {
           const titulo = fTitulo.value.trim();
-          if (!titulo) { fTitulo.focus(); return; }
+          /* `trim` antes de decidir: "   " nao e um titulo, e sem o aparar o
+             botao aceitaria tres espacos e guardaria uma musica invisivel na
+             biblioteca. O mesmo `trim` ja e aplicado no valor gravado logo
+             abaixo, entao aqui e na hora do corte o comportamento bate. */
+          if (!titulo) { avisarTitulo(); fTitulo.focus(); return; }
+          avisarTitulo();
           v.titulo = titulo;
           v.artista = fArtista.value.trim();
           v.tom = fTom.value;
@@ -636,12 +790,41 @@
           v.yt = fYt.value.trim();
           v.ytId = Lk.extrairYouTubeId(v.yt);
           v.foto = foto;
+    v.doc = doc;
 
           v.atualizadaEm = Date.now();
-          if (isNew) S.db.cifras.unshift(v);
+
+          /* ---- renormaliza ANTES de guardar ----
+             *
+             * Este formulario escreve os campos direto no objeto, e o objeto vai
+             * cru para `S.db.cifras`. Nele, tres garantias que o modelo declara
+             * simplesmente nao existem:
+             *
+             *   - o BPM respeita `min`/`max` — que este mesmo campo de entrada
+             *     anuncia com os atributos `min="20" max="320"`. Sao atributos de
+             *     `<input number>`, e atributo so e validado no envio de um
+             *     `<form>`. O botao "Salvar" e um `onclick`, entao o navegador
+             *     nunca checa: "9999" entrava e a mesa abria com 9999.
+             *   - o titulo respeita 160 caracteres, o artista 160, a categoria
+             *     40 e o tom 12. Um titulo de 240 era gravado com 240.
+             *   - qualquer campo invalido que chegue por outro caminho
+             *     (importacao, backup antigo) e recusado do mesmo jeito.
+             *
+             * `normCifra` e o unico lugar do projeto que declara esses limites,
+             * e ele ja era chamado na CRIACAO — com os campos do formulario
+             * ainda vazios, o que nao valia nada. Chama-lo aqui e o que faz a
+             * edicao passar pelas mesmas garantias da criacao.
+             *
+             * E seguro para o resto do registro: renormalizar uma cifra ja
+             * normalizada nao muda NENHUM campo — nem `vs`, nem `foto`, nem
+             * `vsCap`, nem `anotacoes`, nem `estudo`, nem `id`, nem `criadoEm`.
+             * Isso foi medido, e nao presumido. */
+          const guardado = S.normCifra(v);
+
+          if (isNew) S.db.cifras.unshift(guardado);
           else {
-            const i = S.db.cifras.findIndex(function (x) { return x.id === v.id; });
-            if (i >= 0) S.db.cifras[i] = v;
+            const i = S.db.cifras.findIndex(function (x) { return x.id === guardado.id; });
+            if (i >= 0) S.db.cifras[i] = guardado;
           }
           S.mudou('cifra');
           h.close();

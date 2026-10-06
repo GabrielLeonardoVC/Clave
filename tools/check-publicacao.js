@@ -75,7 +75,17 @@ if (!wf) {
    * vez de repetir aqui e o que impede o verificador de passar enquanto o
    * workflow muda: os dois leem a mesma linha. */
   const copia = [];
-  const reCopia = /^\s*cp\s+(.+)$/;
+  /* O `\r?` antes do fim e a unica concessao ao fim de linha, e ela e
+   * necessaria: em JavaScript o `.` NAO casa `\r`, e o `$` sem a flag `m`
+   * so fecha no fim da string. Num arquivo CRLF — que e o que o Windows
+   * entrega, ja que o repositorio nao tem `.gitattributes` — a linha
+   * terminada em `\r` nao casava, `copia` ficava vazia, e as seis
+   * assercoes sobre o que vai ao ar caiam de uma vez, acusando um workflow
+   * que estava correto.
+   *
+   * Aceita LF e CRLF. Nao afrouxa mais que isso: ainda exige uma linha
+   * comecando por `cp` seguida de argumento, que e o que o parser quer. */
+  const reCopia = /^\s*cp\s+(.+)\r?$/;
   wf.split('\n').forEach((linha) => {
     const m = reCopia.exec(linha);
     if (!m) return;

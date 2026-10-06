@@ -48,6 +48,12 @@
      cancelava o relogio mas nao este temporizador — e ele continuava rodando
      numa tela fechada. */
   let quadroFollow = 0;
+  /* O dono dos recursos que mantem a mesa viva: tela acesa, tela cheia e o que
+     fazer quando o documento some. Vive no escopo do modulo, e nao dentro de
+     `abrir`, pelo mesmo motivo de `quadroFollow`: e `encerrar` que precisa
+     alcanca-lo. Sendo local, fechar a mesa deixaria um Wake Lock apontando
+     para uma tela que ja nao existe. */
+  let viva = null;
 
   /* =======================================================
      ENTRADA
@@ -83,6 +89,24 @@
     const botaoComecar = el('button', { class: 'pl-start', type: 'button', 'aria-label': 'Começar o ensaio' },
       [el('i', { 'data-lucide': 'play' }), el('span', {}, 'Começar')]);
 
+    /* O botao de tela cheia.
+     *
+     * Ele existe mesmo onde a API nao existe, e ai fica desabilitado com o
+     * motivo no `title`. Um botao que desaparece e pior que um botao que
+     * explica: quem procura a opcao e nao a acha acha que o app nao tem.
+     *
+     * O pedido so acontece aqui, dentro do clique. Pedir no `abrir` seria
+     * recusado sem erro — o navegador exige gesto — e a mesa ficaria sem tela
+     * cheia sem nenhum aviso, que e o resultado que ninguem sabe corrigir. */
+    const botaoTelaCheia = el('button', {
+      class: 'pl-cheia', type: 'button',
+      'aria-label': 'Entrar em tela cheia', title: 'Entrar em tela cheia',
+      onclick: function () {
+        if (!viva) return;
+        viva.alternarTelaCheia();
+      },
+    }, el('i', { 'data-lucide': 'maximize' }));
+
     const cabecalho = el('div', { class: 'pl-head' }, [
       el('div', { class: 'grow', style: { minWidth: '0' } }, [
         el('h2', { class: 'pl-titulo' }, f.titulo || 'Sem título'),
@@ -91,7 +115,10 @@
           f.escalaHora ? U.fmtTime(f.escalaHora) : '',
         ].filter(Boolean).join('  ·  ') || 'Sem artista'),
       ]),
-      botaoComecar,
+      el('div', { class: 'pl-head-botoes' }, [
+        botaoTelaCheia,
+        botaoComecar,
+      ]),
     ]);
     corpo.appendChild(cabecalho);
 
@@ -1221,6 +1248,81 @@
       body: corpo,
       onClose: encerrar,
     });
+
+    /* A folha em tela cheia perde a moldura e o limite de largura. A classe e
+       *posta* aqui, e nao no `emMudanca`, porque quem muda e o navegador: o
+       `fullscreenchange` chega quando a tela entra ou sai, inclusive quando a
+       saida foi por Esc ou por gesto do sistema — e nesse caso ninguem do app
+       pediu nada. */
+    function marcarTelaCheia(ligada) {
+      if (!h || !h.node) return;
+      h.node.classList.toggle('viva-cheia', !!ligada);
+    }
+
+    /* ---------------------------------------------------------
+       A MESA VIVA
+
+       Entra depois da folha existir, porque e a folha que entra em tela cheia:
+       em tela cheia so do `corpo`, o cabecalho da folha — e com ele o botao de
+       fechar — ficariam fora da tela, e a pessoa so sairia com Esc.
+       --------------------------------------------------------- */
+    const Viva = global.Viva;
+    if (Viva && typeof Viva.criar === 'function') {
+      viva = Viva.criar({
+        alvo: h.node,
+        /* O relogio para no ultimo ponto conhecido. */
+        aoFicar: function () { if (relogio) relogio.congelar(); },
+        aoVoltar: function (houve) {
+          if (!relogio) return;
+          relogio.degelar(houve);
+          /* O tempo que passou com a tela apagada nao e reconstruivel: o
+             navegador nao conta o que aconteceu com a aba oculta. Dizer isto
+             e melhor que fingir que o ensaio seguiu — um relogio que corre
+             sozinho na tela escura faz a cifra pular de um lugar para outro
+             quando a pessoa volta. */
+          if (houve && estado.tocando === 'tocando') {
+            UI.toast('O tempo parou enquanto a tela estava apagada', { tipo: 'info' });
+          }
+          pintar();
+        },
+        emMudanca: function (e) {
+          /* O estado da tela cheia vem do navegador, nunca da promessa do
+             pedido: se o pedido foi recusado, `emMudanca` nunca ve `true` e
+             o botao continua dizendo o que e verdade. */
+          marcarTelaCheia(e.telaCheia);
+          if (!botaoTelaCheia) return;
+          botaoTelaCheia.classList.toggle('ligado', !!e.telaCheia);
+          /* O rotulo descreve a ACAO de agora, nao o estado: "Entrar em tela cheia"
+             enquanto esta fora, "Sair da tela cheia" enquanto esta dentro. Um
+             rotulo que nomeia o estado ("Tela cheia") obriga quem le com tela
+             de leitor a adivinhar se o botao entra ou sai. O `title` anda
+             junto para o mouse; os dois nascem no mesmo lugar de proposito,
+             porque dois rotulos que secontradizem sao pior que um so. */
+          const acao = e.telaCheia ? 'Sair da tela cheia' : 'Entrar em tela cheia';
+          botaoTelaCheia.setAttribute('aria-label', acao);
+          botaoTelaCheia.title = acao;
+          const marca = e.telaCheia ? 'minimize' : 'maximize';
+          if (botaoTelaCheia.dataset.estado !== marca) {
+            botaoTelaCheia.dataset.estado = marca;
+            U.clear(botaoTelaCheia);
+            botaoTelaCheia.appendChild(el('i', { 'data-lucide': marca }));
+            UI.icons(botaoTelaCheia);
+          }
+          if (!e.suportaTelaCheia) {
+            botaoTelaCheia.disabled = true;
+            botaoTelaCheia.title = 'Este navegador não tem tela cheia';
+          }
+        },
+      });
+      viva.abrir();
+    } else {
+      /* Sem o modulo nao ha quem atenda o clique, e o botao ficaria ali,
+         ativo, sem fazer nada — a pior forma de desabilitar: parece quebra.
+         Ele se desliga e diz por que, que e o que o comentario acima promete. */
+      botaoTelaCheia.disabled = true;
+      botaoTelaCheia.title = 'Tela cheia indisponível nesta instalação';
+    }
+
     UI.icons(corpo);
     return h;
   }
@@ -1228,6 +1330,11 @@
   /** Encerra a sessao: para o relogio e o video, e solta quem escutava. */
   function encerrar() {
     if (cancelarInscricao) { cancelarInscricao(); cancelarInscricao = null; }
+    /* A mesa viva e a primeira a sair: ela solta o Wake Lock e tira os
+       ouvintes de visibilidade e de tela cheia. Fechar a folha deixando um
+       handle de tela acesa vivo significa continuar com a tela do aparelho
+       ligada depois de a tela do app ter sumido. */
+    if (viva) { viva.destruir(); viva = null; }
     if (relogio) { relogio.pausar(); relogio = null; }
     // O laco que le a posicao do video e um temporizador. Sem este
     // cancelamento, fechar a mesa no meio do ensaio deixaria ele rodando: o

@@ -136,10 +136,30 @@
       ]));
     }
 
-    /* ---- a régua ---- */
+    /* ---- a régua ----
+     *
+     * A ordem e a do uso: guardar a cifra, achar a que ja tem, e so entao o
+     * resto. E a distincao que faltava era essa — as duas primeiras coisas que
+     * se faz com uma cifra sao CRIAR uma e ABRIR uma que ja existe, e a regua
+     * tratava as duas como a mesma coisa.
+     *
+     * "Cifra" abria o FORMULARIO de criacao: quem tocou achando que ia abrir
+     * uma musica que ja tinha_escreveu uma nova sem querer, e a unica pista do
+     * erro era o titulo da folha, uma tela depois. Agora o botao diz o que faz.
+     *
+     * E o outro lado do mesmo problema: nao havia NENHUM atalho para a
+     * biblioteca. Quem queria consultar uma cifra existia tinha que saber que a
+     * biblioteca se chamava "Repertorio" na barra de baixo, e so descobria a
+     * palavra "Minhas cifras" depois de chegar la — dentro de uma aba, longe de
+     * onde a duvida nasceu.
+     *
+     * "Minhas cifras" e o nome exato que a biblioteca usa na aba dela. Nao e
+     * invencao desta tela: e a palavra que o app ja emprega para a mesma coisa,
+     * dita no mesmo lugar onde a duvida nasce. */
     root.appendChild(el('div', { class: 'regua mt-5' }, [
       rapido('calendar-plus', 'Evento', 'gold', function () { global.App.ir('agenda', { nova: true }); }),
-      rapido('music-4', 'Cifra', 'green', function () { V.repertorio && V.repertorio.novo(); }),
+      rapido('music-4', 'Nova cifra', 'green', function () { V.repertorio && V.repertorio.novo(); }),
+      rapido('library', 'Minhas cifras', '', function () { global.App.ir('repertorio'); }),
       rapido('audio-lines', 'Afinador', 'blue', function () { V.afinador && V.afinador.abrir(); }),
       rapido('clipboard-paste', 'Colar', '', function () { V.repertorio && V.repertorio.colar(); }),
       /* O 3D do instrumento, na regua da tela inicial.
@@ -147,7 +167,7 @@
        * Antes o unico caminho era Teoria -> Acordes -> escolher um acorde -> rolar
        * ate o fim da tela. Quatro passos para ver o braco, num ensaio, com o
        * celular na mao. Este e o quinto botao, e o que resolve isso. */
-      rapido('guitar', 'Braco', '', function () {
+      rapido('guitar', 'Braço', '', function () {
         if (V.teoria && typeof V.teoria.instrumento === 'function') V.teoria.instrumento();
         else global.App.ir('teoria', { aba: 'instrumento' });
       }),

@@ -4,7 +4,13 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 const path = require('path');
 
-const RAIZ = 'C:/Users/Gilson/Documents/Micro Saas/Cifras-pro';
+/* A raiz vem do proprio repositorio, e nao de um caminho fixo.
+ *
+ * O que estava aqui — `C:/Users/Gilson/Documents/Micro Saas/Cifras-pro` —
+ * so funcionava na maquina em que foi escrito. Em qualquer outra, o arquivo
+ * procurava uma pasta que nao existia e o ENOENT derrubava a prova inteira,
+ * depois de ela ja ter saido do `npm test` sem rodar. */
+const { RAIZ } = require('./arquivos.js');
 const VERIF = path.join(RAIZ, 'tools', 'check-identidade.js');
 
 /* As quatro posicoes de marca, com o texto bom e o texto velho. */

@@ -32,7 +32,12 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const RAIZ = 'C:/Users/Gilson/Documents/Micro Saas/Cifras-pro';
+/* A raiz vem do proprio repositorio, e nao de um caminho fixo.
+ *
+ * O caminho absoluto que estava aqui so resolvia na maquina em que o arquivo
+ * foi escrito. Em qualquer outra o `readFileSync` do `index.html` recebia um
+ * ENOENT e a prova dos cinco defeitos de icone nunca rodava. */
+const { RAIZ } = require('./arquivos.js');
 const VERIF = path.join(RAIZ, 'tools', 'check-icones.js');
 
 const CASOS = [

@@ -17,7 +17,11 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const RAIZ = 'C:/Users/Gilson/Documents/Micro Saas/Cifras-pro';
+/* A raiz vem do proprio repositorio, e nao de um caminho fixo.
+ *
+ * O caminho absoluto que estava aqui so resolvia na maquina em que o arquivo
+ * foi escrito; em qualquer outra a prova de vida dos recursos nao rodava. */
+const { RAIZ } = require('./arquivos.js');
 const ARQ = path.join(RAIZ, 'tools', 'check-vida.js');
 
 const CASOS = [

@@ -115,7 +115,14 @@
       },
       exportar: function (fundo) {
         return new Promise(function (resolve) {
-          const L = 1400;
+          /* A largura de saída é o MENOR entre o teto e a foto. Antes era o teto
+             sozinho: uma partitura de 512 px saía em 1400 px, cinco vezes maior
+             no disco, mais borrada e sem nenhuma informação a mais. Ampliar não
+             guarda nada — só ocupa. O teto continua valendo para a foto grande,
+             que é o caso que ele existe para atender. */
+          const teto = 1400;
+          const natural = (fundo && fundo.naturalWidth) || 0;
+          const L = natural ? Math.min(teto, natural) : teto;
           const prop = parseFloat(canvas.dataset.proporcaoOrig) || 1.4;
           const out = document.createElement('canvas');
           out.width = L; out.height = Math.round(L * prop);
@@ -265,7 +272,16 @@
     barra.appendChild(el('div', { class: 'st-draw-group' }, [
       el('button', { class: 'st-tool', 'aria-label': 'Desfazer', onclick: function () { if (pincel) pincel.desfazer(); } }, el('i', { 'data-lucide': 'undo-2' })),
       el('button', { class: 'st-tool', 'aria-label': 'Refazer', onclick: function () { if (pincel) pincel.refazer(); } }, el('i', { 'data-lucide': 'redo-2' })),
-      el('button', { class: 'st-tool', 'aria-label': 'Limpar', onclick: function () { if (pincel) { pincel.limpar(); UI.toast('Anotacoes limpas', { tipo: 'ok' }); } } }, el('i', { 'data-lucide': 'trash-2' })),
+      el('button', { class: 'st-tool', 'aria-label': 'Limpar', onclick: function () {
+        if (!pincel) return;
+        pincel.limpar();
+        /* O aviso antigo dizia "Anotações limpas", e nada tinha sido limpo de
+           lugar nenhum: os traços só saem do canvas, e a anotação que estiver
+           gravada na música continua lá. Dizer o que aconteceu — e o que
+           ainda NÃO aconteceu — é a diferença entre a pessoa entender e a
+           pessoa duvidar do aplicativo. */
+        UI.toast('Traços limpos nesta edição. Nada é apagado da música até salvar.', { tipo: 'ok', dur: 5200 });
+      } }, el('i', { 'data-lucide': 'trash-2' })),
     ]));
     barra.style.display = m.foto ? 'flex' : 'none';
     /* ---------- metronomo ---------- */
@@ -387,7 +403,12 @@
           if (!pincel || !pincel.temAlgo()) { UI.toast('Desenhe algo na foto antes de salvar', { tipo: 'err' }); return; }
           pincel.exportar(imgBase).then(function (png) {
             if (!png) { UI.toast('Não consegui gerar a imagem', { tipo: 'err' }); return; }
-            const nome = m.nome + ' (anotada)';
+            /* O nome do arquivo saia de `m.nome`, que existe na musica da ESCALA. Uma
+             * cifra da biblioteca nao tem `nome` — tem `titulo`. Sem esta
+             * alternativa, exportar de la produzia um arquivo chamado
+             * "undefined (anotada).jpg", que e um arquivo que ninguem quer
+             * achar depois. */
+            const nome = (m.nome || m.titulo || 'Foto') + ' (anotada)';
             /* A imagem vai pela mesma rota do backup, e pelo mesmo motivo: no
              * iPhone, um `image/jpeg` com `download` e ABERTO pelo Safari em vez
              * de salvo — a pessoa ve a foto na tela e acredita que salvou. A
@@ -408,13 +429,94 @@
             });
           });
         } }, [el('i', { 'data-lucide': 'download' }), 'Salvar anotação']),
-        escala ? el('button', { class: 'btn btn-success', onclick: function () { gravarNaEscala(escala, m, aoSalvar); h.close(); } },
-          [el('i', { 'data-lucide': 'check' }), 'Salvar na escala']) : el('span', { class: 'grow' }),
+
+        /* ---- SALVAR NO CLAVE ----
+           *
+           * A terceira via, e a única que grava. As outras duas continuam
+           * como são: "Salvar anotação" ENTREGA um arquivo ao sistema, e
+           * "Salvar na escala"/"Salvar" guardam a foto que já estava lá. Esta
+           * uma faz o que nenhuma fazia — junta a foto com os traços e grava
+           * o resultado na música.
+           *
+           * A composição é a mesma do "Salvar anotação": `exportar` já monta
+           * fundo + traços num JPEG de 1400 px. A diferença é para onde o
+           * resultado vai, e é por isso que são dois botões e não um.
+           *
+           * Nada é gravado enquanto a pessoa desenha, desfaz, refaz ou limpa.
+           * Só aqui. */
+        el('button', { class: 'btn btn-primary', onclick: function () {
+          if (!pincel || !imgBase || !imgBase.naturalWidth) {
+            UI.toast('Abra uma foto antes de salvar a anotação', { tipo: 'err' });
+            return;
+          }
+          /* Sem rabisco, o que o "salvar" gravaria é a própria foto de novo,
+             recodificada — a pessoa perderia qualidade sem ganhar nada. */
+          if (!pincel.temAlgo()) {
+            UI.toast('Desenhe algo na foto antes de salvar', { tipo: 'err' });
+            return;
+          }
+          pincel.exportar(imgBase).then(function (p) {
+            if (!p) {
+              /* A montagem falhou. O desenho continua no canvas e a foto da
+                 música continua como estava: avisa e devolve a pessoa para
+                 tentar de novo. */
+              UI.toast('Não consegui montar a imagem anotada', { tipo: 'err' });
+              return;
+            }
+            /* O registro de trabalho passa a carregar a imagem anotada ANTES
+               do commit — é dele que `gravarCampos` lê o campo `foto`. */
+            m.foto = p;
+            if (escala) gravarNaEscala(escala, m, aoSalvar);
+            else if (aoSalvar) gravarNaMusica(musica, m, aoSalvar);
+            else {
+              UI.toast('Esta tela não tem para onde salvar', { tipo: 'err' });
+              return;
+            }
+            /* Recarrega a base a partir do que acabou de ser salvo, para que
+               o próximo rabisco seja composto sobre a imagem anotada — e não
+               sobre a foto original de novo. `montarImagem` cria canvas e
+               pincel novos, então o histórico de traços começa limpo. */
+            montarImagem(p);
+            UI.toast('Anotação salva no Clave', { tipo: 'ok' });
+          });
+        } }, [el('i', { 'data-lucide': 'save' }), 'Salvar no Clave']),
+        /* O botao de gravar diz para ONDE ele grava, porque os dois destinos
+           são musically diferentes e a pessoa precisa saber qual está
+           usando. Com escala, é a música da escala. Sem escala — a biblioteca —
+           é a própria música. E sem nenhum dos dois, quem chamou não pediu
+           persistência: fica o espaço, e nada se grava. */
+        escala
+          ? el('button', { class: 'btn btn-success', onclick: function () { gravarNaEscala(escala, m, aoSalvar); h.close(); } },
+            [el('i', { 'data-lucide': 'check' }), 'Salvar na escala'])
+          : (aoSalvar
+            ? el('button', { class: 'btn btn-success', onclick: function () { gravarNaMusica(musica, m, aoSalvar); h.close(); } },
+              [el('i', { 'data-lucide': 'check' }), 'Salvar'])
+            : el('span', { class: 'grow' })),
       ],
     });
 
     UI.icons(corpo);
     setTimeout(function () { if (pincel) pincel.repintar(); }, 150);
+  }
+
+  /* Os campos que o Estúdio pode mudar sozinho.
+   *
+   * O desenho NAO esta aqui de propósito: ele vive no canvas e sai pelo
+   * "Salvar anotação", que é exportação. Metrônomo e foto sim — os dois
+   * escrevem em `m`, que é a cópia de trabalho. */
+  const CAMPOS_DO_ESTUDIO = ['tom', 'bpm', 'compasso', 'yt', 'ytId', 'foto'];
+
+  /* Copia o que o Estúdio mudou para o registro de destino.
+   *
+   * Uma lista só, para os dois caminhos não divergirem: o mesmo campo aceito
+   * aqui é o mesmo aceito ali. E o `if (dados[k])` continua sendo o que era —
+   * só valor presente sobrescreve. Isso significa que pelo Estúdio não se
+   * APAGA um campo, e é a regra que já valia; mudá-la aqui seria mudar o
+   * comportamento do botão que já existia. */
+  function gravarCampos(alvo, dados) {
+    CAMPOS_DO_ESTUDIO.forEach(function (k) {
+      if (dados[k]) alvo[k] = dados[k];
+    });
   }
 
   /**
@@ -430,9 +532,7 @@
     const S = global.Store;
     const alvo = escala.musicas.find(function (x) { return x.id === dados.id; });
     if (!alvo) return;
-    ['tom', 'bpm', 'compasso', 'yt', 'ytId', 'foto'].forEach(function (k) {
-      if (dados[k]) alvo[k] = dados[k];
-    });
+    gravarCampos(alvo, dados);
     escala.atualizadaEm = Date.now();
     if (typeof aoSalvar === 'function') {
       aoSalvar();
@@ -440,6 +540,30 @@
       S.mudou('musica');
     }
     UI.toast('Atualizado na escala', { tipo: 'ok' });
+  }
+
+  /**
+   * Grava o que o Estúdio mudou direto na música que veio nele.
+   *
+   * Este caminho é o de quem abriu uma cifra da BIBLIOTECA: não há escala
+   * nenhuma, e sem este botão a foto que a pessoa acabou de anexar morria
+   * aqui — aparecia na tela, e o registro continuava sem ela. A pessoa saía
+   * convencida de que tinha salvo.
+   *
+   * `musica` é o registro de verdade, não a cópia: quem chamou passou o
+   * objeto que está no armazenamento. Por isso dá para gravar nele, e é por
+   * isso que a cópia de trabalho (`m`) continua existindo — o metrônomo
+   * mexe em `m.bpm` a cada batida, e nada disso deve vazar para o registro
+   * antes de a pessoa apertar Salvar.
+   *
+   * Nada é gravado ao fechar, e nada é gravado sozinho. Fechar sem salvar
+   * deixa o registro como estava, que é o que a edição local promete. */
+  function gravarNaMusica(musica, dados, aoSalvar) {
+    if (!musica) return;
+    gravarCampos(musica, dados);
+    if (typeof aoSalvar === 'function') aoSalvar();
+    else global.Store.mudou('cifra');
+    UI.toast('Atualizado', { tipo: 'ok' });
   }
 
   function dialogTranspor(m) {
