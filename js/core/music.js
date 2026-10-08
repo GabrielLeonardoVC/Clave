@@ -990,6 +990,8 @@ function apenasAcordes(linha) {
   function transposeCifra(text, semis, flat) {
     semis = arredondarSemitons(semis);
     if (!semis) return String(text == null ? '' : text);
+    /* Default para flat: se não informado, usa preferência do tom de destino */
+    if (flat === undefined) flat = useFlatsFor(mod12(semis));
     return String(text == null ? '' : text)
       .replace(/\r\n?/g, '\n')
       .split('\n')
