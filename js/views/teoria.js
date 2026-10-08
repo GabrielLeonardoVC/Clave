@@ -59,17 +59,20 @@
     ]));
     const abas = [['acordes', 'Acordes', 'music-2'], ['escalas', 'Escalas', 'waves'],
       ['circulo', 'Círculo', 'circle-dot'], ['transpor', 'Transpor', 'shuffle'],
-      ['instrumento', 'Instrumento', 'guitar']];
+      ['instrumentos', 'Instrumentos', 'guitar']];
     root.appendChild(el('div', { class: 'tabs' }, abas.map(function (a) {
-      return el('button', { 'aria-selected': String(aba === a[0]), onclick: function () { aba = a[0]; recarregar(); } },
+      return el('button', { 'aria-selected': String(aba === a[0]), onclick: function () {
+        if (a[0] === 'instrumentos') { global.App.ir('instrumentos'); return; }
+        aba = a[0]; recarregar();
+      } },
         [el('i', { 'data-lucide': a[2] }), a[1]]);
     })));
     const box = el('div', {});
     if (aba === 'acordes') box.appendChild(painelAcordes());
     else if (aba === 'escalas') box.appendChild(painelEscalas());
     else if (aba === 'circulo') box.appendChild(painelCirculo());
-    else if (aba === 'instrumento') box.appendChild(painelInstrumento());
-    else box.appendChild(painelTranspor());
+    else if (aba === 'transpor') box.appendChild(painelTranspor());
+    else box.appendChild(painelInstrumento());
     root.appendChild(box);
     UI.icons(root);
   }

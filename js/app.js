@@ -15,6 +15,7 @@
     { id: 'agenda', titulo: 'Agenda', sub: 'ensaios e missas', icon: 'calendar-days', mobile: true },
     { id: 'repertorio', titulo: 'Repertório', sub: 'cifras', icon: 'library', mobile: true },
     { id: 'teoria', titulo: 'Teoria', sub: 'acordes e escalas', icon: 'graduation-cap', mobile: true },
+    { id: 'instrumentos', titulo: 'Instrumentos', sub: 'cordas, teclas, percussão', icon: 'guitar', mobile: true },
     { id: 'ajustes', titulo: 'Ajustes', sub: 'dados e mais', icon: 'settings', mobile: false },
   ];
 
@@ -110,10 +111,22 @@
      * que faltava. */
     painel.appendChild(el('button', { class: 'drawer-item', onclick: function () {
       fechar();
-      if (vistas.teoria && typeof vistas.teoria.instrumento === 'function') vistas.teoria.instrumento();
-      else UI.toast('Instrumento indisponível', { tipo: 'err' });
+      global.App.ir('instrumentos');
     } },
-      [el('i', { 'data-lucide': 'guitar' }), el('span', { class: 'grow' }, 'Instrumento em 3D')]));
+      [el('i', { 'data-lucide': 'guitar' }), el('span', { class: 'grow' }, 'Instrumentos')]));
+
+    /* Emergência: conversor de tom + busca multi-fonte + afinador.
+     * Ficava registrada (V.emergencia.abrir) mas sem NENHUMA entrada visual.
+     * O lugar certo é "Ferramentas" no drawer: o comentario do modulo diz
+     * "ao lado da lupa e do tema, e nao dentro do 'Mais'... Isto e para o
+     * que se usa com pressa". O drawer de ferramentas e exatamente isso. */
+    painel.appendChild(el('button', { class: 'drawer-item', onclick: function () {
+      fechar();
+      if (vistas.emergencia && typeof vistas.emergencia.abrir === 'function') vistas.emergencia.abrir();
+      else UI.toast('Emergência indisponível', { tipo: 'err' });
+    } },
+      [el('i', { 'data-lucide': 'triangle-alert' }), el('span', { class: 'grow' }, 'Emergência')]));
+
     painel.appendChild(el('h4', {}, 'Ajuda'));
     painel.appendChild(el('button', { class: 'drawer-item', onclick: function () { fechar(); sobre(); } },
       [el('i', { 'data-lucide': 'info' }), el('span', { class: 'grow' }, 'Sobre o ' + global.Identidade.NOME)]));

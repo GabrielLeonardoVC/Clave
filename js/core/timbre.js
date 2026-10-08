@@ -231,6 +231,71 @@
       oitavasAte: 10,
       brilhoTraste: 0,
     },
+
+    /* NOVOS TIMBRES — V6.17
+     *
+     * Instrumentos de percussao nao tem cordas nem trastes. O modelo usa
+     * `tauBase` curto e `atacante` alto para simular o impacto. A funcao
+     * `espectro` e `tocarNo` ja lidam com `brilhoTraste = 0` e `traste = 0`. */
+
+    bateria: {
+      braco: null,
+      nome: 'Bateria',
+      noPique: true,
+      /* Cada peca e um timbre independente. O modelo base e genérico;
+       * as pecas especificas sao tocadas via `tocarNo` com `opts.peca`. */
+      parciais: [1, 0.6, 0.35, 0.2, 0.12, 0.07, 0.04, 0.02],
+      cai: [1, 0.7, 0.5, 0.35, 0.25, 0.18, 0.16, 0.15],
+      ressonancias: [[80, 1.8], [200, 1.2], [400, 1.0]],
+      tauBase: 0.35,
+      ataque: 0.0015,
+      atacante: 0.25,
+      oitavasAte: 5,
+      brilhoTraste: 0,
+    },
+
+    'caixa-ritmos': {
+      braco: null,
+      nome: 'Caixa de ritmos',
+      noPique: true,
+      /* Som mais sintetico, decay uniforme, sem raspagem. */
+      parciais: [1, 0.55, 0.33, 0.22, 0.14, 0.09, 0.06, 0.04],
+      cai: [1, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25],
+      ressonancias: [[100, 1.5], [300, 1.2], [800, 1.0]],
+      tauBase: 0.25,
+      ataque: 0.001,
+      atacante: 0.15,
+      oitavasAte: 6,
+      brilhoTraste: 0,
+    },
+
+    sinos: {
+      braco: null,
+      nome: 'Jogo de sinos',
+      /* Sinos tem decaimento MUITO longo, rico em harmonicos agudos. */
+      parciais: [1, 0.85, 0.7, 0.58, 0.48, 0.4, 0.33, 0.28, 0.23, 0.19, 0.15, 0.11],
+      cai: [1, 0.92, 0.85, 0.78, 0.72, 0.66, 0.6, 0.55, 0.5, 0.45, 0.4, 0.34],
+      ressonancias: [[1200, 1.5], [2400, 1.2], [4800, 1.0]],
+      tauBase: 8.0,
+      ataque: 0.002,
+      atacante: 0.08,
+      oitavasAte: 8,
+      brilhoTraste: 0,
+    },
+
+    xilofone: {
+      braco: null,
+      nome: 'Xilofone',
+      /* Lâminas de madeira: ataque rapido, decaimento medio, harmonicos impares proeminentes. */
+      parciais: [1, 0.75, 0.55, 0.42, 0.33, 0.25, 0.19, 0.14, 0.11, 0.08, 0.05],
+      cai: [1, 0.7, 0.55, 0.43, 0.34, 0.27, 0.21, 0.17, 0.13, 0.1, 0.07],
+      ressonancias: [[450, 1.3], [900, 1.1], [1800, 1.0]],
+      tauBase: 1.8,
+      ataque: 0.0018,
+      atacante: 0.12,
+      oitavasAte: 8,
+      brilhoTraste: 0,
+    },
   };
 
   /** O modelo de um instrumento, com queda para o violao. */

@@ -66,6 +66,7 @@ const RECURSOS = [
   './js/views/agenda.js',
   './js/views/repertorio.js',
   './js/views/teoria.js',
+  './js/views/instrumentos.js',
   './js/views/ajustes.js',
   './js/views/afinador.js',
   './js/views/emergencia.js',

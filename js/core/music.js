@@ -1670,28 +1670,72 @@ function apenasAcordes(linha) {
  */
 const INSTRUMENTOS = [
   { id: 'violao', nome: 'Violão', afinacao: 'Padrão', cordas: 6, trastes: 22,
-    openPc: [4, 9, 2, 7, 11, 4], openMidi: [40, 45, 50, 55, 59, 64], labels: ['E', 'A', 'D', 'G', 'B', 'E'] },
+    openPc: [4, 9, 2, 7, 11, 4], openMidi: [40, 45, 50, 55, 59, 64], labels: ['E', 'A', 'D', 'G', 'B', 'E'],
+    tipo: 'cordas', familia: 'dedilhado' },
   { id: 'baixo', nome: 'Baixo', afinacao: 'Padrão', cordas: 4, trastes: 20, triade: true,
-    openPc: [4, 9, 2, 7], openMidi: [28, 33, 38, 43], labels: ['E', 'A', 'D', 'G'] },
+    openPc: [4, 9, 2, 7], openMidi: [28, 33, 38, 43], labels: ['E', 'A', 'D', 'G'],
+    tipo: 'cordas', familia: 'dedilhado' },
   { id: 'baixo5', nome: 'Baixo 5 cordas', afinacao: 'Padrão', cordas: 5, trastes: 20, triade: true,
-    openPc: [11, 4, 9, 2, 7], openMidi: [23, 28, 33, 38, 43], labels: ['B', 'E', 'A', 'D', 'G'] },
-  /* Violino e cavaquinho entraram por causa do som, e nao da moda.
-   *
-   * O violino e arco: tem 4 cordas em Sol-Re-La-Mi, afinacao identica a da 4a
-   * corda do violao, mas comeca em Sol3 em vez de Mi2. Sao duas oitavas acima, e
-   * e por isso que uma escala de violao nele toca na altura errada.
-   *
-   * O cavaquinho tem a MESMA afinacao do ukulele (Sol-Ut-Mi-La). O que muda e
-   * o braco: cavaquinho costuma ter mais trastes, e o som e outro — caixa menor,
-   * mais media, menos agudo estourado. Timbre e braco ficam em lugares
-   * diferentes de proposito: afinacao e geometria sao coisas do braco, som e
-   * outra coisa. */
-  { id: 'cavaquinho', nome: 'Cavaquinho', afinacao: 'Solastro', cordas: 4, trastes: 16,
-    openPc: [7, 0, 4, 9], openMidi: [55, 60, 64, 69], labels: ['G', 'C', 'E', 'A'] },
-  { id: 'violino', nome: 'Violino', afinacao: 'Padrão', cordas: 4, trastes: 19, triade: true,
-    openPc: [7, 2, 9, 4], openMidi: [55, 62, 69, 76], labels: ['G', 'D', 'A', 'E'] },
+    openPc: [11, 4, 9, 2, 7], openMidi: [23, 28, 33, 38, 43], labels: ['B', 'E', 'A', 'D', 'G'],
+    tipo: 'cordas', familia: 'dedilhado' },
+  { id: 'cavaquinho', nome: 'Cavaquinho', afinacao: 'DGBD', cordas: 4, trastes: 16,
+    openPc: [2, 7, 11, 2], openMidi: [62, 67, 71, 74], labels: ['D', 'G', 'B', 'D'],
+    tipo: 'cordas', familia: 'dedilhado' },
+  { id: 'violino', nome: 'Violino', afinacao: 'Padrão', cordas: 4, trastes: 0, triade: true,
+    openPc: [7, 2, 9, 4], openMidi: [55, 62, 69, 76], labels: ['G', 'D', 'A', 'E'],
+    tipo: 'cordas', familia: 'arco', semTrastes: true },
   { id: 'ukulele', nome: 'Ukulele', afinacao: 'Solastro', cordas: 4, trastes: 12,
-    openPc: [7, 0, 4, 9], openMidi: [55, 60, 64, 69], labels: ['G', 'C', 'E', 'A'] },
+    openPc: [7, 0, 4, 9], openMidi: [55, 60, 64, 69], labels: ['G', 'C', 'E', 'A'],
+    tipo: 'cordas', familia: 'dedilhado' },
+  /* NOVOS INSTRUMENTOS — V6.17
+   *
+   * Piano, Sintetizador, Bateria, Caixa de ritmos, Sinos, Xilofone.
+   * Nao sao cordas: nao tem traste, nao tem braco. O campo `tipo` e `familia`
+   * permite que a UI decida como desenhar (teclado, grade, sinos, etc.). */
+  { id: 'piano', nome: 'Piano', afinacao: 'Temperado', cordas: 0, trastes: 0,
+    openPc: [], openMidi: [], labels: [],
+    tipo: 'teclado', familia: 'percussao-martelo', oitavas: 7, notaCentral: 60 },
+  { id: 'sintetizador', nome: 'Sintetizador', afinacao: 'Temperado', cordas: 0, trastes: 0,
+    openPc: [], openMidi: [], labels: [],
+    tipo: 'teclado', familia: 'eletronico', oitavas: 5, notaCentral: 60 },
+  { id: 'bateria', nome: 'Bateria', afinacao: 'Indefinida', cordas: 0, trastes: 0,
+    openPc: [], openMidi: [], labels: [],
+    tipo: 'percussao', familia: 'bateria',
+    pecas: [
+      { id: 'bumbo', nome: 'Bumbo', pc: 36, midi: 36, cor: '#222' },
+      { id: 'caixa', nome: 'Caixa', pc: 38, midi: 38, cor: '#ccc' },
+      { id: 'chimbal-fechado', nome: 'Chimbal fechado', pc: 42, midi: 42, cor: '#8b7' },
+      { id: 'chimbal-aberto', nome: 'Chimbal aberto', pc: 46, midi: 46, cor: '#9c8' },
+      { id: 'tom-alto', nome: 'Tom alto', pc: 48, midi: 48, cor: '#c63' },
+      { id: 'tom-medio', nome: 'Tom médio', pc: 45, midi: 45, cor: '#b52' },
+      { id: 'tom-baixo', nome: 'Tom baixo', pc: 43, midi: 43, cor: '#a41' },
+      { id: 'prato-crash', nome: 'Prato crash', pc: 49, midi: 49, cor: '#d9c' },
+      { id: 'prato-ride', nome: 'Prato ride', pc: 51, midi: 51, cor: '#daa' },
+    ] },
+  { id: 'caixa-ritmos', nome: 'Caixa de ritmos', afinacao: 'Programavel', cordas: 0, trastes: 0,
+    openPc: [], openMidi: [], labels: [],
+    tipo: 'percussao', familia: 'sequenciador',
+    passos: 16, bpmPadrao: 120,
+    pecas: [
+      { id: 'bd', nome: 'Bumbo', midi: 36, cor: '#222' },
+      { id: 'sd', nome: 'Caixa', midi: 38, cor: '#ccc' },
+      { id: 'ch', nome: 'Chimbal', midi: 42, cor: '#8b7' },
+      { id: 'oh', nome: 'Chimbal aberto', midi: 46, cor: '#9c8' },
+      { id: 't1', nome: 'Tom 1', midi: 48, cor: '#c63' },
+      { id: 't2', nome: 'Tom 2', midi: 45, cor: '#b52' },
+      { id: 't3', nome: 'Tom 3', midi: 43, cor: '#a41' },
+      { id: 'cp', nome: 'Palmas', midi: 39, cor: '#996' },
+    ] },
+  { id: 'sinos', nome: 'Jogo de sinos', afinacao: 'Temperado', cordas: 0, trastes: 0,
+    openPc: [], openMidi: [], labels: [],
+    tipo: 'percussao', familia: 'sinos',
+    notas: [60,62,64,65,67,69,71,72,74,76,77,79,81,83,84], /* C4..C6 cromático */
+    corBase: '#ffd700' },
+  { id: 'xilofone', nome: 'Xilofone', afinacao: 'Temperado', cordas: 0, trastes: 0,
+    openPc: [], openMidi: [], labels: [],
+    tipo: 'percussao', familia: 'laminas',
+    notas: [60,62,64,65,67,69,71,72,74,76,77,79,81,83,84,86,88], /* C4..A5 */
+    corBase: '#8b4513' },
 ];
 const INSTRUMENTO_PADRAO = INSTRUMENTOS[0];
 

@@ -77,6 +77,18 @@
     ukulele: { cordaEsp: 0.44, escalaComprimento: 6.2, alturaL: 0.11, nutL: 0.34, nutH: 0.22, cabeca: true, trastes: true },
     cavaquinho: { cordaEsp: 0.46, escalaComprimento: 6.6, alturaL: 0.12, nutL: 0.38, nutH: 0.24, cabeca: true, trastes: true },
     violino: { cordaEsp: 0.5, escalaComprimento: 7.4, alturaL: 0.13, nutL: 0.42, nutH: 0.26, cabeca: true, trastes: false },
+
+    /* NOVAS GEOMETRIAS — V6.17
+     *
+     * Instrumentos sem traste recebem `trastes: false` e `braco: false`.
+     * A funcao `criar` usa estes campos para decidir se desenha braco ou
+     * delega para a visualizacao propria do instrumento (teclado, bateria, etc.). */
+    piano: { cordaEsp: 0, escalaComprimento: 0, alturaL: 0, nutL: 0, nutH: 0, cabeca: false, trastes: false, braco: false },
+    sintetizador: { cordaEsp: 0, escalaComprimento: 0, alturaL: 0, nutL: 0, nutH: 0, cabeca: false, trastes: false, braco: false },
+    bateria: { cordaEsp: 0, escalaComprimento: 0, alturaL: 0, nutL: 0, nutH: 0, cabeca: false, trastes: false, braco: false },
+    'caixa-ritmos': { cordaEsp: 0, escalaComprimento: 0, alturaL: 0, nutL: 0, nutH: 0, cabeca: false, trastes: false, braco: false },
+    sinos: { cordaEsp: 0, escalaComprimento: 0, alturaL: 0, nutL: 0, nutH: 0, cabeca: false, trastes: false, braco: false },
+    xilofone: { cordaEsp: 0, escalaComprimento: 0, alturaL: 0, nutL: 0, nutH: 0, cabeca: false, trastes: false, braco: false },
   };
 
   function geometriaDe(inst) {

@@ -192,7 +192,7 @@ const nomes = regua ? [].concat(regua.childNodes).map((b) => rotuloDe(b)) : [];
 ok(nomes.indexOf('Nova cifra') >= 0, 'existe um botao "Nova cifra"', JSON.stringify(nomes));
 ok(nomes.indexOf('Minhas cifras') >= 0, 'existe um botao "Minhas cifras"', JSON.stringify(nomes));
 ok(nomes.indexOf('Cifra') < 0, 'e o antigo "Cifra" nao esta mais la — era ele que prometia uma coisa e entregava outra');
-ok(nomes.indexOf('Braço') >= 0, 'e "Braço" esta escrito com cedilha', JSON.stringify(nomes));
+ok(nomes.indexOf('Instrumentos') >= 0, 'e "Instrumentos" esta na regua', JSON.stringify(nomes));
 
 /* Nenhum botao pode depender so do icone. */
 const semTexto = regua ? [].concat(regua.childNodes).filter((b) => !rotuloDe(b)) : [];
@@ -202,7 +202,7 @@ igual(semTexto.length, 0, 'nenhum botao da regua e so icone');
 ok(nomes.every((n, i) => nomes.indexOf(n) === i), 'nao ha botao repetido na regua');
 
 /* Os outros quatro continuam como estavam: nada foi perdido. */
-['Evento', 'Afinador', 'Colar', 'Braço'].forEach((n) => {
+['Evento', 'Afinador', 'Colar', 'Instrumentos'].forEach((n) => {
   ok(nomes.indexOf(n) >= 0, 'o atalho "' + n + '" continua na Home', JSON.stringify(nomes));
 });
 
@@ -374,9 +374,9 @@ secao('7. nada além dos dois caminhos');
 {
   const h = montarHome();
   criados.length = 0; rotas.length = 0;
-  clique(h.regua, /^Braço$/, 'Braço');
-  ok(criados.length + rotas.length === 0,
-    '"Braço" nao abre criacao nem navega por este caminho',
+  clique(h.regua, /^Instrumentos$/, 'Instrumentos');
+  ok(rotas.length === 1 && rotas[0].rota === 'instrumentos',
+    '"Instrumentos" navega para a rota instrumentos',
     'criou=' + criados.length + ' navegou=' + rotas.length);
 }
 

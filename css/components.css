@@ -11,6 +11,8 @@
 .card-tap:active { transform: scale(.985); }
 .card-tap:hover { box-shadow: var(--sh-2); border-color: var(--line-2); }
 
+.sequenciador-container { background: var(--surface); border-radius: var(--r-4); padding: var(--sp-4); }
+
 .section-title { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; font-size: 0.6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); }
 .section-title svg { width: 15px; height: 15px; }
 

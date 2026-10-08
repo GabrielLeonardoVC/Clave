@@ -167,9 +167,8 @@
        * Antes o unico caminho era Teoria -> Acordes -> escolher um acorde -> rolar
        * ate o fim da tela. Quatro passos para ver o braco, num ensaio, com o
        * celular na mao. Este e o quinto botao, e o que resolve isso. */
-      rapido('guitar', 'Braço', '', function () {
-        if (V.teoria && typeof V.teoria.instrumento === 'function') V.teoria.instrumento();
-        else global.App.ir('teoria', { aba: 'instrumento' });
+      rapido('guitar', 'Instrumentos', '', function () {
+        global.App.ir('instrumentos');
       }),
     ]));
 

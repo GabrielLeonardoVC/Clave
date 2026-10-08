@@ -450,7 +450,7 @@ console.log('\n=== INSTRUMENTOS: a tabela ===');
  * verificacao de contagem protege contra o oposto do que parece — ela impede
  * de adicionar, e nao impede de adicionar errado. O `test-escolha` cobre o
  * caso que importa. */
-eq(M.INSTRUMENTOS.length, 6, 'seis instrumentos no braco');
+eq(M.INSTRUMENTOS.filter(function (i) { return i.tipo === 'cordas'; }).length, 6, 'seis instrumentos de cordas (com braco)');
 eq(M.INSTRUMENTO_PADRAO.id, 'violao', 'o padrao e o violao');
 eq(M.instrumento('baixo').cordas, 4, 'baixo tem 4 cordas');
 eq(M.instrumento('ukulele').cordas, 4, 'ukulele tem 4 cordas');
@@ -487,7 +487,7 @@ console.log('\n=== INSTRUMENTOS: formas que tocam o acorde certo ===');
 // tem de ser o acorde pedido — e nada alem dele.
 const QUALIDADES_TESTE = ['', 'm', '7', 'm7', 'maj7', 'dim', 'aug', 'sus4', 'sus2'];
 let formasChutadas = 0, formasRuins = 0, instrumentosSemForma = [];
-M.INSTRUMENTOS.forEach(function (I) {
+M.INSTRUMENTOS.filter(function (i) { return i.tipo === 'cordas'; }).forEach(function (I) {
   let achouAlguma = false;
   for (let pc = 0; pc < 12; pc++) {
     for (const q of QUALIDADES_TESTE) {

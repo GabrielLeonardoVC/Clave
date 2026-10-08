@@ -658,20 +658,6 @@
         })
         .catch(function () { UI.toast('Não deu para ler a imagem', { tipo: 'err' }); });
 
-      arqDoc.addEventListener('change', function () {
-        const a = arqDoc.files[0];
-        if (!a) return;
-        U.readFile(a, true).then(function (d) {
-          /* Quem decide e o modelo, nao este campo. Aqui so se avisa, para a
-             pessoa nao ficar com "anexou" e nada ter acontecido. */
-          const guardado = S.normCifra({ doc: { nome: a.name, dados: d } }).doc;
-          if (!guardado) {
-            UI.toast('Só entram PDF e texto, até 1 MB', { tipo: 'err' });
-            return;
-          }
-          doc = guardado; pintarDoc();
-        });
-    });
       });
 
     const infoNar = el('div', { class: 'fs-xs muted mt-1' },
@@ -704,29 +690,44 @@
     let doc = v.doc || null;
     const infoDoc = el('div', { class: 'fs-sm' });
     function pintarDoc() {
-    U.clear(infoDoc);
-    if (!doc) {
-    infoDoc.appendChild(el('span', { class: 'muted' }, 'Nenhum documento anexado.'));
-    return;
-    }
-    infoDoc.appendChild(el('div', { class: 'row gap-2 between wrap' }, [
-    el('div', { class: 'grow', style: { minWidth: '0' } }, [
-    el('div', { class: 'fw-7 ellipsis' }, doc.nome),
-    el('div', { class: 'fs-xs muted' },
-    (doc.tipo === 'application/pdf' ? 'PDF' : 'Texto') + ' · '
-    + U.fmtBytes(Math.round(doc.dados.length * 0.75))),
-    ]),
-    el('button', { class: 'btn btn-secondary btn-sm', onclick: function () {
-    U.entregarArquivo(U.dataURLParaArquivo(doc.dados, doc.nome), doc.nome);
-    } }, [el('i', { 'data-lucide': 'download' }), 'Abrir']),
-    el('button', { class: 'btn btn-secondary btn-sm', onclick: function () {
-    doc = null; pintarDoc();
-    } }, [el('i', { 'data-lucide': 'x' }), 'Remover']),
-    ]));
+      U.clear(infoDoc);
+      if (!doc) {
+        infoDoc.appendChild(el('span', { class: 'muted' }, 'Nenhum documento anexado.'));
+        return;
+      }
+      infoDoc.appendChild(el('div', { class: 'row gap-2 between wrap' }, [
+        el('div', { class: 'grow', style: { minWidth: '0' } }, [
+          el('div', { class: 'fw-7 ellipsis' }, doc.nome),
+          el('div', { class: 'fs-xs muted' },
+            (doc.tipo === 'application/pdf' ? 'PDF' : 'Texto') + ' · '
+            + U.fmtBytes(Math.round(doc.dados.length * 0.75))),
+        ]),
+        el('button', { class: 'btn btn-secondary btn-sm', onclick: function () {
+          U.entregarArquivo(U.dataURLParaArquivo(doc.dados, doc.nome), doc.nome);
+        } }, [el('i', { 'data-lucide': 'download' }), 'Abrir']),
+        el('button', { class: 'btn btn-secondary btn-sm', onclick: function () {
+          doc = null; pintarDoc();
+        } }, [el('i', { 'data-lucide': 'x' }), 'Remover']),
+      ]));
     }
     pintarDoc();
     const arqDoc = el('input', {
-    type: 'file', accept: 'application/pdf,text/plain,.pdf,.txt', style: { display: 'none' },
+      type: 'file', accept: 'application/pdf,text/plain,.pdf,.txt', style: { display: 'none' },
+    });
+
+    arqDoc.addEventListener('change', function () {
+      const a = arqDoc.files[0];
+      if (!a) return;
+      U.readFile(a, true).then(function (d) {
+        /* Quem decide e o modelo, nao este campo. Aqui so se avisa, para a
+           pessoa nao ficar com "anexou" e nada ter acontecido. */
+        const guardado = S.normCifra({ doc: { nome: a.name, dados: d } }).doc;
+        if (!guardado) {
+          UI.toast('Só entram PDF e texto, até 1 MB', { tipo: 'err' });
+          return;
+        }
+        doc = guardado; pintarDoc();
+      });
     });
 
     const h = UI.sheet({
@@ -758,6 +759,7 @@
               [el('i', { 'data-lucide': 'trash-2' }), 'Remover']) : null,
           ].filter(Boolean)),
           arqFoto,
+          arqDoc,
         ])),
         campo('Narração', infoNar),
       ]),
