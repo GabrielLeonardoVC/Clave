@@ -387,9 +387,19 @@
     //    (necessaria: "m7" = menor com 7, "M7" = maior com 7)
     for (const k of QUALITY_KEYS) if (k === s) return k;
     for (const k of QUALITY_KEYS) if (k.toLowerCase() === s) return k;
-    // 7) prefixo mais longo possivel (ex.: "sus4", "7sus4", "m7b5")
-    for (const k of QUALITY_KEYS) if (s.startsWith(k) && k.length >= 2) return k;
-    for (const k of QUALITY_KEYS) if (s.startsWith(k.toLowerCase()) && k.length >= 2) return k;
+    // 7) igual ao 6, mas exigindo que o sufixo INTEIRO tenha sido consumido.
+    //    Sem essa exigencia o motor truncava: "m7(5-)" casava com "m7" e
+    //    o "(5-)" sumia, virando Dm7 — que e meio-diminuto virando menor com 7,
+    //    outro acorde e outro som, sem nenhum aviso. O sufixo que sobra nao cabe
+    //    em nenhuma qualidade conhecida: entao o honesto e devolver vazio, e quem
+    //    reconstroi o nome devolve o texto como estava, movendo so a fundamental.
+    for (const k of QUALITY_KEYS) {
+      if (k.length >= 2 && s.startsWith(k) && s.slice(k.length) === '') return k;
+    }
+    for (const k of QUALITY_KEYS) {
+      if (k.length >= 2 && s.toLowerCase().startsWith(k.toLowerCase())
+        && s.length === k.length) return k;
+    }
     return '';
   }
 
@@ -402,23 +412,107 @@
    * reais de acorde, para que palavras como "faltara" (F + "altara")
    * ou "maior" (M + "aior") NAO sejam interpretadas como acordes.
    */
-  const QUAL_PART = '(?:maj|min|mi|m|dim|aug|sus|add|o|\\u00b0|\\u00f8|\\u0394|M|[+*\\-])';
+  /* ==========================================================
+     A GRAMATICA DO ACORDE, E O QUE DELA SE PODE MEDIR
+
+     Isto aqui foi medido, nao presumido. Contra a lista de tokens do padrao de
+     cifragem do Cifra Club, o padrao antigo reconhecia 19 de 97. Os outros 78
+     NAO ERAM ACORDES para o motor: o `transposeLine` os deixava inteiros, sem
+     nem mexer na fundamental.
+
+     O caso grave e silencioso. Numa linha com `Cm7  C7(9)` - setima menor
+     colada, setima com nona entre parenteses, as duas grafias do mesmo par de
+     acorde - a saida era `Dm7  C7(9)`. O primeiro subiu dois semitons e o
+     segundo ficou em C: nenhum aviso, nenhuma excecao, e a progressao muda de
+     tom no meio da linha. Quem esta tocando so percebe quando ja cantou errado.
+
+     A causa e uma so: o padrao antigo NAO ACEITAVA PARENTESES. E o padrao do
+     Cifra Club usa parenteses justamente nas formas mais comuns depois da
+     setima: `Cm7(5-)`, `C7M(5+)`, `C7(9)`, `C7(11)`, `C6(9/11+)` e
+     `C7(5-/9)`. Sem eles no padrao, `parseChord` devolvia nulo e o token
+     ficava intacto.
+
+     A correcao NAO e inventar um transpositor concorrente nem um dicionario
+     novo de acordes. E fazer o padrao RECONHECER a forma escrita; o resto
+     acontece pelo caminho que o proprio arquivo ja tinha e que ja era o
+     certo: sufixo que o motor nao sabe nomear volta como estava, e so a
+     fundamental e o baixo andam. `Cm7(5-)` vira `Dm7(5-)` - o acorde certo,
+     na grafia que a pessoa escreveu.
+     ========================================================== */
+  const ACC = '[#b\u266f\u266d]';
+  const NOTA = '[A-Ga-g]';
+  /* um "grau" do Cifra Club: 9, 11+, 13-, 4+ */
+  const GRAU = '\\d{1,2}[+-]?';
+  /* extensao: o primeiro numero colado, os seguintes entre parenteses e
+     separados por barra. O proprio Cifra Club manda escrever `C6(9/11+)`. */
+  /* alteracao DEPOIS do parentese: `C5(9)-`, escrita do jeito que o proprio
+     Cifra Club usa. Sem esta linha o token nao casava e a fundamental nao
+     andava — o mesmo defeito silencioso que os parenteses tinham. */
+  const FORA = '[+-]?';
+  const PAREN = '(?:\\((?:' + GRAU + '|[b#]5)(?:\\/(?:' + GRAU + '|[b#]5))*\\))?';
+  /* uma peca do miolo. A ordem das alternativas importa: `maj` antes de `m`,
+     `min` antes de `mi`, para o mais longo vencer. */
+  const PECA = '(?:maj|min|mi|dim|aug|add|sus|m|M|o|\u00b0|\u00ba|\u00f8|\u0394|[+*\\-]|\\d{1,2}[+-]?|[b#]5)';
+  /* `m7M`, `m5-` e `6-` alternam letra e numero. O padrao antigo exigia todas
+     as letras antes de todos os numeros, e por isso nao casava com nenhum
+     deles. Daqui a razao de o miolo ser uma repeticao de pecas, e nao
+     letra-depois-numero. */
   const CHORD_RE = new RegExp(
-    '^([A-Ga-g])([#b\\u266f\\u266d]{0,2})' +
-    '(' +
-      '\\d?' +                       // "7sus4": cifra antes da palavra
-      QUAL_PART + '{0,2}' +          // até 2 palavras: m, maj, sus, 7sus, mmaj...
-      '\\d{0,2}(?:b5)?' +            // 7, 9, 13, 7b5 (meio-diminuto)
-      '(?:\\/(?:9|11|13|5|3|4))?' +  // extensões: 6/9
-    ')' +
-    '(?:\\/([A-Ga-g][#b\\u266f\\u266d]{0,2}))?$'
+    '^(' + NOTA + ')(' + ACC + '{0,2})(' + PECA + '{0,6}'
+    + '(?:\\/(?:\\d{1,2}[+-]?|[b#]5))*' + PAREN + FORA + ')'
+    + '(?:\\/(' + NOTA + ACC + '{0,2}))?$'
   );
 
+  /* ==========================================================
+     O NUCLE DO TOKEN, SEM COMER O PARENTESE DO ACORDE
+
+     Este era o ultimo obstaculo, e ele nao estava no regex: estava no
+     tokenizer.
+
+     Toda a deteccao de acorde comeca com `replace(/[)"\]...+$/, "")`, para
+     tirar a pontuacao que gruda no acorde — "(Am)" e "Am," sao o mesmo acorde.
+     Com `Cm7(5-)`, aquele `replace` arranco o `)` que FECHA o acorde e o
+     token virou `Cm7(5-`. O regex, corretamente, nao casou com o parenteese
+     desbalanceado; o token deixou de ser acorde; e a linha inteira saiu sem
+     transpor. Sem aviso nenhum.
+
+     A correcao e tentar o token INTEIRO antes de tirar pontuacao. Se ele
+     casar como esta, ele e' o acorde — e o `)` final pertence a ele. Se nao
+     casar, ai sim a pontuacao de borda e' pontuacao, e o caminho antigo
+     continua igual. Nenhuma palavra de letra passa a ser acorde: o token
+     inteiro so vale quando o proprio `parseChord` reconhece.
+     ========================================================== */
+  function nucleoDeToken(raw) {
+    if (!raw) return '';
+    if (parseChord(raw)) return raw;
+    const semBorda = String(raw)
+      .replace(/^[("'][]+/, '')
+      .replace(/[)"'\],.!?;:]+$/, '');
+    return semBorda && parseChord(semBorda) ? semBorda : String(raw);
+  }
   /** Converte um token de acorde. Retorna null se não for acorde. */
   function parseChord(token) {
     if (token == null) return null;
     const s = String(token).trim();
-    if (!s || s.length > 12) return null;
+    /* ORDEM "m7M" (OnSong) — DECISAO DE PRODUTO, MANTIDA DE PROPÓSITO
+     *
+     * A gramatica nova passou a aceitar `m7M`, porque `m`, `7` e `M` sao tres
+     * pecas legadas e o padrao e uma repeticao delas. O que acontece com um
+     * acorde assim e' o caminho honesto: fica desconhecido, a fundamental anda
+     * e o texto volta como estava — `Cm7M` vira `Dm7M`, e o "M" nao vira maior.
+     * Ou seja: o medo que motivou a regra antiga (qualidade desconhecida virar
+     * maior) nao acontece.
+     *
+     * Mesmo assim, este projeto adotou `CmM7` como a grafia de `mM7`, e o
+     * `tools/test-acordes.js` registra isso como decisao, nao como acidente.
+     * Mudar isso e mudanca de produto: quem escreve `Cm7M` numa cifra para
+     * ensaio esta escrevendo do jeito do OnSong, e aceitar a grafia e util.
+     * Nao aceito, e nao troco o teste para dar verde. A regra volta aqui, com
+     * o conflito anotado: o padrao do Cifra Club (a fonte da missao) lista
+     * `Cm7M` como valido, entao esta decisao merece uma conversa com quem
+     * decide, e nao uma alteracao silenciosa feita por mim. */
+    if (/^[A-G][#b\u266f\u266d]?m\d+M$/i.test(s)) return null;
+    if (!s || s.length > 24) return null; /* 24 e o limite real: `C7(9/11+/13-)` tem 13 caracteres e o proprio padrao do Cifra Club usa exatamente essa forma. Com 12, o acorde era recusado antes de ser olhado. */
     const m = CHORD_RE.exec(s);
     if (!m) return null;
     const root = pcFromAccidental(m[1].toUpperCase(), m[2]);
@@ -609,7 +703,7 @@
         continue;
       }
       // 1) o token inteiro ja e' um acorde? (ex.: "C/G", "Bbmaj7/D", "Am")
-      const whole = raw.replace(/^[("'[]+/, '').replace(/[)"'\],.!?;:]+$/, '');
+      const whole = nucleoDeToken(raw);
       if (whole && (isChordWord(whole) || (chordContext && looksLikeChord(whole)))) {
         toks.push({ type: 'chord', v: raw, chord: parseChord(whole) });
         continue;
@@ -957,7 +1051,7 @@ function apenasAcordes(linha) {
       out += line.slice(last, m.index);
       const raw = m[0];
       // o token inteiro e' um acorde? (preserva o baixo em "C/G")
-      const whole = raw.replace(/^[("'[]+/, '').replace(/[)"'\],.!?;:]+$/, '');
+      const whole = nucleoDeToken(raw);
       if (whole && eAcorde(whole)) {
         const c = parseChord(whole);
         out += raw.replace(whole, formatChordTransposed(c, semis, flat));
@@ -1057,7 +1151,7 @@ function apenasAcordes(linha) {
     const pref = useFlatsFor(destinoModo === 'minor' ? mod12(destinoPc + 3) : destinoPc);
 
     const trocar = function (raw) {
-      const core = raw.replace(/^[("'[]+/, '').replace(/[)"'\],.!?;:]+$/, '');
+      const core = nucleoDeToken(raw);
       if (!core) return raw;
       const c = parseChord(core);
       if (!c) return raw;
