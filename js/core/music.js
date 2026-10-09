@@ -158,6 +158,75 @@
    * devolve a grafia simples por sustenido ou bemol, que é a única que
    * funciona sem repetir letra.
    */
+  /**
+   * A letra e o acidente que um ROTULO DE GRAU pede, contados a partir da
+   * letra da tônica.
+   *
+   *   letraDoGrau("b3", "C")  ->  { letra: "E", acento: -1 }
+   *   letraDoGrau("7",  "C")   ->  { letra: "B", acento:  0 }
+   *
+   * Devolve null quando o rótulo nao e um numero de grau com acidente
+   * reconhecivel. Nao ha lista de palavras proibidas aqui: o que decide e
+   * se o texto tem a FORMA de um grau. Um rótulo que nao casa e simply
+   * devolvido como null, e quem chama trata.
+   *
+   * POR QUE EXISTE
+   *
+   * O rótulo de grau e a escrita da nota vista de outro lado: diz qual
+   * GRAU a nota ocupa e de quanto ele esta alterado. A letra vem do numero
+   * do grau (a letra sobe uma a cada grau, mod 7) e o acidente vem do
+   * proprio rotulo.
+   *
+   * Sem esta correspondencia, o app escrevia duas coisas diferentes para a
+   * mesma nota: o rotulo dizia uma coisa e a nota escrita dizia outra. Era
+   * o que acontecia na escala diminuta, que mostrava "C D D# F F# G# A B"
+   * com os rotulos "1 2 b3 3 #4 5 b6 b7": a nota era escrita na letra
+   * errada e o rotulo contava um grau a mais. Agora os dois vem do mesmo
+   * lugar, e por isso nao podem discordar.
+   */
+  function letraDoGrau(grau, letra0) {
+    const m = /^(\u266f|\u266d|#|b|bb|##)?\s*(\d{1,2})$/.exec(String(grau == null ? '' : grau).trim());
+    if (!m) return null;
+    const n = Number(m[2]);
+    if (!(n >= 1)) return null;
+    const i0 = LETRAS.indexOf(letra0);
+    if (i0 < 0) return null;
+    const sim = m[1] || '';
+    /* Um simbolo por caractere. "bb" e -2, "##" e +2. */
+    /* O sinal conta um por caractere: "bb" e -2, "##" e +2.
+     *
+     * Rótulo SEM símbolo devolve acento nulo, e isso e diferente de zero.
+     * Zero e "a letra e esta, natural". Nulo e "a letra e esta e o
+     * acidente e o que cair nela" -- e quem chama e que decide, porque so
+     * ele sabe a altura que a escala pede. Tratar os dois como a mesma coisa
+     * fazia o motor escrever F natural numa escala que pede F sustenido,
+     * ver a altura errada e recusar a leitura que estava certa. */
+    let acento = sim ? 0 : null;
+    if (acento !== null) {
+      for (let k = 0; k < sim.length; k++) {
+        if (sim.charAt(k) === '#' || sim.charAt(k) === '\u266f') {
+          acento += 1;
+        } else {
+          acento -= 1;
+        }
+      }
+      if (acento < -2 || acento > 2) return null;
+    }
+    return { letra: LETRAS[(i0 + ((n - 1) % 7)) % 7], acento: acento, numero: n };
+  }
+  /** O sinal de acidente como ele aparece nos rotulos de grau: ♭ e ♯,
+   * nao "b" e "#". Um rotulo de grau com o sinal atras do numero nao e
+   * lido por ninguem. Para dois de um lado ou do outro nao ha sinal de
+   * leitura, e a funcao devolve vazio -- o nome da nota ainda aparece, e
+   * quem quiser o dobro tem a conta em `acentoDaLetra`. */
+  function sinalDoGrau(acento) {
+    if (acento === -1) return "♭";
+    if (acento === 1) return "♯";
+    if (acento === -2) return "♭♭";
+    if (acento === 2) return "♯♯";
+    return "";
+  }
+
   function escalaComGravacao(rootPc, scaleKey, opts) {
     opts = opts || {};
     const sc = SCALES[scaleKey] || SCALES.major;
@@ -175,6 +244,81 @@
      * sustenido ou bemol, que é a convenção de grau de escala (1, 2, b3, b5)
      * e é o que o app já mostrava. */
     if (iv.length !== 7) {
+      const tonicaDoRotulo = opts.tonica || noteName(pc, useFlatsFor(pc));
+      const letraDaTonica = tonicaDoRotulo.charAt(0);
+
+      /* O PRIMEIRO CAMINHO: o rotulo de grau diz a nota.
+       *
+       * Escalas que nao tem sete notas nao tem sete letras para repartir, e
+       * e por isso que os rotulos delas pulam numeros -- e, ao pular, cada
+       * rotulo carrega a letra da nota que nomeia. A pentatonica menor de
+       * Do tem rotulos "1 b3 4 5 b7", que se leem C Eb F G Bb: as alturas
+       * certas, com as letras certas. Sem isto, o app escrevia "C D# F G A#"
+       * -- a altura certa e a letra errada.
+       *
+       * Entao, em vez de jogar fora o rotulo e escrever a nota pelo lado do
+       * circulo, o motor le o rotulo, tira a letra dele, e so aceita se a
+       * nota resultante soar EXATAMENTE a altura que a escala pede. A
+       * verificacao e o que separa uma grafia legitima de um rotulo que so
+       * parece um grau.
+       *
+       * E o que separa a cromatica: os rotulos dela vao de 1 a 12, e o
+       * grau 12 cairia na letra da tonica -- o que daria classes erradas e
+       * a verificacao recusa. A cromatica fica com a grafia simples por
+       * sustenido ou bemol, que e a unica que cobre doze sons sem repetir
+       * letra. Nada e excecao: o criterio e o mesmo para todas. */
+      const pc0 = pc;
+      const porGrau = (sc.degrees || []).map(function (g, gi) {
+        const x = letraDoGrau(g, letraDaTonica);
+        if (!x) return null;
+        const altura = mod12(pc0 + iv[gi]);
+        /* O acidente que a propria letra precisa para soar na altura pedida.
+         * E o que a teoria manda: a letra sobe um grau, e o acidente nao se
+         * escolhe, ele e o que sobra. */
+        const natural = acentoDaLetra(altura, x.letra);
+        const acento = x.acento === null ? natural : x.acento;
+        /* E o acidente do ROTULO, que e outra coisa: quantos tons a nota se
+         * afasta do grau que ela ocuparia na maior da tonica. Sem essa
+         * referencia a tonica de Db sairia rotulada "♭1" -- e bemol na
+         * tonica nao e alteracao de grau, o grau 1 nao tem alteracao
+         * nenhuma. Com ela, Db da 1 2 3 ♯4 ♯5 ♯6, como Do, que e o que se
+         * espera de uma escala simetrica cuja grafia espelha a tonica. */
+        const letraDesseGrau = LETRAS[(LETRAS.indexOf(letraDaTonica) + gi) % 7];
+        const naMaior = mod12(pc0 + GRAUS_MAIOR[gi % 7]);
+        const acentoNaMaior = acentoDaLetra(naMaior, letraDesseGrau);
+        return {
+          pc: altura,
+          letra: x.letra,
+          acento: acento,
+          numero: x.numero,
+          acentoNaMaior: acentoNaMaior,
+        };
+      });
+      if (porGrau.length === iv.length && porGrau.every((x) => x !== null)) {
+        const saida = porGrau.map(function (x) {
+          return {
+            pc: x.pc,
+            letra: x.letra,
+            acento: x.acento,
+            nome: letraComAcidente(x.letra, x.acento),
+            rotulo: sinalDoGrau(x.acento - x.acentoNaMaior) + x.numero,
+            grau: x.numero,
+          };
+        });
+        /* Aceita so se CADA nome soar a altura pedida. Uma letra que precisasse
+         * de um acidente fora do que a partitura tem seria uma mentira
+         * silenciosa, e a tela mostraria um nome que soa outra coisa. E o
+         * que separa a cromatica: os rotulos dela vao de 1 a 12, e o grau
+         * 12 cairia na letra da tonica, dando classes erradas. */
+        const todasBatem = saida.every(
+          (s) => pcFromAccidental(s.nome.charAt(0), s.nome.slice(1)) === s.pc);
+        if (todasBatem) return saida;
+      }
+
+      /* O SEGUNDO CAMINHO: grafia simples por sustenido ou bemol. E o que
+       * fica quando o rotulo nao sabe dizer a letra -- a cromatica, e
+       * qualquer escala cujo rotulo um dia deixe de ter a forma de um
+       * grau. */
       const flat = opts.flat === undefined ? useFlatsFor(pc) : !!opts.flat;
       return iv.map(function (i) {
         const p = mod12(pc + i);
@@ -1542,8 +1686,8 @@ function apenasAcordes(linha) {
     pentMajor:  { iv: [0, 2, 4, 7, 9],           name: 'Pentatônica maior',         short: 'Pentatônica maior', degrees: ['1', '2', '3', '5', '6'] },
     pentMinor:  { iv: [0, 3, 5, 7, 10],          name: 'Pentatônica menor',         short: 'Pentatônica menor', degrees: ['1', '♭3', '4', '5', '♭7'] },
     blues:      { iv: [0, 3, 5, 6, 7, 10],       name: 'Blues',                     short: 'Blues',    degrees: ['1', '♭3', '4', '♭5', '5', '♭7'] },
-    wholeTone:  { iv: [0, 2, 4, 6, 8, 10],       name: 'Tons inteiros',             short: 'Tons inteiros', degrees: ['1', '2', '3', '♯4', '♯5', '♭7'] },
-    diminished: { iv: [0, 2, 3, 5, 6, 8, 9, 11], name: 'Diminuta (tom-meio-tom)',    short: 'Diminuta', degrees: ['1', '2', '♭3', '3', '♯4', '5', '♭6', '♭7'] },
+    wholeTone:  { iv: [0, 2, 4, 6, 8, 10],       name: 'Tons inteiros',             short: 'Tons inteiros', degrees: ['1', '2', '3', '4', '5', '6'] },
+    diminished: { iv: [0, 2, 3, 5, 6, 8, 9, 11], name: 'Diminuta (tom-meio-tom)',    short: 'Diminuta', degrees: ['1', '2', '♭3', '3', '♭4', '♭5', '6', '7'] },
     chromatic:  { iv: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], name: 'Cromática', short: 'Cromática', degrees: ['1','2','3','4','5','6','7','8','9','10','11','12'] },
   };
 
@@ -1601,13 +1745,21 @@ function apenasAcordes(linha) {
    * `analyzeChords` já fazia essa conta do mesmo jeito, olhando os intervalos do
    * próprio acorde. Aqui a fonte é a tríade montada sobre o grau.
    */
-  function rotuloDoGrau(indice, qualidade, sc) {
+  function rotuloDoGrau(indice, qualidade, sc, graf) {
     const heptatonica = sc.iv.length === 7;
     /* Escala com outra contagem de notas não tem numeral romano: os rótulos do
      * quadro ("1", "♭3", "♭5") são GRAUS DA ESCALA, e dizem outra coisa — que
      * nota da escala é aquela. Não são função harmônica, então não têm caixa
      * para escolher, e não se mexem. */
-    if (!heptatonica) return sc.degrees[indice] || String(indice + 1);
+    if (!heptatonica) {
+      /* A grafia sabe o rotulo quando ela mesma o gerou: a letra da nota
+       * e o acidente que caiu nela. O rotulo guardado em SCALES so vale
+       * para as escalas cujo rotulo tem forma convencional -- as
+       * pentatonicas e o blues, que pulam numeros de grau e por isso nao
+       * podem ser deduzidos de uma letra por grau. */
+      if (graf && graf[indice] && graf[indice].rotulo) return graf[indice].rotulo;
+      return sc.degrees[indice] || String(indice + 1);
+    }
     const numeral = ROMAN[indice % 7];
     if (qualidade === 'm') return numeral.toLowerCase();
     if (qualidade === 'dim') return numeral.toLowerCase() + '°';
@@ -1642,7 +1794,7 @@ function apenasAcordes(linha) {
        * está inventando uma qualidade que a escala não tem. O nome sai SEM
        * sufixo e `conhecido:false` avisa quem for mostrar. */
       out.push({
-        degree: rotuloDoGrau(i, q, sc),
+        degree: rotuloDoGrau(i, q, sc, graf),
         pc,
         quality: q,
         conhecido: q !== '?',

@@ -907,6 +907,275 @@ console.log('   tom por audio NAO existe neste modulo e nao foi validado aqui.')
 /* ------------------------------------------------------------
    FIM. Nada aqui valida microfone, audio real, navegador ou offline.
    ------------------------------------------------------------ */
+/* ------------------------------------------------------------
+   10. ESCALAS QUE NAO TEM SETE NOTAS: ROTULOS DE GRAU E GRAFIA
+
+   POR QUE ESTA SECAO EXISTE SEPARADA
+
+   A secao 3 confere a classe de altura das 16 escalas. Esta confere a
+   PARTE ESCRITA: o rotulo de grau que a tela mostra e a nota que aparece
+   ao lado dele. Sao duas coisas, e elas podem discordar sem que a altura
+   mude em nada -- que e o tipo de defeito que so aparece quando alguem
+   le a tela.
+
+   O QUE MUDOU E POR QUE
+
+   Antes, uma escala sem sete notas era escrita pelo lado do circulo das
+   quintas (sustenido ou bemol), e o rotulo de grau vinha de uma lista
+   escrita a mao em SCALES. As duas coisas eram independentes, entao
+   podiam discordar. Acontecia: em Dó a escala diminuta aparecia como
+
+       notas:  C D D# F F# G# A B
+       graus:  1  2  b3  3  b4  b5  6  7
+
+   A altura esta certa -- D# e o mesmo som que Eb -- e a LETRA esta errada:
+   o rotulo diz b3, que e a letra E, e a nota foi escrita D. O musico le
+   "Grau b3" embaixo de "D#" e nao ha como reconciliar as duas coisas.
+
+   A correcao foi fazer o rotulo e a nota saírem do mesmo lugar. O motor
+   agora le o rotulo de grau, tira a letra dele (a letra sobe uma a cada
+   numero de grau, mod 7) e so aceita o resultado se CADA nome soar
+   exatamente a altura que a escala pede. Rotulo que nao tem a forma de um
+   grau, ou que produz uma altura errada, e recusado e a escala cai na
+   grafia simples -- que e o que a cromatica faz, e por um bom motivo: doze
+   graus nao cabem em sete letras.
+   ------------------------------------------------------------ */
+
+secao('10. escalas que nao tem sete notas');
+
+/* O caminho derivado: cada nome tem de soar a altura da escala E o seu
+   rotulo tem de apontar para a letra que ele traz. E o invariante que
+   garante que a nota e o rotulo contam a mesma coisa. */
+/* O acidente e montado com a quantidade DE CARACTERES certa. A primeira
+ * versao deste helper fazia acento = 2 virar um unico "#", e a checagem
+ * comparava F## com um so sustenido -- dava falso negativo em sete das
+ * doze raizes da escala de tons inteiros e acusou o motor de errar uma
+ * escala que ele acertava. O dobro sustenido e o que sobe dois semitons,
+ * e para ler a altura de um nome com dois ACPORTES e preciso escrever os
+ * dois. */
+function tomDe(acento) {
+  const c = acento > 0 ? '#' : 'b';
+  let out = '';
+  for (let k = 0; k < Math.abs(acento); k++) out += c;
+  return out;
+}
+
+function coerenciaDeGrau(root, chave) {
+  const graf = M.escalaComGravacao(root, chave);
+  const sc = M.SCALES[chave];
+  const temLetra = graf.every((g) => g.letra !== null && g.letra !== undefined);
+  /* soaCerto so faz sentido no caminho derivado. No caminho de reserva a
+   * grafia vem de noteName, que por construcao ja soa na altura pedida, e
+   * nao ha letra para conferir. */
+  const soaCerto = temLetra
+    ? graf.every((g) => M.pcFromAccidental(g.letra, tomDe(g.acento)) === g.pc)
+    : graf.every((g) => M.pcFromAccidental(
+      g.nome.charAt(0), g.nome.slice(1)) === g.pc);
+  const i0 = M.LETRAS.indexOf(M.noteName(root, false).charAt(0));
+  const letrasDoRotulo = (sc.degrees || []).map((d) => {
+    const m = /^(\u266f|\u266d|#|b|bb|##)?\s*(\d{1,2})$/.exec(String(d).trim());
+    if (!m || i0 < 0) return null;
+    const n = Number(m[2]);
+    return M.LETRAS[(i0 + ((n - 1) % 7)) % 7];
+  });
+  return {
+    graf: graf,
+    temLetra: temLetra,
+    soaCerto: soaCerto,
+    letrasDoRotulo: letrasDoRotulo,
+    letras: graf.map((g) => g.letra),
+  };
+}
+
+/* --- 10.1 os rotulos de toda escala nao heptatonica, nas 12 raizes --- */
+const NAO_HEPTATONICAS = ['pentMajor', 'pentMinor', 'blues', 'wholeTone',
+  'diminished', 'chromatic'];
+
+NAO_HEPTATONICAS.forEach(function (chave) {
+  const sc = M.SCALES[chave];
+  ok(sc.degrees.length === sc.iv.length,
+    chave + ': um rotulo por nota (' + sc.degrees.length + ' para ' + sc.iv.length + ' notas)',
+    sc.degrees.join(' '));
+  ok(sc.degrees.every((d) => /^(\u266f|\u266d|#|b|bb|##)?\s*\d{1,2}$/.test(String(d).trim())),
+    chave + ': todo rotulo tem a forma de um grau', sc.degrees.join(' '));
+  ok(sc.degrees.every((d) => Number(String(d).replace(/[^0-9]/g, '')) >= 1),
+    chave + ': nenhum grau e zero nem negativo');
+});
+
+/* --- 10.2 TONS INTEIROS: o defeito relatado --- */
+compara(M.nomesDaEscala(0, 'wholeTone'), ['C', 'D', 'E', 'F#', 'G#', 'A#'],
+  'tons inteiros de Do, com as notas escritas');
+compara(M.scaleChords(0, 'wholeTone').map((c) => c.degree),
+  ['1', '2', '3', '\u266f4', '\u266f5', '\u266f6'],
+  'os graus da de tons inteiros de Do');
+ok(M.SCALES.wholeTone.iv.length === 6, 'a de tons inteiros tem seis notas');
+
+/* O sexto grau de Do e A, e a nota que a escala usa e A#. Um rotulo de
+   b7 apontaria para a letra B, que nao e a letra que esta na tela: os dois
+   sonsam iguais e o app so pode escrever um deles. Como a nota e A#, o
+   rotulo e b6. E por isso que o rotulo antigo era incoerente com a nota
+   que ja estava correta. */
+ok(!/b7/.test(M.SCALES.wholeTone.degrees.join(' ')),
+  'a de tons inteiros nao usa o rotulo de setimo rebaixado com uma nota A#',
+  M.SCALES.wholeTone.degrees.join(' '));
+
+/* Nas doze raizes: os graus continuam 1..6 com os mesmos numeros, e a nota
+   escrita continua soando a altura da escala. */
+for (let root = 0; root < 12; root++) {
+  const sc = M.SCALES.wholeTone;
+  const esperado = sc.degrees.map((d) => String(d).replace(/[^0-9]/g, ''));
+  compara(M.scaleChords(root, 'wholeTone').map((c) => String(c.degree).replace(/[^0-9]/g, '')),
+    esperado, 'os numeros dos graus da de tons inteiros em ' + SURDO[root]);
+  const c = coerenciaDeGrau(root, 'wholeTone');
+  ok(c.temLetra && c.soaCerto,
+    'em ' + SURDO[root] + ', cada nota escrita soa a altura pedida e traz letra',
+    c.graf.map((g) => g.nome).join(' '));
+}
+
+/* O rotulo da escala de tons inteiros e o mesmo nas doze raizes, e isso e
+ * resultado e nao atalho: a escala e simetrica e a grafia dela espelha a
+ * tonica, entao o quanto cada nota se afasta da maior da tonica e sempre o
+ * mesmo. Um rotulo com bemol na tonica -- "b1" -- seria a pista de que o
+ * acidente do rotulo foi medido no lugar errado. E por isso que o teste
+ * olha as doze: em Do, com e sem a referencia, o rotulo sai igual. */
+for (let root = 0; root < 12; root++) {
+  const rot = M.scaleChords(root, 'wholeTone').map((c) => String(c.degree));
+  const esperadoRot = ['1', '2', '3', '\u266f4', '\u266f5', '\u266f6'];
+  ok(rot.every((d) => d.indexOf('\u266d') < 0),
+    'em ' + SURDO[root] + ', nenhum grau da de tons inteiros leva bemol', rot.join(' '));
+  ok(rot[0] === '1',
+    'em ' + SURDO[root] + ', o primeiro grau nao tem acidente nenhum', rot[0]);
+  compara(rot, esperadoRot,
+    'em ' + SURDO[root] + ', os graus da de tons inteiros');
+}
+
+
+/* --- 10.3 DIMINUTA: o outro defeito relatado --- */
+compara(M.SCALES.diminished.iv, [0, 2, 3, 5, 6, 8, 9, 11],
+  'a escala de tom-meio-tom, que e a que o app implementa');
+ok(M.SCALES.diminished.iv.length === 8, 'a diminuta tem oito notas');
+compara(M.SCALES.diminished.degrees.map((d) => String(d).replace(/[^0-9]/g, '')),
+  ['1', '2', '3', '3', '4', '5', '6', '7'],
+  'os numeros dos graus da de tom-meio-tom');
+/* Os rotulos com acidente: o terceiro, o quarto e o quinto sao rebaixados. */
+ok(M.SCALES.diminished.degrees[2].indexOf('\u266d') >= 0,
+  'o terceiro grau da diminuta e rebaixado', M.SCALES.diminished.degrees[2]);
+ok(M.SCALES.diminished.degrees[3].indexOf('\u266d') < 0,
+  'o quarto grau da diminuta NAO e rebaixado', M.SCALES.diminished.degrees[3]);
+ok(M.SCALES.diminished.degrees[4].indexOf('\u266d') >= 0,
+  'o quinto grau da diminuta e rebaixado', M.SCALES.diminished.degrees[4]);
+ok(M.SCALES.diminished.degrees[6].indexOf('\u266d') < 0,
+  'o setimo grau da diminuta NAO e rebaixado', M.SCALES.diminished.degrees[6]);
+
+/* A altura da escala nao pode ter mudado. E a garantia de que a correcao
+   de rotulo foi so de escrita. */
+compara(M.scaleNotes(0, 'diminished'), [0, 2, 3, 5, 6, 8, 9, 11],
+  'as classes de altura da diminuta de Do, inalteradas');
+compara(M.scaleChords(0, 'diminished').map((c) => c.degree), M.SCALES.diminished.degrees,
+  'os graus que a tela mostra na diminuta de Do');
+/* A propriedade que faz essa escala existir: as oito notas formam oito
+   tríades diminutas. E o que o app ja prometia e o que nao pode ter se
+   alterado por mexer em rotulo. */
+ok(M.scaleChords(0, 'diminished').every((c) => c.quality === 'dim'),
+  'as oito notas da diminuta de Do formam oito tríades diminutas',
+  M.scaleChords(0, 'diminished').map((c) => c.quality).join(' '));
+
+/* --- 10.4 O QUE A CORRECAO MELHOROU E O QUE NAO MUDOU --- */
+
+/* As pentatonicas e o blues passam a sair escritas pela letra do rotulo.
+   Antes saiam pelo lado do circulo, e a menor pentatonica de Do aparecia
+   como "C D# F G A#" -- a altura certa, a letra errada. */
+compara(M.nomesDaEscala(0, 'pentMinor'), ['C', 'Eb', 'F', 'G', 'Bb'],
+  'a pentatonica menor de Do, escrita pela letra do rotulo');
+compara(M.nomesDaEscala(0, 'blues'), ['C', 'Eb', 'F', 'Gb', 'G', 'Bb'],
+  'o blues de Do, escrito pela letra do rotulo');
+compara(M.nomesDaEscala(0, 'pentMajor'), ['C', 'D', 'E', 'G', 'A'],
+  'a pentatonica maior de Do');
+
+/* A cromatica NAO pode derivar, e o motivo esta aqui. Doze graus nao cabem
+   em sete letras: o grau 8 cairia na letra da tonica e as alturas sairiam
+   erradas. Ela fica com a grafia simples, que e a unica que cobre doze
+   sons sem repetir letra. E o motor recusa sozinho, por verificacao. */
+ok(M.escalaComGravacao(0, 'chromatic').every((g) => g.letra === null),
+  'a cromatica nao deriva letra, porque nao cabe em sete',
+  M.nomesDaEscala(0, 'chromatic').join(' '));
+compara(M.nomesDaEscala(0, 'chromatic'), ['C', 'C#', 'D', 'D#', 'E', 'F',
+  'F#', 'G', 'G#', 'A', 'A#', 'B'], 'a cromatica de Do, inalterada');
+compara(M.SCALES.chromatic.degrees.map((d) => String(d).replace(/[^0-9]/g, '')),
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+  'os graus da cromatica, que sao numeros e nao graus de letra');
+
+/* --- 10.5 O QUE AINDA ESTA ERRADO, E POR QUE --- */
+
+/* A DIMINUTA e o unico caso em que o rotulo e a letra nao podem ser a
+   mesma coisa. Numa escala comum, "grau 4" e a letra que sobe quatro
+   posições: em Do, F. Numa escala de tom-meio-tom o rotulo "b4" aponta
+   para G, e nao para F -- porque a escala e feita de duas tríades
+   diminutas sobrepostas e a letra se repete:
+   E F G A + A B C D, com o A aparecendo duas vezes, uma com bemol e uma
+   natural. Nenhuma leitura "uma letra por grau" produz essa repetição, e
+   nenhum motor de regras produz uma grafia que depende da COLEÇÃO e não
+   da tônica.
+   Consequência aceita e registrada: o app mostra os rotulos certos da
+   escala diminuta (1 2 b3 3 b4 b5 6 7) e escreve as notas pelo lado do
+   círculo, o que em Do dá "C D D# F F# G# A B". A altura está certa. A
+   letra da nota discorda do rotulo, e por isso a coerência letra-por-grau
+   NÃO vale para esta escala — e o teste abaixo mede exatamente essa
+   ressalva, em vez de escondê-la atrás de um verde. */
+{
+  const c = coerenciaDeGrau(0, 'diminished');
+  ok(!c.temLetra,
+    'a diminuta fica fora do caminho derivado, porque o rotulo nao segue a letra',
+    c.graf.map((g) => g.nome).join(' '));
+  ok(c.soaCerto,
+    'e mesmo assim cada nome que ela mostra soa a altura certa da escala',
+    c.graf.map((g) => g.nome + '=' + g.pc).join(' '));
+  /* A incompatibilidade fica escrita, nao supuesta. */
+  ok(M.SCALES.diminished.degrees[4].indexOf('\u266d') >= 0
+    && c.graf[4].nome.indexOf('#') >= 0,
+    'e o quinto grau da tom-meio-tom e rebaixado no rotulo e sustenta na nota: e a ressalva, medida');
+  console.log('   [ressalva] a ESCALA DIMINUTA tem os rotulos corretos e as alturas');
+  console.log('   corretas, mas a NOTA escrita segue o circulo e discorda da letra do');
+  console.log('   rotulo. Corrigir isso exige uma tabela de grafia por tônica para a');
+  console.log('   escala de tom-meio-tom, porque a grafia dela depende da coleção e nao');
+  console.log('   da tônica. Fica como pendência declarada, nao escondida.');
+}
+
+/* --- 10.6 REGRESSÃO DAS HEPTATÔNICAS --- */
+/* A correção do ramo "não tem sete notas" não pode ter tocado as dez
+   escalas de sete notas. Estas são as mesmas esperanças da seção 3, e o
+   motivo de repeti-las aqui é que um verde separeado é mais fraco do que
+   um verde que alguém olha de novo. */
+const HEPTATONICAS = {
+  major: ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+  minor: ['C', 'D', 'Eb', 'F', 'G', 'Ab', 'Bb'],
+  harmonic: ['C', 'D', 'Eb', 'F', 'G', 'Ab', 'B'],
+  melodic: ['C', 'D', 'Eb', 'F', 'G', 'A', 'B'],
+  dorian: ['C', 'D', 'Eb', 'F', 'G', 'A', 'Bb'],
+  phrygian: ['C', 'Db', 'Eb', 'F', 'G', 'Ab', 'Bb'],
+  lydian: ['C', 'D', 'E', 'F#', 'G', 'A', 'B'],
+  mixolydian: ['C', 'D', 'E', 'F', 'G', 'A', 'Bb'],
+  aeolian: ['C', 'D', 'Eb', 'F', 'G', 'Ab', 'Bb'],
+  locrian: ['C', 'Db', 'Eb', 'F', 'Gb', 'Ab', 'Bb'],
+};
+Object.keys(HEPTATONICAS).forEach(function (chave) {
+  ok(M.SCALES[chave].iv.length === 7, chave + ' tem sete notas');
+  compara(M.nomesDaEscala(0, chave), HEPTATONICAS[chave],
+    'as notas de ' + chave + ' em Do, inalteradas');
+  const c = coerenciaDeGrau(0, chave);
+  ok(c.temLetra && c.soaCerto,
+    chave + ' em Do: cada nota escrita soa a altura pedida e traz letra');
+  /* E os graus romanos, que vem de outro caminho (triadFor), intactos. */
+  ok(M.scaleChords(0, chave).every((x) => x.degree.length > 0),
+    chave + ' em Do: todo grau tem rotulo', M.scaleChords(0, chave).map((x) => x.degree).join(' '));
+});
+compara(M.scaleChords(0, 'major').map((c) => c.degree),
+  ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii' + '\u00b0'],
+  'os graus de Do maior, que sao romanos e nao numeros');
+compara(M.scaleChords(0, 'aeolian').map((c) => c.degree),
+  ['i', 'ii' + '\u00b0', 'III', 'iv', 'v', 'VI', 'VII'],
+  'os graus de Do menor natural, que sao romanos e nao numeros');
+
 console.log('\n' + '='.repeat(66));
 console.log('  ' + passou + ' passaram, ' + falhou + ' falharam');
 if (falhou) {
