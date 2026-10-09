@@ -1680,6 +1680,54 @@ function apenasAcordes(linha) {
   const ORDEM_SUS = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
   const ORDEM_BEM = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
 
+  /* Os tons menores NAO andam pelo mesmo lado do circulo que os maiores,
+   * e e este o defeito que a funcao tinha.
+   *
+   * A conta antiga pegava o relativo maior e perguntava ao circulo. Para a
+   * maioria dos tons menores isso da certo por coincidencia: o relativo de
+   * Re menor e Fa maior, que esta do lado dos bemois, e o relativo de Mi
+   * menor e Sol maior, do lado dos sustenos. Para DOIS nao da:
+   *
+   *   Mi menor  -> relativo Sol sustenido -> circulo diz 6 SUSTENOS
+   *                o certo e 6 bemois (Sol bemol maior)
+   *   La menor  -> relativo Si maior     -> circulo diz 5 SUSTENOS
+   *                o certo e 7 bemois (Dobemol maior)
+   *
+   * O QUE O MUSICO SOFRE COM ISSO. A altura e a mesma — seis sustenos e seis
+   * bemóis dão as mesmas teclas. A LETRA nao e. Ele abre Mi menor e le
+   * "F C G D A E": le sustenido num tom que a partitura inteiro escreve com
+   * bemol. Toda nota com uma seta na mao, toda digitacao ao contrario. E
+   * esse e o tipo de erro que nao aparece como nota errada — aparece como
+   * "o app escreve diferente do meu warmup", que e o jeito mais caro de
+   * perder a confiança de quem toca.
+   *
+   * A CONTA CERTA. A armadura de um menor nao vem do relativo: vem do
+   * proprio nome do menor, andando por quintas a partir de La, que e o
+   * unico menor sem alteracao. Cada quinto acima soma um acidente.
+   *
+   *   dos sustenos: La E Si Fa sustenido Do sustenido Sol sustenido
+   *                  Re sustenido La sustenido
+   *   dos bemois:    La Re Sol Do Fa Si bemol Mi bemol La bemol
+   *
+   * Sao duas listas de sete, e nao uma so porque o circulo tem dois lados.
+   * Tres classes de altura aparecem nas DUAS: as enarmonicas do Fa sustenido
+   * e do Sol sustenido. Nesses casos vence o nome com bemol, que e o que o
+   * proprio app escreve para 3, 8 e 10 — o mesmo criterio de grafia que
+   * `useFlatsFor` ja usa em todo o resto, entao tom e acorde falam a mesma
+   * lingua. */
+  const MENOR_SUS = [9, 4, 11, 6, 1, 8, 3, 10];   /* La E Si Fa# Do# Sol# Re# La# */
+  const MENOR_BEM = [9, 2, 7, 0, 5, 10, 3, 8];    /* La Re Sol Do Fa Bb Eb Ab */
+
+  /** A armadura do tom menor `pc`, e de que lado. Null se nao ha nome. */
+  function armaduraMenor(pc) {
+    /* O bemol primeiro: nos enarmonicos (3, 8, 10) e o bemol que vale, porque
+     * e o nome que o app escreve. */
+    const b = MENOR_BEM.indexOf(pc);
+    if (b >= 0) return { q: b, bem: true };
+    const s = MENOR_SUS.indexOf(pc);
+    if (s >= 0) return { q: s, bem: false };
+    return null;
+  }
   /**
    * A armadura de um tom: quantas alterações, se são sustenos ou bemóis, e
    * quais.
@@ -1691,17 +1739,28 @@ function apenasAcordes(linha) {
    */
   function armadura(pc, modo) {
     const maior = modo === 'minor' ? relativeMajor(pc) : mod12(pc);
-    // O sinal nao vem de sharpsCount: ele devolve a MAGNITUDE e sempre
-    // positiva. O lado do circulo e que diz se a alteracao e susteno ou
-    // bemol. Passar depois das 6 horas e escrever com bemois — e por isso
-    // que Dost susteno aparece aqui como Reb com 5 bemois, e nao com 7.
-    const q = sharpsCount(maior);
-    const bem = useFlatsFor(maior);
-    const ordem = (bem ? ORDEM_BEM : ORDEM_SUS).slice(0, q);
+    /* O menor tem conta propria. Sem ela, os dois lados do circulo discordam
+     * do nome do menor justamente onde o relativo cai em F#/Gb — Mi menor e
+     * La menor, que sao os dois mais usados de todos. */
+    const menor = modo === 'minor' ? armaduraMenor(mod12(pc)) : null;
+    const q = menor ? menor.q : sharpsCount(maior);
+    const bem = menor ? menor.bem : useFlatsFor(maior);
+    /* Tom sem alteracao nao tem lado nenhum, e dizer que tem e o tipo de
+     * coisa que faz a mesma tela mostrar duas coisas para o mesmo tom: o
+     * mesmo La maior e La menor com nomes de lados opostos. Sem acidente
+     * nao existe susteno nem bemol, entao o campo vai sempre para o
+     * mesmo lado. E o texto ja sai "sem alteracoes" pelas duas vias. */
+    const bemFinal = q === 0 ? false : bem;
+    const ordemFinal = (bemFinal ? ORDEM_BEM : ORDEM_SUS).slice(0, q);
+    /* O sinal nao vem de `sharpsCount`: ele devolve a MAGNITUDE e sempre
+     * positiva. O lado do circulo e que diz se a alteracao e susteno ou
+     * bemol — por isso que Do sustenido aparece aqui como Reb com 5 bemois,
+     * e nao com 7. O mesmo vale para o menor, que tem lista propria acima. */
+    const ordem = ordemFinal;
     let texto;
     if (q === 0) texto = 'sem alteracoes';
-    else texto = q + (bem ? (q > 1 ? ' bemois' : ' bemol') : (q > 1 ? ' sustenos' : ' susteno')) + (ordem.length ? ' · ' + ordem.join(' ') : '');
-    return { quantidade: q, bemois: bem, ordem: ordem, texto: texto, relativo: maior };
+    else texto = q + (bemFinal ? (q > 1 ? ' bemois' : ' bemol') : (q > 1 ? ' sustenos' : ' susteno')) + (ordem.length ? ' · ' + ordem.join(' ') : '');
+return { quantidade: q, bemois: bemFinal, ordem: ordem, texto: texto, relativo: maior };
   }
 
   /**

@@ -379,25 +379,84 @@ eq(M.armadura(0, 'major').ordem.join(''), '', 'Do maior: nenhuma alteracao');
   eq(qs.indexOf(7) < 0, true, 'nenhuma armadura passa de 6 alteracoes');
 }
 
-console.log('\n=== ARMADURA: menor usa o relativo maior ===');
-// Este e o ponto que mais dá errado: Ré menor tem UM bemol (o de Fa maior),
-// e nao os 2 sustenos de Re maior.
-eq(M.armadura(2, 'minor').quantidade, 1, 'Re menor tem 1 bemol, nao 2 sustenos');
-eq(M.armadura(2, 'minor').bemois, true, 'e o bemol vem do Fa maior');
-eq(M.armadura(9, 'minor').quantidade, 0, 'La menor nao tem alteracao');
-eq(M.armadura(4, 'minor').quantidade, 1, 'Mi menor tem 1 susteno');
-eq(M.armadura(0, 'minor').quantidade, 3, 'Do menor tem 3 bemois');
-eq(M.armadura(0, 'minor').bemois, true, 'e vem do Mib maior');
-eq(M.armadura(7, 'minor').quantidade, 2, 'Sol menor tem 2 bemois');
-eq(M.armadura(11, 'minor').quantidade, 2, 'Si menor tem 2 sustenos');
-// Minor e relativo maior tem exatamente a mesma armadura.
-{
-  let bate = true;
-  for (let pc = 0; pc < 12; pc++) {
-    if (M.armadura(pc, 'minor').quantidade !== M.armadura(M.relativeMajor(pc), 'major').quantidade) bate = false;
+console.log("\n=== ARMADURA: o menor tem conta propria ===");
+/* Este ponto e o que mais da errado, e a regra que vale NAO e a do relativo
+ * maior.
+ *
+ * O que e verdade: a armadura de um menor tem o mesmo NUMERO de alteracoes
+ * que a do seu relativo maior. Re menor tem 1 bemol, o mesmo de Fa maior. Isso
+ * segue de a tonica do menor estar uma terceira menor acima do relativo.
+ *
+ * O que NAO e verdade: que as duas sejam escritas do mesmo jeito. O relativo de
+ * Mi menor e Sol sustenido maior, que tem 6 SUSTENOS; mas o nome de Mi menor
+ * e de um tom que se escreve com BEMOL, e a armadura do Mi menor sao 6 bemois.
+ * O mesmo para La menor: o relativo e Si maior (5 sustenos), e a armadura do
+ * La menor sao 7 bemois, porque o par enarmonico de verdade do La menor nao e
+ * Si maior e sim Dobemol maior.
+ *
+ * A altura e a mesma em todos esses casos. A LETRA e que nao e, e e a letra que
+ * o musico le. A versao anterior deste teste afirmava "todo menor tem a mesma
+ * armadura do seu relativo maior" e passava, porque a conta errada do motor
+ * satisfazia a regra falsa. Regra que concorda com o defeito nao protege nada:
+ * ela so trava o erro no lugar. As tabelas de referencia estao em
+ * tools/test-teoria.js, escritas a mao. */
+eq(M.armadura(2, "minor").quantidade, 1, "Re menor tem 1 bemol, nao 2 sustenos");
+eq(M.armadura(2, "minor").bemois, true, "e o bemol vem do Fa maior");
+eq(M.armadura(9, "minor").quantidade, 0, "La menor nao tem alteracao");
+eq(M.armadura(4, "minor").quantidade, 1, "Mi menor tem 1 susteno");
+eq(M.armadura(0, "minor").quantidade, 3, "Do menor tem 3 bemois");
+eq(M.armadura(0, "minor").bemois, true, "e vem do Mib maior");
+eq(M.armadura(7, "minor").quantidade, 2, "Sol menor tem 2 bemois");
+eq(M.armadura(11, "minor").quantidade, 2, "Si menor tem 2 sustenos");
+
+/* Os DOZE, com o lado junto. E esta a tabela que pega o defeito. */
+var ARM_MENOR = [
+  [0, 3, true], [1, 4, false], [2, 1, true], [3, 6, true], [4, 1, false],
+  [5, 4, true], [6, 3, false], [7, 2, true], [8, 7, true], [9, 0, false],
+  [10, 5, true], [11, 2, false],
+];
+var NOMES12 = "C Db D Eb E F Gb G Ab A Bb B".split(" ");
+ARM_MENOR.forEach(function (linha) {
+  var a = M.armadura(linha[0], "minor");
+  var unidade = linha[1] === 0
+    ? " sem alteracao"
+    : (linha[2] ? " bemois" : " sustenos");
+  eq(a.quantidade, linha[1],
+    NOMES12[linha[0]] + " menor: " + linha[1] + unidade, a.quantidade);
+  eq(a.bemois, linha[2], NOMES12[linha[0]] + " menor fica do lado certo");
+});
+
+/* O NUMERO bate com o do relativo maior em onze das doze classes. A que
+ * escapa e a classe 8, La menor: o relativo de La menor e Si maior, que tem 5
+ * sustenos, e o La menor tem 7 bemois. A diferenca NAO e erro de conta: e o
+ * par enarmonico, que so se resolve com a letra da tonica. */
+(function () {
+  var fora = [];
+  for (var pc = 0; pc < 12; pc++) {
+    var rel = M.relativeMajor(pc);
+    if (M.armadura(pc, "minor").quantidade !== M.armadura(rel, "major").quantidade) {
+      fora.push(NOMES12[pc]);
+    }
   }
-  eq(bate, true, 'todo menor tem a mesma armadura do seu relativo maior');
-}
+  eq(fora.join(", "), "Ab",
+    "o unico menor cuja quantidade nao bate com o relativo maior e o La menor");
+}());
+
+/* E o LADO bate em dez das doze. As duas que escapam sao justamente as duas em
+ * que o relativo cai do outro lado do circulo: Mi menor (relativo Sol sustenido
+ * maior) e La menor (relativo Si maior). Sao as duas mais usadas de todas, e
+ * as duas que a conta antiga exibia ao contrario. */
+(function () {
+  var fora = [];
+  for (var pc = 0; pc < 12; pc++) {
+    var rel = M.relativeMajor(pc);
+    var a = M.armadura(pc, "minor");
+    var b = M.armadura(rel, "major");
+    if (a.quantidade > 0 && a.bemois !== b.bemois) fora.push(NOMES12[pc]);
+  }
+  eq(fora.join(", "), "Eb, Ab",
+    "os unicos menores que discordam do LADO do relativo sao Mi menor e La menor");
+}());
 
 console.log('\n=== RESUMO DE TONS: o tom do show ===');
 const lista = [
