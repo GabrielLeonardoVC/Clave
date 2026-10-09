@@ -76,11 +76,23 @@ const COM_SETIMA = [
   ['Cmaj7', 'maj7', [0, 4, 7, 11], 'com 7 maior'],
   ['Cm7', 'm7', [0, 3, 7, 10], 'menor com 7'],
   ['CmM7', 'mM7', [0, 3, 7, 11], 'menor com 7 maior'],
-  /* A ordem do OnSong seria "Cm7M". O padrao deste projeto e "CmM7", e o
-   * regex de acordo nao chega a montar "m7M" — nao e qualidde desconhecida
-   * virando maior, e o token nao ser acorde. Fica registrado para nao
-   * parecer que a grafia funciona. */
-  ['Cm7M', null, null, 'ORDEM DO ONSONG: nao e suportada, use CmM7'],
+  /* `Cm7M` — ESTA ESPERATIVA MUDOU, E O MOTIVO ESTA AQUI.
+   *
+   * Antes este arquivo afirmava que a grafia "nao e suportada, use CmM7". Era
+   * verdade na epoca, mas por um motivo errado: o padrao de acordes nao
+   * montava `m7M`, e o token simplesmente deixava de ser acorde — nao era
+   * qualidade desconhecida virando maior.
+   *
+   * O padrao de cifragem do Cifra Club documenta `Cm7M` como "menor com 7M",
+   * e o objetivo do projeto e compatibilidade com ele. A grafia agora vale, e
+   * os intervalos abaixo sao os de menor com setima maior: fundamental, terca
+   * menor (3), quinta justa (7) e setima maior (11) — exatamente os de
+   * `CmM7`, que ja era suportado.
+   *
+   * A expectativa nao foi afrouxada: continua exigindo a qualidade `mM7` E os
+   * quatro intervalos. Se um dia `m7M` voltar a ser lido como `m7`, esta linha
+   * reprova. */
+  ['Cm7M', 'mM7', [0, 3, 7, 11], 'menor com 7 maior, grafia do Cifra Club'],
   ['Cdim7', 'dim7', [0, 3, 6, 9], 'diminuto com 7'],
   ['Cm7b5', 'm7b5', [0, 3, 6, 10], 'meio-diminuto'],
 ];

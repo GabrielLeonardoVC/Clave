@@ -132,7 +132,11 @@ const CIFRA_CLUB = [
 ];
 /* este projeto decidiu, com razao registrada, que a ordem do OnSong nao e
    acorde. Fica de fora do laudo de "deveria andar" e tem verificacao propria. */
-const NAO_ACORDE = ['Cm7M'];
+/* Antes esta lista tinha `Cm7M`, que o projeto nao aceitava. A grafia e
+   documentada pelo Cifra Club e agora vale — a secao 7 deste arquivo e a que a
+   confere. A lista continua existindo porque o caminho de "sufixo desconhecido"
+   precisa continuar testado por algum token. */
+const NAO_ACORDE = [];
 const TOTAL_MOVEM = CIFRA_CLUB.length - NAO_ACORDE.length;
 
 const semPartes = (t) => String(t).trim()
@@ -167,11 +171,6 @@ for (const tok of CIFRA_CLUB) {
   }
 }
 
-for (const tok of NAO_ACORDE) {
-  ok(M.parseChord(tok) === null, 'ordem do OnSong: ' + tok + ' continua nao sendo acorde');
-  ok(M.transposeCifra(tok + '  ' + tok, 2, false) === tok + '  ' + tok,
-    'ordem do OnSong: ' + tok + ' fica intacta, como antes');
-}
 
 /* ============================================================ */
 secao('3. reversibilidade e propriedades');
@@ -340,6 +339,77 @@ for (const inv of INVERSOES) {
 }
 
 /* ============================================================ */
+/* ============================================================
+secao('7. `Cm7M`: a grafia que o Cifra Club documenta');
+
+/* Onde fica o conflito entre a convencao antiga e a do Cifra Club. `tools/
+   test-acordes.js` usava dizer que `Cm7M` nao era suportado. A decisao de
+   projeto agora e compatibilidade com o Cifra Club, entao a grafia vale —
+   e o teste legado foi ATUALIZADO com os intervalos, nao removido. */
+ok(M.parseChord('Cm7M') !== null, 'Cm7M e reconhecido como acorde');
+ok(M.matchQuality('m7M') === 'mM7', 'Cm7M mapeia para a qualidade mM7',
+  M.matchQuality('m7M'));
+ok(M.matchQuality('m7M') === M.matchQuality('mM7'),
+  'Cm7M e CmM7 sao o mesmo acorde', M.matchQuality('m7M') + ' vs ' + M.matchQuality('mM7'));
+ok(M.transposeCifra('Cm7M  Cm7M', 2, false).split(/\s+/)[0] === 'DmMaj7',
+  'Cm7M +2 e DmMaj7', M.transposeCifra('Cm7M  Cm7M', 2, false));
+
+/* A conversao de `Cm7M` para `DmMaj7` muda a grafia, e o motor faz isso com
+   outros acordes tambem (`C7M` vira `Dmaj7`). O que nao pode mudar e o
+   CONTEUDO, entao e o conteudo que se compara. */
+const cM7 = M.chordInfo(M.parseChord('Cm7M').root, M.matchQuality('m7M'), false);
+ok(JSON.stringify(cM7.notes.map((x) => (x - cM7.notes[0] + 12) % 12).sort((a, b) => a - b))
+  === JSON.stringify([0, 3, 7, 11]),
+  'Cm7M tem os intervalos de menor com setima maior', JSON.stringify(cM7.notes));
+
+/* ============================================================
+secao('8. `Amo`: o verbo que virava acorde');
+
+/* A CAUSA, que e de GRAMATICA e nao de palavra proibida
+   `Amo` (o verbo "eu amo") era lido como acorde. A razao: dentro do padrao de
+   aceitava `m` E `o` como pecas do sufixo, e o `o` solto significa diminuto.
+   O token virava acorde com sufixo `mo` que o motor nao reconhecia — e ainda
+   assim a fundamental andava, entao a letra saia "Bmo cantar com voce".
+   `Co7`, que e diminuto com setima e existe de verdade, usava o mesmo `o`.
+   A diferenca entre os dois e a POSICAO: diminuto vem logo depois da raiz
+   (`Co`, `Co7`); depois de `m` nao existe diminuto. A correcao moveu o `o`
+   para um marcador proprio logo apos a raiz — regra de forma, e nao lista
+   de palavras proibidas. */
+
+const LETRAS = [
+  'Amo cantar com voc\u00ea',
+  'Eu amo voc\u00ea',
+  'AmoPk',
+  'amo',
+  'maior',
+  'menor',
+  'amo e vida',
+];
+for (const frase of LETRAS) {
+  ok(M.transposeCifra(frase + '  ' + frase, 2, false) === frase + '  ' + frase,
+    'frase intacta: ' + JSON.stringify(frase),
+    M.transposeCifra(frase + '  ' + frase, 2, false));
+}
+ok(M.parseChord('Amo') === null, 'Amo nao e acorde');
+ok(M.parseChord('AmoPk') === null, 'AmoPk nao e acorde');
+
+/* E o diminished continua valendo, que e o motivo de a correcao ser de
+   posicao e nao de remocao: `Co` e `Co7` sao usados por quem toca. */
+ok(M.parseChord('Co') !== null, 'Co continua sendo acorde', 'diminuto');
+ok(M.matchQuality('o') === 'dim', 'Co tem qualidade de diminuto', M.matchQuality('o'));
+ok(M.transposeCifra('Co7  Co7', 2, false).split(/\s+/)[0] === 'Ddim7',
+  'Co7 +2 e Ddim7', M.transposeCifra('Co7  Co7', 2, false));
+
+/* As formas VALIDAS de acorde nao podem ter sido estragadas pela correcao. */
+const VALIDOS = [['A', 'B'], ['Am', 'Bm'], ['A7', 'B7'], ['Am7', 'Bm7']];
+for (const v of VALIDOS) {
+  ok(M.transposeCifra(v[0] + '  ' + v[0], 2, false).split(/\s+/)[0] === v[1],
+    'acorde valido continua transpondo: ' + v[0] + ' -> ' + v[1],
+    M.transposeCifra(v[0] + '  ' + v[0], 2, false));
+}
+
+
+
 console.log('\n' + '='.repeat(66));
 console.log('  ' + passou + ' passaram, ' + falhou + ' falharam');
 if (falhou) {

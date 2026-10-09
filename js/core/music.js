@@ -378,6 +378,18 @@
     // "Cm-5b5" e "Cm-5(b5)": o travessao antes do 5 marca a quinta baixa
     s = s.replace(/-5b5$/, '7b5');
 
+    /* ORDEM "m7M" DO ONSONG — GRAFIA DO CIFRA CLUB, AGORA ACEITA
+     *
+     * O padrao do Cifra Club documenta `Cm7M` como menor com setima maior —
+     * os mesmos intervalos de `CmM7`, que o motor ja conhece. Existia aqui uma
+     * regra que negava essa grafia, de decisao de produto antiga; o objetivo do
+     * projeto agora e compatibilidade com o Cifra Club, entao ela vale.
+     *
+     * A conversao vem ANTES do `toLowerCase`: em caixa baixa `m7M` e `m7` sao
+     * a mesma coisa e o M do maior se perderia. Por isso o M volta em
+     * maiuscula — e a chave `mM7` do vocabulario de qualidades. */
+    s = s.replace(/^m(\d+)M$/, 'mM$1');
+
     s = s.toLowerCase();
     if (!s) return '';
     if (s === 'm') return 'm';
@@ -452,13 +464,31 @@
   const PAREN = '(?:\\((?:' + GRAU + '|[b#]5)(?:\\/(?:' + GRAU + '|[b#]5))*\\))?';
   /* uma peca do miolo. A ordem das alternativas importa: `maj` antes de `m`,
      `min` antes de `mi`, para o mais longo vencer. */
-  const PECA = '(?:maj|min|mi|dim|aug|add|sus|m|M|o|\u00b0|\u00ba|\u00f8|\u0394|[+*\\-]|\\d{1,2}[+-]?|[b#]5)';
+  const PECA = '(?:maj|Maj|min|mi|dim|aug|add|sus|m|M|\u00b0|\u00ba|\u00f8|\u0394|[+*\\-]|\\d{1,2}[+-]?|[b#]5)';
+  /* `Maj` com M maiusculo entrou aqui por um motivo concreto: e o rotulo que
+     * QUALITIES da a qualidade `mM7`, e o motor precisa conseguir RELER o que
+     * ele proprio imprime. Sem o `Maj`, `Cm7M` virava `DmMaj7` na transposicao,
+     * esse texto nao casava de novo, e a ida e volta devolvia o mesmo acorde
+     * deslocado. Um motor que nao le a propria saida perde a qualidade do acorde
+     * assim que a cifra passa pelo armazenamento. */
   /* `m7M`, `m5-` e `6-` alternam letra e numero. O padrao antigo exigia todas
      as letras antes de todos os numeros, e por isso nao casava com nenhum
      deles. Daqui a razao de o miolo ser uma repeticao de pecas, e nao
      letra-depois-numero. */
+  /* O "o" DE DIMINUTO SO VALE LOGO DEPOIS DA RAIZ.
+     *
+     * `Co` e `Co7` sao diminuto — e o projeto usa os dois. Dentro de PECA o
+     * "o" solto quebrava o verbo "Amo": `m` e `o` viravam duas pecas e a
+     * palavra virava acorde, com a fundamental movida e virando "Bmo".
+     *
+     * A diferenca nao e o "o", e a POSICAO dele. Diminuto vem antes de tudo
+     * (`Co`, `Co7`); depois de `m` nao existe diminuto nenhum. Por isso ele sai
+     * de PECA e vira marcador proprio, logo apos a raiz. Isso e regra de
+     * GRAMATICA, e nao lista de palavras proibidas: `Amo` deixa de ter forma de
+     * acorde, `Co7` continua valendo, e `Am` nao foi tocado.
+     */
   const CHORD_RE = new RegExp(
-    '^(' + NOTA + ')(' + ACC + '{0,2})(' + PECA + '{0,6}'
+    '^(' + NOTA + ')(' + ACC + '{0,2})((?:o)?' + PECA + '{0,6}'
     + '(?:\\/(?:\\d{1,2}[+-]?|[b#]5))*' + PAREN + FORA + ')'
     + '(?:\\/(' + NOTA + ACC + '{0,2}))?$'
   );
@@ -511,7 +541,16 @@
      * o conflito anotado: o padrao do Cifra Club (a fonte da missao) lista
      * `Cm7M` como valido, entao esta decisao merece uma conversa com quem
      * decide, e nao uma alteracao silenciosa feita por mim. */
-    if (/^[A-G][#b\u266f\u266d]?m\d+M$/i.test(s)) return null;
+    /* ORDEM "m7M" DO ONSONG — AGORA ACEITA
+     *
+     * O padrao de cifragem do Cifra Club documenta `Cm7M` como "menor com
+     * 7M", os mesmos intervalos de `CmM7`. Havia aqui uma regra que negava
+     * a grafia, por decisao de produto antiga; o objetivo do projeto agora e
+     * compatibilidade com o Cifra Club, entao ela passa a valer.
+     *
+     * A conversao e feita ANTES do `toLowerCase`, porque em caixa baixa
+     * `m7M` e `m7` viram a mesma coisa e o `M` do maior se perderia. Por isso
+     * o `M` e devolvido em maiuscula, que e a chave `mM7` do vocabulario. */
     if (!s || s.length > 24) return null; /* 24 e o limite real: `C7(9/11+/13-)` tem 13 caracteres e o proprio padrao do Cifra Club usa exatamente essa forma. Com 12, o acorde era recusado antes de ser olhado. */
     const m = CHORD_RE.exec(s);
     if (!m) return null;
